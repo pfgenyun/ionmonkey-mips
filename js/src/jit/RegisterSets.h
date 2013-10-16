@@ -753,7 +753,7 @@ class AsmJSHeapAccess
 {
     uint32_t offset_;
     uint8_t opLength_;
-#if defined(JS_CPU_X86)
+#if defined(JS_CPU_X86)||defined(JS_CPU_MIPS)//mips keep consistent with x86
     uint8_t cmpDelta_;
 #endif
     uint8_t isFloat32Load_;
@@ -762,7 +762,7 @@ class AsmJSHeapAccess
     JS_STATIC_ASSERT(jit::AnyRegister::Total < UINT8_MAX);
 
   public:
-#if defined(JS_CPU_X86)
+#if defined(JS_CPU_X86)||defined(JS_CPU_MIPS)//mips keep consistent with x86
     AsmJSHeapAccess(uint32_t cmp, uint32_t offset, uint32_t after, ArrayBufferView::ViewType vt,
                     AnyRegister loadedReg)
       : offset_(offset),

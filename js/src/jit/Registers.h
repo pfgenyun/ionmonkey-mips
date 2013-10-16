@@ -15,11 +15,13 @@
 # include "x64/Architecture-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "arm/Architecture-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/Architecture-mips.h"
 #endif
 #include "FixedArityList.h"
 
 // ARM defines the RegisterID within Architecture-arm.h
-#if !defined(JS_CPU_ARM) && defined(JS_METHODJIT)
+#if !defined(JS_CPU_ARM) && !defined(JS_CPU_MIPS) && defined(JS_METHODJIT)
 #include "assembler/assembler/MacroAssembler.h"
 #endif
 

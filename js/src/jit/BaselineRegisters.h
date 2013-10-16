@@ -13,6 +13,8 @@
 # include "x86/BaselineRegisters-x86.h"
 #elif defined(JS_CPU_X64)
 # include "x64/BaselineRegisters-x64.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/BaselineRegisters-mips.h"
 #else
 # include "arm/BaselineRegisters-arm.h"
 #endif
