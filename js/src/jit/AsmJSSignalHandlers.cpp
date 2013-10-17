@@ -338,6 +338,9 @@ ContextToPC(CONTEXT *context)
 #  elif defined(JS_CPU_ARM)
     JS_STATIC_ASSERT(sizeof(PC_sig(context)) == sizeof(void*));
     return reinterpret_cast<uint8_t**>(&PC_sig(context));
+#  elif defined(JS_CPU_MIPS)
+//xsb:fix me
+    return NULL;
 #  endif
 }
 

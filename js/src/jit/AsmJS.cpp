@@ -5380,7 +5380,7 @@ FillArgumentArray(ModuleCompiler &m, const MIRTypeVector &argTypes,
           case ABIArg::Stack:
             if (i.mirType() == MIRType_Int32) {
                 Address src(StackPointer, offsetToCallerStackArgs + i->offsetFromArgBase());
-#if defined(JS_CPU_X86) || defined(JS_CPU_X64)
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64)||defined(JS_CPU_MIPS)
                 masm.load32(src, scratch);
                 masm.storeValue(JSVAL_TYPE_INT32, scratch, dstAddr);
 #else
@@ -5499,6 +5499,8 @@ GenerateFFIInterpreterExit(ModuleCompiler &m, const ModuleCompiler::ExitDescript
     // registers to restore.
     masm.freeStack(stackDec);
     masm.ret();
+#elif defined(JS_CPU_MIPS)
+//xsb:fix me
 #else
     const unsigned arrayLength = Max<size_t>(1, exit.argTypes().length());
     const unsigned arraySize = arrayLength * sizeof(Value);
@@ -5710,6 +5712,8 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
 #elif defined(JS_CPU_X86)
     CodeOffsetLabel label2 = masm.movlWithPatch(Imm32(0), callee);
     m.addGlobalAccess(AsmJSGlobalAccess(label2.offset(), globalDataOffset));
+#elif defined(JS_CPU_MIPS)
+//xsb:fix me
 #else
     masm.lea(Operand(GlobalReg, globalDataOffset), callee);
 #endif
@@ -5732,6 +5736,8 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     unsigned offsetToCallerStackArgs = masm.framePushed();
 #if defined(JS_CPU_X86) || defined(JS_CPU_X64)
     offsetToCallerStackArgs += NativeFrameSize;
+#elif defined(JS_CPU_MIPS)
+//xsb:fix me
 #else
     offsetToCallerStackArgs += ShadowStackSpace;
 #endif
@@ -5838,7 +5844,7 @@ GenerateStackOverflowExit(ModuleCompiler &m, Label *throwLabel)
     masm.align(CodeAlignment);
     masm.bind(&m.stackOverflowLabel());
 
-#if defined(JS_CPU_X86)
+#if defined(JS_CPU_X86) || defined(JS_CPU_MIPS)
     // Ensure that at least one slot is pushed for passing 'cx' below.
     masm.push(Imm32(0));
 #endif
@@ -5858,6 +5864,8 @@ GenerateStackOverflowExit(ModuleCompiler &m, Label *throwLabel)
 #elif defined(JS_CPU_X64)
     LoadAsmJSActivationIntoRegister(masm, IntArgReg0);
     LoadJSContextFromActivation(masm, IntArgReg0, IntArgReg0);
+#elif defined(JS_CPU_MIPS)
+//xsb:fix me
 #else
 
     // on ARM, we should always be aligned, just do the context manipulation
