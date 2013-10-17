@@ -87,6 +87,9 @@ endif
 ifeq (arm, $(findstring arm, $(TARGET_CPU)))
 VPATH +=	$(srcdir)/jit/arm
 endif
+ifeq (mips, $(findstring mips, $(TARGET_CPU)))
+VPATH +=        $(srcdir)/jit/mips
+endif
 endif #ENABLE_ION
 
 ###############################################
