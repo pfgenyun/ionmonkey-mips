@@ -35,7 +35,6 @@
 #include "assembler/wtf/Assertions.h"
 #include "assembler/wtf/SegmentedVector.h"
 
-#include "methodjit/Logging.h"
 #define IPFX  "        %s"
 #define ISPFX "        "
 #ifdef JS_METHODJIT_SPEW
@@ -113,7 +112,8 @@ typedef enum {
     gp = r28,
     sp = r29,
     fp = r30,
-    ra = r31
+    ra = r31,
+    invalid_reg
 } RegisterID;
 
 typedef enum {
@@ -148,7 +148,8 @@ typedef enum {
     f28,
     f29,
     f30,
-    f31
+    f31,
+    invalid_freg
 } FPRegisterID;
 
 } // namespace MIPSRegisters
@@ -181,12 +182,18 @@ public:
         {
         }
 
-    private:
+        int offset() {return m_offset;}
+
+        bool isSet() const {
+            return m_offset != -1;
+        }
+
         JmpSrc(int offset)
             : m_offset(offset)
         {
         }
 
+    private:
         int m_offset;
     };
 
@@ -202,7 +209,6 @@ public:
         bool isUsed() const { return m_used; }
         void used() { m_used = true; }
         bool isValid() const { return m_offset != -1; }
-    private:
         JmpDst(int offset)
             : m_offset(offset)
             , m_used(false)
@@ -210,6 +216,10 @@ public:
             ASSERT(m_offset == offset);
         }
 
+        int offset() const {                                                                    
+            return m_offset;                                                                    
+        }
+    private:
         int m_offset : 31;
         int m_used : 1;
     };
@@ -511,6 +521,11 @@ public:
         emitInst(0x0000000d | ((value & 0x3ff) << OP_SH_CODE));
     }
 
+    void bal(int imm)
+    {
+        emitInst(0x04110000 | (imm & 0xffff));
+    }
+
     void bgez(RegisterID rs, int imm)
     {
         emitInst(0x04010000 | (rs << OP_SH_RS) | (imm & 0xffff));
@@ -627,6 +642,18 @@ public:
         copDelayNop();
     }
 
+    void dsrl32(RegisterID rt, RegisterID rd, int saminus32)
+    {
+        emitInst(0x0000003d | (rd << OP_SH_RD) | (rt << OP_SH_RT) | (saminus32 << OP_SH_SHAMT));
+        copDelayNop();
+    }
+
+    void dmfc1(RegisterID rt, FPRegisterID fs)
+    {
+        emitInst(0x44200000 | (fs << OP_SH_FS) | (rt << OP_SH_RT));
+        copDelayNop();
+    }
+
     void mfc1(RegisterID rt, FPRegisterID fs)
     {
         emitInst(0x44000000 | (fs << OP_SH_FS) | (rt << OP_SH_RT));
@@ -641,6 +668,11 @@ public:
     void truncwd(FPRegisterID fd, FPRegisterID fs)
     {
         emitInst(0x4620000d | (fd << OP_SH_FD) | (fs << OP_SH_FS));
+    }
+
+    void floorwd(FPRegisterID fd, FPRegisterID fs)
+    {
+        emitInst(0x4620000f | (fd << OP_SH_FD) | (fs << OP_SH_FS));
     }
 
     void cvtdw(FPRegisterID fd, FPRegisterID fs)
@@ -661,6 +693,12 @@ public:
     void cvtwd(FPRegisterID fd, FPRegisterID fs)
     {
         emitInst(0x46200024 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
+    }
+
+    void cud(FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200031 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
     }
 
     void ceqd(FPRegisterID fs, FPRegisterID ft)
@@ -730,6 +768,10 @@ public:
         return JmpDst(m_buffer.size());
     }
 
+    size_t currentOffset() const {
+        return m_buffer.size();
+    }
+    
     JmpDst align(int alignment)
     {
         while (!m_buffer.isAligned(alignment))
@@ -788,12 +830,10 @@ public:
         relocateJumps(m_buffer.data(), result);
         return result;
     }
+             
+    static void setRel32(void* from, void* to);
 
-    static unsigned getCallReturnOffset(JmpSrc call)
-    {
-        // The return address is after a call and a delay slot instruction
-        return call.m_offset;
-    }
+    static unsigned getCallReturnOffset(JmpSrc call);
 
     // Linking & patching:
     //
@@ -803,264 +843,55 @@ public:
     // writable region of memory; to modify the code in an execute-only execuable
     // pool the 'repatch' and 'relink' methods should be used.
 
-    void linkJump(JmpSrc from, JmpDst to)
-    {
-        ASSERT(to.m_offset != -1);
-        ASSERT(from.m_offset != -1);
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + from.m_offset);
-        MIPSWord* toPos = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + to.m_offset);
+    // Like Lua's emitter, we thread jump lists through the unpatched target
+    // field, which will get fixed up when the label (which has a pointer to
+    // the head of the jump list) is bound.
+    bool nextJump(const JmpSrc& from, JmpSrc* next);
 
-        ASSERT(!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5)));
-        insn = insn - 6;
-        linkWithOffset(insn, toPos);
-    }
+    void setNextJump(const JmpSrc& from, const JmpSrc &to);
 
-    static void linkJump(void* code, JmpSrc from, void* to)
-    {
-        ASSERT(from.m_offset != -1);
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(code) + from.m_offset);
+    void linkJump(JmpSrc from, JmpDst to);
 
-        ASSERT(!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5)));
-        insn = insn - 6;
-        linkWithOffset(insn, to);
-    }
+    static void linkJump(void* code, JmpSrc from, void* to);
 
-    static bool canRelinkJump(void* from, void* to)
-    {
-        return true;
-    }
+    static bool canRelinkJump(void* from, void* to);
 
-    static void linkCall(void* code, JmpSrc from, void* to)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(code) + from.m_offset);
-        linkCallInternal(insn, to);
-    }
+    static void linkCall(void* code, JmpSrc from, void* to);
 
-    static void linkPointer(void* code, JmpDst from, void* to)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(code) + from.m_offset);
-        ASSERT((*insn & 0xffe00000) == 0x3c000000); // lui
-        *insn = (*insn & 0xffff0000) | ((reinterpret_cast<intptr_t>(to) >> 16) & 0xffff);
-        insn++;
-        ASSERT((*insn & 0xfc000000) == 0x34000000); // ori
-        *insn = (*insn & 0xffff0000) | (reinterpret_cast<intptr_t>(to) & 0xffff);
-    }
+    static void linkPointer(void* code, JmpDst from, void* to);
 
-    static void relinkJump(void* from, void* to)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(from);
+    static void relinkJump(void* from, void* to);
 
-        ASSERT(!(*(insn - 1)) && !(*(insn - 5)));
-        insn = insn - 6;
-        int flushSize = linkWithOffset(insn, to);
+    static void relinkCall(void* from, void* to);
 
-        ExecutableAllocator::cacheFlush(insn, flushSize);
-    }
+    static void repatchInt32(void* from, int32_t to);
 
-    static void relinkCall(void* from, void* to)
-    {
-        void* start;
-        int size = linkCallInternal(from, to);
-        if (size == sizeof(MIPSWord))
-            start = reinterpret_cast<void*>(reinterpret_cast<intptr_t>(from) - 2 * sizeof(MIPSWord));
-        else
-            start = reinterpret_cast<void*>(reinterpret_cast<intptr_t>(from) - 4 * sizeof(MIPSWord));
+    static void repatchPointer(void* from, void* to);
 
-        ExecutableAllocator::cacheFlush(start, size);
-    }
+    static void repatchLoadPtrToLEA(void* from);
 
-    static void repatchInt32(void* from, int32_t to)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(from);
-        ASSERT((*insn & 0xffe00000) == 0x3c000000); // lui
-        *insn = (*insn & 0xffff0000) | ((to >> 16) & 0xffff);
-        insn++;
-        ASSERT((*insn & 0xfc000000) == 0x34000000); // ori
-        *insn = (*insn & 0xffff0000) | (to & 0xffff);
-        insn--;
-        ExecutableAllocator::cacheFlush(insn, 2 * sizeof(MIPSWord));
-    }
+    static void repatchLEAToLoadPtr(void* from);
 
-    static void repatchPointer(void* from, void* to)
-    {
-        repatchInt32(from, reinterpret_cast<int32_t>(to));
-    }
+    static void *getRel32Target(void* where);
 
-    static void repatchLoadPtrToLEA(void* from)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(from);
-        insn = insn + 3;
-        ASSERT((*insn & 0xfc000000) == 0x8c000000); // lw
-        /* lw -> addiu */
-        *insn = 0x24000000 | (*insn & 0x03ffffff);
+    static void *getPointer(void* where);
 
-        ExecutableAllocator::cacheFlush(insn, sizeof(MIPSWord));
-    }
+    static void **getPointerRef(void* where);
 
-    static void repatchLEAToLoadPtr(void* from)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(from);
-        insn = insn + 3;
-        if ((*insn & 0xfc000000) == 0x8c000000)
-          return; // Valid lw instruction
+    static void setPointer(void* where, const void* value);
 
-        ASSERT((*insn & 0xfc000000) == 0x24000000); // addiu
-        /* addiu -> lw */
-        *insn = 0x8c000000 | (*insn & 0x03ffffff);
+//private:
 
-        ExecutableAllocator::cacheFlush(insn, sizeof(MIPSWord));
-    }
+    static int32_t getInt32(void* where);
 
-private:
+    static void setInt32(void* where, int32_t value);
 
     /* Update each jump in the buffer of newBase.  */
-    void relocateJumps(void* oldBase, void* newBase)
-    {
-        // Check each jump
-        for (Jumps::Iterator iter = m_jumps.begin(); iter != m_jumps.end(); ++iter) {
-            int pos = *iter;
-            MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(newBase) + pos);
-            insn = insn + 2;
-            // Need to make sure we have 5 valid instructions after pos
-            if ((unsigned int)pos >= m_buffer.size() - 5 * sizeof(MIPSWord))
-                continue;
+    void relocateJumps(void* oldBase, void* newBase);
 
-            if ((*insn & 0xfc000000) == 0x08000000) { // j
-                int offset = *insn & 0x03ffffff;
-                int oldInsnAddress = (int)insn - (int)newBase + (int)oldBase;
-                int topFourBits = (oldInsnAddress + 4) >> 28;
-                int oldTargetAddress = (topFourBits << 28) | (offset << 2);
-                int newTargetAddress = oldTargetAddress - (int)oldBase + (int)newBase;
-                int newInsnAddress = (int)insn;
-                if (((newInsnAddress + 4) >> 28) == (newTargetAddress >> 28))
-                    *insn = 0x08000000 | ((newTargetAddress >> 2) & 0x3ffffff);
-                else {
-                    /* lui */
-                    *insn = 0x3c000000 | (MIPSRegisters::t9 << OP_SH_RT) | ((newTargetAddress >> 16) & 0xffff);
-                    /* ori */
-                    *(insn + 1) = 0x34000000 | (MIPSRegisters::t9 << OP_SH_RT) | (MIPSRegisters::t9 << OP_SH_RS) | (newTargetAddress & 0xffff);
-                    /* jr */
-                    *(insn + 2) = 0x00000008 | (MIPSRegisters::t9 << OP_SH_RS);
-                }
-            } else if ((*insn & 0xffe00000) == 0x3c000000) { // lui
-                int high = (*insn & 0xffff) << 16;
-                int low = *(insn + 1) & 0xffff;
-                int oldTargetAddress = high | low;
-                int newTargetAddress = oldTargetAddress - (int)oldBase + (int)newBase;
-                /* lui */
-                *insn = 0x3c000000 | (MIPSRegisters::t9 << OP_SH_RT) | ((newTargetAddress >> 16) & 0xffff);
-                /* ori */
-                *(insn + 1) = 0x34000000 | (MIPSRegisters::t9 << OP_SH_RT) | (MIPSRegisters::t9 << OP_SH_RS) | (newTargetAddress & 0xffff);
-            }
-        }
-    }
+    static int linkWithOffset(MIPSWord* insn, void* to);
 
-    static int linkWithOffset(MIPSWord* insn, void* to)
-    {
-        ASSERT((*insn & 0xfc000000) == 0x10000000 // beq
-               || (*insn & 0xfc000000) == 0x14000000 // bne
-               || (*insn & 0xffff0000) == 0x45010000 // bc1t
-               || (*insn & 0xffff0000) == 0x45000000); // bc1f
-        intptr_t diff = (reinterpret_cast<intptr_t>(to)
-                         - reinterpret_cast<intptr_t>(insn) - 4) >> 2;
-
-        if (diff < -32768 || diff > 32767 || *(insn + 2) != 0x10000003) {
-            /*
-                Convert the sequence:
-                  beq $2, $3, target
-                  nop
-                  b 1f
-                  nop
-                  nop
-                  nop
-                1:
-
-                to the new sequence if possible:
-                  bne $2, $3, 1f
-                  nop
-                  j    target
-                  nop
-                  nop
-                  nop
-                1:
-
-                OR to the new sequence:
-                  bne $2, $3, 1f
-                  nop
-                  lui $25, target >> 16
-                  ori $25, $25, target & 0xffff
-                  jr $25
-                  nop
-                1:
-
-                Note: beq/bne/bc1t/bc1f are converted to bne/beq/bc1f/bc1t.
-            */
-
-            if (*(insn + 2) == 0x10000003) {
-                if ((*insn & 0xfc000000) == 0x10000000) // beq
-                    *insn = (*insn & 0x03ff0000) | 0x14000005; // bne
-                else if ((*insn & 0xfc000000) == 0x14000000) // bne
-                    *insn = (*insn & 0x03ff0000) | 0x10000005; // beq
-                else if ((*insn & 0xffff0000) == 0x45010000) // bc1t
-                    *insn = 0x45000005; // bc1f
-                else if ((*insn & 0xffff0000) == 0x45000000) // bc1f
-                    *insn = 0x45010005; // bc1t
-                else
-                    ASSERT(0);
-            }
-
-            insn = insn + 2;
-            if ((reinterpret_cast<intptr_t>(insn) + 4) >> 28
-                == reinterpret_cast<intptr_t>(to) >> 28) {
-                *insn = 0x08000000 | ((reinterpret_cast<intptr_t>(to) >> 2) & 0x3ffffff);
-                *(insn + 1) = 0;
-                return 4 * sizeof(MIPSWord);
-            }
-
-            intptr_t newTargetAddress = reinterpret_cast<intptr_t>(to);
-            /* lui */
-            *insn = 0x3c000000 | (MIPSRegisters::t9 << OP_SH_RT) | ((newTargetAddress >> 16) & 0xffff);
-            /* ori */
-            *(insn + 1) = 0x34000000 | (MIPSRegisters::t9 << OP_SH_RT) | (MIPSRegisters::t9 << OP_SH_RS) | (newTargetAddress & 0xffff);
-            /* jr */
-            *(insn + 2) = 0x00000008 | (MIPSRegisters::t9 << OP_SH_RS);
-            return 5 * sizeof(MIPSWord);
-        }
-
-        *insn = (*insn & 0xffff0000) | (diff & 0xffff);
-        return sizeof(MIPSWord);
-    }
-
-    static int linkCallInternal(void* from, void* to)
-    {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(from);
-        insn = insn - 4;
-
-        if ((*(insn + 2) & 0xfc000000) == 0x0c000000) { // jal
-            if ((reinterpret_cast<intptr_t>(from) - 4) >> 28
-                == reinterpret_cast<intptr_t>(to) >> 28) {
-                *(insn + 2) = 0x0c000000 | ((reinterpret_cast<intptr_t>(to) >> 2) & 0x3ffffff);
-                return sizeof(MIPSWord);
-            }
-
-            /* lui $25, (to >> 16) & 0xffff */
-            *insn = 0x3c000000 | (MIPSRegisters::t9 << OP_SH_RT) | ((reinterpret_cast<intptr_t>(to) >> 16) & 0xffff);
-            /* ori $25, $25, to & 0xffff */
-            *(insn + 1) = 0x34000000 | (MIPSRegisters::t9 << OP_SH_RT) | (MIPSRegisters::t9 << OP_SH_RS) | (reinterpret_cast<intptr_t>(to) & 0xffff);
-            /* jalr $25 */
-            *(insn + 2) = 0x0000f809 | (MIPSRegisters::t9 << OP_SH_RS);
-            return 3 * sizeof(MIPSWord);
-        }
-
-        ASSERT((*insn & 0xffe00000) == 0x3c000000); // lui
-        ASSERT((*(insn + 1) & 0xfc000000) == 0x34000000); // ori
-
-        /* lui */
-        *insn = (*insn & 0xffff0000) | ((reinterpret_cast<intptr_t>(to) >> 16) & 0xffff);
-        /* ori */
-        *(insn + 1) = (*(insn + 1) & 0xffff0000) | (reinterpret_cast<intptr_t>(to) & 0xffff);
-        return 2 * sizeof(MIPSWord);
-    }
+    static int linkCallInternal(void* from, void* to);
 
     AssemblerBuffer m_buffer;
     Jumps m_jumps;
@@ -1070,4 +901,4 @@ private:
 
 #endif // ENABLE(ASSEMBLER) && CPU(MIPS)
 
-#endif /* assembler_assembler_MIPSAssembler_h */
+#endif // MIPSAssembler_h
