@@ -210,7 +210,7 @@ Assembler::retn(Imm32 n) {
     // Remove the size of the return address which is included in the frame.
 //okm   masm.ret(n.value - sizeof(void *));
     pop(ra);
-    mcss.ret((n.value - sizeof(void *)));//参数代表恢复栈的空间大小
+    mcss.ret((n.value - sizeof(void *)));
     //mcss.ret((n.value));
 }
 Assembler::JmpSrc

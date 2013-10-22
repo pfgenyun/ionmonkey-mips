@@ -125,13 +125,12 @@ static const MOZ_CONSTEXPR Register CallTempReg3 = s4;//ecx;
 static const MOZ_CONSTEXPR Register CallTempReg4 = s5;//esi;
 static const MOZ_CONSTEXPR Register CallTempReg5 = s6;//edx;
 static const MOZ_CONSTEXPR Register CallTempReg6 = s7;//ebp;
-//Õâ¼¸¸ö¼Ä´æÆ÷ÎªMIPS×Ô¶¨Òå
-//static const MOZ_CONSTEXPR Register immTempRegister  = t0;//ÔÚIonÄ¿Â¼ÏÂÃ»ÓÐÓÃµ½£»ÔÚassembler/assemblerÄ¿Â¼ÏÂÒÑ¾­¶¨Òå
-static const MOZ_CONSTEXPR Register dataTempRegister = t1;//x86ÖÐµÄÖ¸Áî¿ÉÖ±½Ó¶ÔÄÚ´æÊý½øÐÐALUÔËËã£¬Òò´Ë¶ÔÓÚÕâÀàÔËËã£¬MIPSÏÈ½«ÄÚ´æÊýÈ¡³ö£¬·ÅÈëÒ»¸öÖ¸¶¨¼Ä´æÆ÷£¬ÔËËãÍê³ÉºóÔÙ·Å»ØÄÚ´æ£»
-static const MOZ_CONSTEXPR Register addrTempRegister = t2;//ÔÚIonÄ¿Â¼ÏÂÃ»ÓÐÓÃµ½£»ÔÚassembler/assemblerÄ¿Â¼ÏÂÒÑ¾­¶¨Òå
+static const MOZ_CONSTEXPR Register immTempRegister  = t0;
+static const MOZ_CONSTEXPR Register dataTempRegister = t1;
+static const MOZ_CONSTEXPR Register addrTempRegister = t2;
 static const MOZ_CONSTEXPR Register cmpTempRegister  = t3;
+static const MOZ_CONSTEXPR Register dataTemp2Register = t4;
 static const MOZ_CONSTEXPR Register cmpTemp2Register  = t5;
-//static const MOZ_CONSTEXPR Register dataTemp2Register = t4;//ÔÚIonÄ¿Â¼ÏÂÃ»ÓÐÓÃµ½£»ÔÚassembler/assemblerÄ¿Â¼ÏÂÒÑ¾­¶¨Òå
 
 
 static const MOZ_CONSTEXPR FloatRegister fpTempRegister = f28;
@@ -154,9 +153,9 @@ class ABIArgGenerator
     uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
 
     // Note: these registers are all guaranteed to be different
-    static const Register NonArgReturnVolatileReg0;//ÔÚAsmJS.cppÖÐÊ¹ÓÃ£»
-    static const Register NonArgReturnVolatileReg1;//ÔÚAsmJS.cppÖÐÊ¹ÓÃ£»
-    static const Register NonVolatileReg;//ÔÚAsmJS.cppÖÐÊ¹ÓÃ£»
+    static const Register NonArgReturnVolatileReg0;
+    static const Register NonArgReturnVolatileReg1;
+    static const Register NonVolatileReg;
 };
 
 static const MOZ_CONSTEXPR Register OsrFrameReg = s6;//edx;
@@ -301,7 +300,7 @@ namespace js {
 namespace jit {
 
 static inline void
-PatchJump(CodeLocationJump jump, CodeLocationLabel label)//ÔÚIonCaches.cppÖÐ±»Ê¹ÓÃ£»
+PatchJump(CodeLocationJump jump, CodeLocationLabel label)
 {
 #ifdef DEBUG
     // Assert that we're overwriting a jump instruction, either:
@@ -351,7 +350,7 @@ class Assembler
             dataRelocations_.writeUnsigned(masm.currentOffset());
     }
     //this is new in ff24
-    void writePrebarrierOffset(CodeOffsetLabel label) {//ÔÚIonMacroAssembler.hÖÐ±»Ê¹ÓÃ£»
+    void writePrebarrierOffset(CodeOffsetLabel label) {
         preBarriers_.writeUnsigned(label.offset());
     }
     //end
@@ -488,7 +487,7 @@ class Assembler
     {
     }
 
-      static Condition InvertCondition(Condition cond);//½«Ìõ¼þ×ª»»Îª¶ÔÁ¢µÄÒ»¸ö£¬ÀýÈçµÈÓÚÁã×ª»»Îª·ÇÁã£»
+      static Condition InvertCondition(Condition cond);
 
     // Return the primary condition to test. Some primary conditions may not
     // handle NaNs properly and may therefore require a secondary condition.
@@ -662,30 +661,29 @@ class Assembler
     void lea(const Operand &src, const Register &dest) {
             return leal(src, dest);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Register src, ImmWord ptr) {
         movl(src,cmpTempRegister);
         movl(ptr,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Register src, ImmGCPtr ptr) {
         movl(src,cmpTempRegister);
         movl(ptr,cmpTemp2Register);
         writeDataRelocation(ptr);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Register &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &op, ImmGCPtr imm) {
         movl(op,cmpTempRegister);
         movl(imm,cmpTemp2Register);
         writeDataRelocation(imm);
     }
        //NOTE*:This is new in ff24. 
-       //½«Á¢¼´ÊýÓë¼Ä´æÆ÷µÄÊý×÷±È½Ï£»¸Ãº¯ÊýARMºÍx64ÖÐ¾ùÃ»ÓÐ¶¨Òå£¬
     CodeOffsetLabel cmplWithPatch(const Register &lhs, Imm32 rhs) {
 
      //   masm.cmpl_ir_force32(rhs.value, lhs.code());
@@ -714,7 +712,7 @@ class Assembler
     }
     void call(IonCode *target) {
   //      JmpSrc src = masm.call();
-     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns»ñÈ¡µ½µ±Ç°pcµÄÖµÈ»ºóÑ¹Õ»£»
+     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
     JmpSrc src = mcss.call().m_jmp;//4insns
     addPendingJump(src, target->raw(), Relocation::IONCODE);
@@ -730,7 +728,6 @@ class Assembler
     }
 
    //NOTE*:This is new in ff24.
-    //ÈôÒªÓëx86±£³ÖÒ»ÖÂ£¬ÐèÒª¶¨ÒåÒ»ÌõÖ¸ÁîÓÃÀ´Ä£Äâ¿ÕÖ¸Áî£»
        // Emit a CALL or CMP (nop) instruction. ToggleCall can be used to patch
     // this instruction.
     CodeOffsetLabel toggledCall(IonCode *target, bool enabled) {
@@ -746,7 +743,7 @@ class Assembler
     static size_t ToggledCallSize() {
         // Size of a call instruction.
     //    return 5;
-    		return 32; //ÔÚmipsÖÐcall()»áÉú³É4ÌõÖ¸Áî£»µ«ÊÇx86ÎªÊ²Ã´ÎªÉè¶¨Îª5£¿
+    		return 32; 
     }
 
     // Re-routes pending jumps to an external target, flushing the label in the
@@ -773,7 +770,7 @@ class Assembler
     }
 
 
-   //NOTE*:following  is new in ff24  £» mov**WithPatchÎª×Ô¶¨Òå´úÂë
+   //NOTE*:following  is new in ff24 
     // Move a 32-bit immediate into a register where the immediate can be
     // patched.
     CodeOffsetLabel movlWithPatch(Imm32 imm, Register dest) {
@@ -1054,7 +1051,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
-    /* //128Î»ÊýµÄÒÆ¶¯²Ù×÷£»
+    /* 
     void movdqa(const Operand &src, const FloatRegister &dest) {
         JS_ASSERT(HasSSE2());
         switch (src.kind()) {
@@ -1393,27 +1390,27 @@ class Assembler
     // The below cmpl methods switch the lhs and rhs when it invokes the
     // macroassembler to conform with intel standard.  When calling this
     // function put the left operand on the left as you would expect.
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Register &lhs, const Operand &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Register &src, Imm32 imm) {
         movl(src,cmpTempRegister);
         movl(imm,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &op, Imm32 imm) {
         movl(op,cmpTempRegister);
         movl(imm,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &op, ImmWord imm) {
         movl(op,cmpTempRegister);
         movl(imm,cmpTemp2Register);
@@ -1421,28 +1418,28 @@ class Assembler
     void setCC(Condition cond, const Register &r){
     //    masm.setCC_r(static_cast<JSC::X86Assembler::Condition>(cond), r.code());
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void testb(const Register &lhs, const Register &rhs) {
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));//SingleBytesRegs:t6,t7,t8,s0...s7,v0
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(rhs));//?
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void testl(const Register &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
         andl(cmpTempRegister,cmpTemp2Register);
         movl(zero,cmpTempRegister);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void testl(const Register &lhs, Imm32 rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
         andl(cmpTempRegister,cmpTemp2Register);
         movl(zero,cmpTempRegister);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
    void testl(const Operand &lhs, Imm32 rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
@@ -1784,12 +1781,12 @@ class Assembler
         }else 
             mcss.pop(mRegisterID(src.code()));
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void pushFlags() {
         push(cmpTempRegister);
         push(cmpTemp2Register);
     }
-     //edit by QuQiuwen
+     //edit by QuQiuwen,OK
     void popFlags() {
         pop(cmpTemp2Register);
         pop(cmpTempRegister);
@@ -1808,7 +1805,7 @@ class Assembler
     void movzxbl(const Register &src, const Register &dest)
     { 
     	//masm.movzbl_rr(src.code(), dest.code());
-    	mcss.zeroExtend32ToPtr(src.code(),dest.code());//mipsÖÐ²¢Ã»ÓÐÊµÏÖÀ©Õ¹£¡
+    	mcss.zeroExtend32ToPtr(src.code(),dest.code());
     }
     //Converts signed DWORD in EAX to a signed quad word in EDX:EAX by
   //      extending the high order bit of EAX throughout EDX
