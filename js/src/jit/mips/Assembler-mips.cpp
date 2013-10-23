@@ -109,6 +109,11 @@ Assembler::InvertCondition(Condition cond)
         return Equal;
     }
 }
+//edit by Quqiuwen,do not support PF
+void Assembler::setCC(Condition cond,const Register &r)
+{
+    mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),cmpTempRegister.code(),cmpTemp2Register.code(),r.code());
+}
 void
 Assembler::trace(JSTracer *trc)
 {

@@ -626,22 +626,28 @@ class Assembler
         }
   
     }
+//wangce
     void movl(ImmWord imm, Register dest) {
     	//ok        masm.movl_i32r(imm.value, dest.code());
         mcss.move(mTrustedImm32(imm.value), dest.code());
     }
+//wangce
     void mov(ImmWord imm, Register dest) {
         movl(imm, dest);
     }
+//wangce
     void mov(Imm32 imm, Register dest) {
         movl(imm, dest);
     }
+//wangce
     void mov(const Operand &src, const Register &dest) {
         movl(src, dest);
     }
+//wangce
     void mov(const Register &src, const Operand &dest) {
         movl(src, dest);
     }
+//wangce
     //NOTE*:This is new in ff24
     void mov(Imm32 imm, const Operand &dest) {
         movl(imm, dest);
@@ -654,6 +660,7 @@ class Assembler
        mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(label->prev())), dest.code());
         label->setPrev(masm.size());
     }
+//wangce
     void mov(const Register &src, const Register &dest) {
         movl(src, dest);
     }
@@ -907,14 +914,17 @@ class Assembler
         masm.doubleConstant(d);
     */
     }
+//wangce
     void movl(const Imm32 &imm32, const Register &dest) {
    //     masm.movl_i32r(imm32.value, dest.code());
     mcss.move(mTrustedImm32(imm32.value), dest.code());
     }
+//wangce
     void movl(const Register &src, const Register &dest) {
    //     masm.movl_rr(src.code(), dest.code());
        mcss.move(src.code(), dest.code());
     }
+//wangce
     void movl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
@@ -939,6 +949,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movl(const Register &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG:
@@ -963,6 +974,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
         void movl(const Imm32 &imm32, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG:
@@ -981,12 +993,14 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
 
 
     void movsd(const FloatRegister &src, const FloatRegister &dest) {
 //ok        masm.movsd_rr(src.code(), dest.code());
             mcss.moveDouble(src.code(), dest.code());
     }
+//wangce
     void movsd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::FPREG:
@@ -1005,6 +1019,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
   void movsd(const FloatRegister &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::FPREG:
@@ -1023,6 +1038,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movss(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
@@ -1037,6 +1053,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movss(const FloatRegister &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
@@ -1088,6 +1105,7 @@ class Assembler
 //ok        masm.cvtsd2ss_rr(src.code(), dest.code());
         mcss.convertDoubleToFloat(src.code(), dest.code());
     }
+//wangce
 
     void movzbl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
@@ -1103,6 +1121,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movxbl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
@@ -1117,6 +1136,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movb(const Register &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
@@ -1131,6 +1151,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movb(const Imm32 &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
@@ -1145,6 +1166,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movzwl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
@@ -1159,6 +1181,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
        void movw(const Register &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
@@ -1173,6 +1196,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movw(const Imm32 &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
@@ -1187,6 +1211,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+//wangce
     void movxwl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
@@ -1415,36 +1440,36 @@ class Assembler
         movl(op,cmpTempRegister);
         movl(imm,cmpTemp2Register);
     }
-    void setCC(Condition cond, const Register &r){
-    //    masm.setCC_r(static_cast<JSC::X86Assembler::Condition>(cond), r.code());
-    }
+    void setCC(Condition cond, const Register &r);
      //edit by QuQiuwen,OK
     void testb(const Register &lhs, const Register &rhs) {
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));//SingleBytesRegs:t6,t7,t8,s0...s7,v0
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(rhs));//?
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
      //edit by QuQiuwen,OK
     void testl(const Register &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
-        andl(cmpTempRegister,cmpTemp2Register);
-        movl(zero,cmpTempRegister);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
      //edit by QuQiuwen,OK
     void testl(const Register &lhs, Imm32 rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
-        andl(cmpTempRegister,cmpTemp2Register);
-        movl(zero,cmpTempRegister);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
      //edit by QuQiuwen,OK
    void testl(const Operand &lhs, Imm32 rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
-        andl(cmpTempRegister,cmpTemp2Register);
-        movl(zero,cmpTempRegister);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
 
     void addl(Imm32 imm, const Register &dest) {
@@ -1802,6 +1827,8 @@ class Assembler
 #endif
 */
     // Zero-extend byte to 32-bit integer.
+//wangce
+//just a "move"in "zeroExtend32ToPtr",may cause some trouble
     void movzxbl(const Register &src, const Register &dest)
     { 
     	//masm.movzbl_rr(src.code(), dest.code());
@@ -1913,14 +1940,17 @@ class Assembler
     void ucomisd(const FloatRegister &lhs, const FloatRegister &rhs) {
      //   JS_ASSERT(HasSSE2());
    //     masm.ucomisd_rr(rhs.code(), lhs.code());
+   ASSERT(0);
      mcss.moveDouble(lhs.code(), fpTempRegister.code());
      mcss.moveDouble(rhs.code(), fpTemp2Register.code());
     }
+//wangce
    
     void movd(const Register &src, const FloatRegister &dest) {
 //ok        masm.movd_rr(src.code(), dest.code());
         mcss.convertInt32ToDouble(src.code(),dest.code());
     }
+//wangce
     void movd(const FloatRegister &src, const Register &dest) {
 //ok        masm.movd_rr(src.code(), dest.code());
         mcss.truncateDoubleToInt32(src.code(), dest.code());
