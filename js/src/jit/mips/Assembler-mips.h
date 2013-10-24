@@ -1955,6 +1955,7 @@ class Assembler
     //NOTE*:this is new in ff24;
     void andl(const Register &src, const Register &dest) {
       // masm.andl_rr(src.code(), dest.code());
+      // ok by weizhenwei, 2013.10.20
         mcss.and32(src.code(), dest.code());
     }
     void andl(Imm32 imm, const Register &dest) {
@@ -2090,6 +2091,7 @@ class Assembler
     //NOTE* :this is new in ff24;
     void notl(const Register &reg) {
       //  masm.notl_r(reg.code());
+      //  ok by weizhenwei, 2013.10.20
       mcss.not32(reg.code());
     }
     void shrl(const Imm32 imm, const Register &dest) {
@@ -2106,19 +2108,23 @@ class Assembler
     }
     void shrl_cl(const Register &dest) {
      //  masm.shrl_CLr(dest.code());
-         mcss.urshift32(mRegisterID(v0.code()), dest.code());
+     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+         mcss.urshift32(mRegisterID(t8.code()), dest.code());
     }
     void shll_cl(const Register &dest) {
      //  masm.shll_CLr(dest.code());
-        mcss.lshift32(mRegisterID(v0.code()), dest.code());
+     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+        mcss.lshift32(mRegisterID(t8.code()), dest.code());
     }
     void sarl_cl(const Register &dest) {
-  //      masm.sarl_CLr(dest.code());
-      mcss.rshift32(mRegisterID(v0.code()), dest.code());
+     // masm.sarl_CLr(dest.code());
+     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+      mcss.rshift32(mRegisterID(t8.code()), dest.code());
     }
 
     void push(const Imm32 imm) {
 //ok??        masm.push_i32(imm.value);
+//ok by weizhenwei, 2013.10.20, according MacroAssemblerMIPS.h:1515,void push(TrustImm32)
         mcss.push(mTrustedImm32(imm.value));
     }
 
@@ -2208,19 +2214,34 @@ class Assembler
   //      extending the high order bit of EAX throughout EDX
     void cdq() {
       //  masm.cdq();
-        ASSERT(0);
+      //  ASSERT(0);
+      //  ok, by weizhenwei, 2013.10.21
+      //  according jit/mips/CodeGenerator-mips.cpp:visitDivI(),
+      //  eax = t6, edx = t7
+      //  so mov(t6, t7), sar(32, 0x1F); signal extend.
+//        Imm32 imm = Imm32(0x1F);
+//        mcss.mov(mRegisterID(t6.code()), mRegisterID(t7.code()));
+//        mcss.rshift32(mTrustedImm32(imm.value), mRegisterID(t7.code()));
     }
     void idiv(Register divisor) {
       //  masm.idivl_r(divisor.code());//in x86:idivl  signed
       //   mcss.div(t6.code(), divisor.code());
       //  mcss.mflo(divisor.code());
-         masm.div(t6.code(), divisor.code());
-        masm.mflo(divisor.code());
+      //  ok, by weizhenwei, 2013.10.21
+      masm.div(mRegisterID(t6.code()), divisor.code());
+      masm.mflo(mRegisterID(divisor.code()));
     }
     //NOTE*:this is new in ff24; Need to update!
     void udiv(Register divisor) {
-       ASSERT(0);
+      // ASSERT(0);
       // masm.divl_r(divisor.code());// in x86:div unsigned
+      //  ok, by weizhenwei, 2013.10.21
+      //  according jit/mips/CodeGenerator-mips.cpp:visitAsmJSDivOrMod(),
+      //  it's the only invoking point of udiv, and already do the 
+      //  masm.xorl(t7/*edx*/,t7/* edx*/);
+      //  so we directly invoke div here.
+      masm.div(mRegisterID(t6.code()), divisor.code());
+      masm.mflo((mRegisterID(divisor.code())));
     }
 
     void unpcklps(const FloatRegister &src, const FloatRegister &dest) {

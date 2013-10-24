@@ -70,14 +70,17 @@ Assembler::TraceDataRelocations(JSTracer *trc, IonCode *code, CompactBufferReade
 }
 void
 Assembler::absd(const FloatRegister &src) {
+    //ok, by weizhenwei, 2013.10.20
     mcss.absDouble(mFPRegisterID(src.code()), mFPRegisterID(src.code()));
 }
 void
 Assembler::zerod(const FloatRegister &src) {
+    //ok, by weizhenwei, 2013.10.20
     mcss.zeroDouble(mFPRegisterID(src.code()));
 }
 void
 Assembler::negd(const FloatRegister &src, const FloatRegister &dest) {
+    //ok, by weizhenwei, 2013.10.20
     mcss.negDouble(mFPRegisterID(src.code()), mFPRegisterID(dest.code()));
 }
 Assembler::Condition
