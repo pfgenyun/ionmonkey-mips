@@ -332,9 +332,13 @@ struct AbsoluteLabel : public LabelBase
 {
   public:
     AbsoluteLabel()
-    { }
+    {
+        type = 0;
+    }
     AbsoluteLabel(const AbsoluteLabel &label) : LabelBase(label)
-    { }
+    { 
+        type = 0;
+    }
     int32_t prev() const {
         JS_ASSERT(!bound());
         if (!used())
@@ -350,6 +354,21 @@ struct AbsoluteLabel : public LabelBase
         // These labels cannot be used after being bound.
         offset_ = -1;
     }
+    //hwj
+    void setType(int myType){
+        type = myType;
+    }
+    //hwj
+    int getType() {
+        return type;
+    }
+    //hwj
+#ifdef JS_CPU_MIPS
+    private:
+    int type;//default mov 0 hwj
+    //0:move
+    //1:jump table
+#endif
 };
 
 // A code label contains an absolute reference to a point in the code
