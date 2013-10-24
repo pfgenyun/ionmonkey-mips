@@ -582,13 +582,46 @@ class Assembler
     }
 
     CodeOffsetLabel pushWithPatch(const ImmWord &word) {
-        push(Imm32(word.value));
-        return masm.currentOffset();
+//        CodeOffsetLabel label = CodeOffsetLabel(size());
+//        push(Imm32(word.value));
+//        return label;
+//        return masm.currentOffset();
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-18
+         * 
+         * lui immTemp.code(), word.value>>16
+         * ori immTemp.code(), immTemp.code(), word.value&0x0000ffff
+         * addiu sp, sp, -4
+         * sw immTemp.code(), sp, 0
+         *
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(immTempRegister.code(), word.value >> 16);
+        masm.ori(immTempRegister.code(), immTempRegister.code(), word.value & 0x0000ffff);
+        masm.addiu(JSC::MIPSRegisters::sp, JSC::MIPSRegisters::sp, -4);
+        masm.sw(immTempRegister.code(), JSC::MIPSRegisters::sp, 0);
+        return label;
+
     }
 
     CodeOffsetLabel movWithPatch(const ImmWord &word, const Register &dest) {
-        movl(Imm32(word.value), dest);
-        return masm.currentOffset();
+//        movl(Imm32(word.value), dest);
+//        return masm.currentOffset();
+
+        /* OK 
+         * author: wangqing
+         * date: 2013-10-21
+         *
+         * lui dest.code(), word.value >> 16
+         * ori dest.code(), dest.code(), word.value & 0x0000ffff
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(dest.code(), word.value >> 16);
+        masm.ori(dest.code(), dest.code(), word.value & 0x0000ffff);
+        return label;
+
     }
 
   void fastStoreDouble(const FloatRegister &src, Register lo, Register hi){
@@ -692,11 +725,25 @@ class Assembler
     }
        //NOTE*:This is new in ff24. 
     CodeOffsetLabel cmplWithPatch(const Register &lhs, Imm32 rhs) {
+//   masm.cmpl_ir_force32(rhs.value, lhs.code());
+     //   mcss.move(lhs.code(),cmpTempRegister.code());
+     //   mcss.move(mTrustedImm32(rhs.value),cmpTemp2Register.code());
+     //   return masm.currentOffset();
 
-     //   masm.cmpl_ir_force32(rhs.value, lhs.code());
-     mcss.move(lhs.code(),cmpTempRegister.code());
-     mcss.move(mTrustedImm32(rhs.value),cmpTemp2Register.code());
-       return masm.currentOffset();
+       /* OK
+        * author: wangqing
+        * date: 2010-10-23
+        *
+        * move lhs.code(), cmpTemp.code()
+        * lui cmpTemp2.code(), rhs.value >> 16
+        * ori cmpTemp2.code(), cmpTemp2.code(), rhs.value & 0x0000ffff
+        */
+       masm.move(lhs.code(),cmpTempRegister.code());
+       CodeOffsetLabel label = CodeOffsetLabel(size());
+       masm.lui(cmpTemp2Register.code(), rhs.value >> 16);
+       masm.ori(cmpTemp2Register.code(), cmpTemp2Register.code(), rhs.value & 0x0000ffff);
+       return label; 
+
     }
 
     void jmp(void *target, Relocation::Kind reloc = Relocation::HARDCODED) {
@@ -782,114 +829,437 @@ class Assembler
     // patched.
     CodeOffsetLabel movlWithPatch(Imm32 imm, Register dest) {
   //      masm.movl_i32r(imm.value, dest.code());
-    mcss.move(mTrustedImm32(imm.value), dest.code());
-        return masm.currentOffset();
+  //      mcss.move(mTrustedImm32(imm.value), dest.code());
+  //      return masm.currentOffset();
+
+        /*
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui dest.code(), imm.value >> 16
+         * ori dest.code(), dest.code(), imm.value&0x0000ffff
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(dest.code(), imm.value >> 16);
+        masm.ori(dest.code(), dest.code(), imm.value & 0x0000ffff);
+        return label;
+
     }
 
     // Load from *addr where addr can be patched.
     CodeOffsetLabel movlWithPatch(void *addr, Register dest) {
       //  masm.movl_mr(addr, dest.code());
-      mcss.load32(addr,dest.code());
-        return masm.currentOffset();
+      //  mcss.load32(addr,dest.code());
+      //  return masm.currentOffset();
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp.code(), addr >> 16
+         * ori addrTemp.code(), addr & 0x0000ffff
+         * lw dest.code(), addrTemp.code(), 0
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);
+        masm.lw(dest.code(), addrTempRegister.code(), 0);
+        return label;
+
     }
     CodeOffsetLabel movsdWithPatch(void *addr, FloatRegister dest) {
-     //   JS_ASSERT(HasSSE2());
+  //   JS_ASSERT(HasSSE2());
   //      masm.movsd_mr(addr, dest.code());
-   mcss.loadDouble(addr,dest.code());
-        return masm.currentOffset();
+  //      mcss.loadDouble(addr,dest.code());
+  //      return masm.currentOffset();
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp, addr >> 16
+         * ori addrTemp, addrTemp, addr & 0x0000ffff
+         * lwc1 dest, addrTemp, 0
+	 * lwc1 dest+1, addrTemp, 4
+         */
+        
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);  
+	masm.lwc1(dest.code(), addrTempRegister.code(), 0);
+	masm.lwc1(mFPRegisterID(dest.code()+1), addrTempRegister.code(), 4);
+	return label;
+
     }
 
     // Store to *addr where addr can be patched
     CodeOffsetLabel movlWithPatch(Register src, void *addr) {
      //   masm.movl_rm(src.code(), addr);
-      mcss.store32(src.code(), addr);
-        return masm.currentOffset();
+     //   mcss.store32(src.code(), addr);
+     //   return masm.currentOffset();
+        
+        /* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp, addr >> 16
+         * ori addrTemp, addrTemp, addr & 0x0000ffff
+         * sw src.code(), addrTemp, 0
+         */
+        
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);
+        masm.sw(src.code(), addrTempRegister.code(), 0);
+        return label;
+
     }
     CodeOffsetLabel movsdWithPatch(FloatRegister dest, void *addr) {
   //      JS_ASSERT(HasSSE2());
   //      masm.movsd_rm(dest.code(), addr);
- ASSERT(0);  
+ //  ASSERT(0);  
 // mcss.storeDouble(dest.code(), addr);
-        return masm.currentOffset();
+  //      return masm.currentOffset();
+
+	/* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp, addr >> 16
+         * ori addrTemp, addrTemp, addr & 0x0000ffff
+         * swc1 dest, addrTemp, 0
+	 * swc1 dest+1, addrTemp, 4
+         */
+        
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);  
+	masm.swc1(dest.code(), addrTempRegister.code(), 0);
+	masm.swc1(mFPRegisterID(dest.code()+1), addrTempRegister.code(), 4);
+	return label;
+
     }
 
     // Load from *(base + disp32) where disp32 can be patched.
     CodeOffsetLabel movxblWithPatch(Address src, Register dest) {
-      //   masm.movxbl_mr_disp32(src.offset, src.base.code(), dest.code());//movxbl in x86
-         movxbl(Operand(src),dest);
-        return masm.currentOffset();
+//   masm.movxbl_mr_disp32(src.offset, src.base.code(), dest.code());//movxbl in x86
+//         movxbl(Operand(src),dest);
+//         return masm.currentOffset();
+
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset&0x0000ffff 
+             addu    addrTemp, addrTemp, base
+             lb      dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lb(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movzblWithPatch(Address src, Register dest) {
   //      masm.movzbl_mr_disp32(src.offset, src.base.code(), dest.code());
-  	movzbl(Operand(src),dest);
-       return masm.currentOffset();
+  //  	 movzbl(Operand(src),dest);
+  //       return masm.currentOffset();
+       
+         /* OK
+          *
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff 
+             addu    addrTemp, addrTemp, base
+             lbu     dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lbu(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movxwlWithPatch(Address src, Register dest) {
         //  masm.movxwl_mr_disp32(src.offset, src.base.code(), dest.code());
-      movxwl(Operand(src),dest);
-        return masm.currentOffset();
+        //  movxwl(Operand(src),dest);
+        //  return masm.currentOffset();
+
+         /* OK
+          *
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lh      dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lh(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movzwlWithPatch(Address src, Register dest) {
       //  masm.movzwl_mr_disp32(src.offset, src.base.code(), dest.code());
-      movzwl(Operand(src),dest);
-        return masm.currentOffset();
+      //  movzwl(Operand(src),dest);
+      //  return masm.currentOffset();
+
+         /* OK
+          *
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset&0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lhu     dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lhu(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movlWithPatch(Address src, Register dest) {
         //   masm.movl_mr_disp32(src.offset, src.base.code(), dest.code());
-       movl(Operand(src),dest);
-        return masm.currentOffset();
+        //   movl(Operand(src),dest);
+        //   return masm.currentOffset();
+         /* 
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset&0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lw      dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lw(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movssWithPatch(Address src, FloatRegister dest) {
     //    JS_ASSERT(HasSSE2());
     //    masm.movss_mr_disp32(src.offset, src.base.code(), dest.code());
-       movss(Operand(src),dest);
-   return masm.currentOffset();
+    //   movss(Operand(src),dest);
+    //   return masm.currentOffset();
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lwc1    dest, (0)(addrTemp)
+             cvt.d.s dest, dest
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lwc1(dest.code(), addrTempRegister.code(), 0);
+         masm.cvtds(dest.code(), dest.code());
+         return label;
+
     }
     CodeOffsetLabel movsdWithPatch(Address src, FloatRegister dest) {
-     //   JS_ASSERT(HasSSE2());
+    //   JS_ASSERT(HasSSE2());
     //    masm.movsd_mr_disp32(src.offset, src.base.code(), dest.code());
-   		movsd(Operand(src),dest);
-   		return masm.currentOffset();
+//   		movsd(Operand(src),dest);
+//   		return masm.currentOffset();
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+               lui         addrTemp, offset >> 16
+               ori         addrTemp, addrTemp, offset & 0x0000ffff
+               addu        addrTemp, addrTemp, base
+               lwc1        dest, 0(addrTemp)
+               lwc1        dest+1, 4(addrTemp)
+         */
+          
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lwc1(dest.code(), addrTempRegister.code(), 0);
+         masm.lwc1(mFPRegisterID(dest.code() + 1), addrTempRegister.code(), 4);
+         return label;
+
     }
 
     // Store to *(base + disp32) where disp32 can be patched.
     CodeOffsetLabel movbWithPatch(Register src, Address dest) {
       //  masm.movb_rm_disp32(src.code(), dest.offset, dest.base.code());
-     ASSERT(0);
+//        ASSERT(0);
       //	movv(src,Operand(dest));
-        return masm.currentOffset();
+//        return masm.currentOffset();
+//ok            masm.movb_rm(src.code(), dest.disp(), dest.base());
+//            mcss.store8(src.code(), mAddress(dest1.base(), dest1.disp()));
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-23
+          *
+             lui     addrTemp, (offset + 0x8000) >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             sb      src, (0)(addrTemp)
+         */   
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.sb(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movwWithPatch(Register src, Address dest) {
-          // masm.movw_rm_disp32(src.code(), dest.offset, dest.base.code());
-          movw(src,Operand(dest));
-        return masm.currentOffset();
+         // masm.movw_rm_disp32(src.code(), dest.offset, dest.base.code());
+//          movw(src,Operand(dest));
+//          return masm.currentOffset();
+
+//ok            masm.movw_rm(src.code(), dest.disp(), dest.base());
+//            mcss.store16(src.code(), mAddress(dest1.base(), dest1.disp()));
+         /* 
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+              lui     addrTemp, offset >> 16
+              ori     addrTemp, addrTemp, offset & 0x0000ffff
+              addu    addrTemp, addrTemp, base
+              sh      src, (0)(addrTemp)
+         */  
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.sh(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movlWithPatch(Register src, Address dest) {
    //     masm.movl_rm_disp32(src.code(), dest.offset, dest.base.code());
-     		movl(src,Operand(dest));
-   	     return masm.currentOffset();
+   //  		movl(src,Operand(dest));
+   //	     return masm.currentOffset();
+         
+     //       masm.movl_rm(src.code(), dest.disp(), dest.base());
+     //   mcss.store32(src.code(), mAddress(dest1.base(), dest1.disp()));
+         /*
+          * OK
+          * author : wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             sw      src, addrTemp, 0
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.sw(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movssWithPatch(FloatRegister src, Address dest) {
       //  JS_ASSERT(HasSSE2());
       //  masm.movss_rm_disp32(src.code(), dest.offset, dest.base.code());
-   	   movss(src,Operand(dest));
-         return masm.currentOffset();
+   	  //   movss(src,Operand(dest));
+      //   return masm.currentOffset();
+
+           
+         /* OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+              lui     addrTemp, offset >> 16
+              ori     addrTemp, addrTemp, offset & 0xffff
+              addu    addrTemp, addrTemp, base
+              swc1    src, addrTemp, 0
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.swc1(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movsdWithPatch(FloatRegister src, Address dest) {
-      //  JS_ASSERT(HasSSE2());
+     //  JS_ASSERT(HasSSE2());
     //    masm.movsd_rm_disp32(src.code(), dest.offset, dest.base.code());
-    		movsd(src,Operand(dest));
-          return masm.currentOffset();
+    //    		movsd(src,Operand(dest));
+     //     return masm.currentOffset();
+
+//ok            masm.movsd_rm(src.code(), dest.disp(), dest.base());
+         /* OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+            li          addrTemp, address.offset
+            addu        addrTemp, addrTemp, base
+            swc1        dest, 0(addrTemp)
+            swc1        dest+1, 4(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.swc1(src.code(), addrTempRegister.code(), 0);
+         masm.swc1(mFPRegisterID(src.code() + 1), addrTempRegister.code(), 4);
+         return label;
+
     }
 
     // Load from *(addr + index*scale) where addr can be patched.
     CodeOffsetLabel movlWithPatch(void *addr, Register index, Scale scale, Register dest) {
    //      masm.movl_mr(addr, index.code(), scale, dest.code());
-   ASSERT(0);
-  //		 mov(mImmPtr(addr),addrTempRegister);
+   //   ASSERT(0);
+   //		 mov(mImmPtr(addr),addrTempRegister);
     //mBaseIndex need to review!          
        //  mcss.load32(mBaseIndex(addrTempRegister, index, mScale(scale)), dest.code());
-           return masm.currentOffset();
+   //         return masm.currentOffset();
+        /*
+         * OK
+         * author: wangqing * date: 2013-10-23
+         *	
+             sll     addrTemp, address.index, address.scale
+             addu    addrTemp, addrTemp, address.base
+             lui     immTemp, address.offset >> 16
+             ori     immTemp, immTemp, address.offset & 0xffff
+             addu    addrTemp, addrTemp, immTemp
+             lw      dest, 0(addrTemp)
+        */
+        masm.sll(addrTempRegister.code(), index.code(), (int)scale);
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(immTempRegister.code(), (int)addr >> 16);
+        masm.ori(immTempRegister.code(), immTempRegister.code(), (int)addr & 0x0000ffff);
+        masm.addu(addrTempRegister.code(), addrTempRegister.code(), immTempRegister.code());
+        masm.lw(dest.code(), addrTempRegister.code(), 0);
+	return label;
+
     }
     // folloing is from Assembler-x86-shared.h
    public:
@@ -2142,9 +2512,33 @@ class Assembler
 //        uintptr_t *ptr = ((uintptr_t *) data.raw()) - 1;
 //        JS_ASSERT(*ptr == expectedData.value);
 //        *ptr = newData.value;
-        uint32_t old = JSC::MIPSAssembler::getInt32(data.raw());
-        JS_ASSERT(old == expectedData.value);
-        JSC::MIPSAssembler::setInt32(((uint8_t *)data.raw()), (newData.value));
+
+//        uint32_t old = JSC::MIPSAssembler::getInt32(data.raw());
+//        JS_ASSERT(old == expectedData.value);
+//        JSC::MIPSAssembler::setInt32(((uint8_t *)data.raw()), (newData.value));
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-18
+         *
+         * The pointer given is a pointer to *before* the data.
+         *
+         * lui reg, oldData_hi
+         * ori reg, reg, oldData_low
+         *      |    |     
+         *      |    |
+         * lui reg, newData_hi
+         * ori reg, reg, newData_low
+         */
+        uint32_t *ptr = ((uintptr_t*) data.raw());
+        uint32_t luiIns = *ptr;
+        uint32_t oriIns = *(ptr+1);
+        JS_ASSERT(luiIns & 0xfc000000 == 0x3c000000); // whether is lui 
+        JS_ASSERT(oriIns & 0xfc000000 == 0x34000000); // whether is ori 
+        uint32_t oldData = ((luiIns & 0x0000ffff) << 16) | (oriIns & 0x0000ffff);
+        JS_ASSERT(oldData == expectedData.value);
+        *ptr = (luiIns & 0xffff0000) | ((newData.value & 0xffff0000) >> 16);
+        *(ptr+1) = (oriIns & 0xffff0000) | (newData.value & 0x0000ffff);
     }
                                         
     static uint32_t nopSize() {
