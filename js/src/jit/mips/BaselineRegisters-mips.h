@@ -25,8 +25,8 @@ static const ValueOperand R2(v1,v0 );
 
 // BaselineTailCallReg and BaselineStubReg reuse
 // registers from R2.
-static const Register BaselineTailCallReg = t6;
-static const Register BaselineStubReg     = t7;
+static const Register BaselineTailCallReg = v1;
+static const Register BaselineStubReg     = v0;
 
 static const Register ExtractTemp0        = InvalidReg;
 static const Register ExtractTemp1        = InvalidReg;
