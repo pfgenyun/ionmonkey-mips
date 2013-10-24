@@ -850,6 +850,9 @@ public:
 
     void setNextJump(const JmpSrc& from, const JmpSrc &to);
 
+    //hwj
+    void clearOffsetForLabel(const JmpSrc& from);
+
     void linkJump(JmpSrc from, JmpDst to);
 
     static void linkJump(void* code, JmpSrc from, void* to);

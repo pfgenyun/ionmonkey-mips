@@ -685,13 +685,16 @@ class Assembler
     void mov(Imm32 imm, const Operand &dest) {
         movl(imm, dest);
     }
+    //hwj
     void mov(AbsoluteLabel *label, const Register &dest) {
         JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
-     //   masm.movl_i32r(label->prev(), dest.code());
-       mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(label->prev())), dest.code());
-        label->setPrev(masm.size());
+        // masm.movl_i32r(label->prev(), dest.code());
+       int offset = label->prev();
+       masm.lui(dest.code(), offset >> 16);
+       masm.ori(dest.code(), dest.code(), offset&0x0000ffff);       
+       label->setPrev(masm.size());
     }
 //wangce
     void mov(const Register &src, const Register &dest) {
@@ -745,40 +748,52 @@ class Assembler
        return label; 
 
     }
-
+    //hwj
     void jmp(void *target, Relocation::Kind reloc = Relocation::HARDCODED) {
      //  JmpSrc src = masm.jmp();
          JmpSrc src = mcss.jump().m_jmp;
         addPendingJump(src, target, reloc);
     }
+    //hwj
     void j(Condition cond, void *target,
            Relocation::Kind reloc = Relocation::HARDCODED) {
     //    JmpSrc src = masm.jCC(static_cast<JSC::MIPSAssembler::Condition>(cond));
        JmpSrc src = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
         addPendingJump(src, target, reloc);
     }
-
+    //hwj
     void jmp(IonCode *target) {
         jmp(target->raw(), Relocation::IONCODE);
     }
+    //hwj
     void j(Condition cond, IonCode *target) {
         j(cond, target->raw(), Relocation::IONCODE);
     }
+    //hwj
     void call(IonCode *target) {
-  //      JmpSrc src = masm.call();
-     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
-    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call().m_jmp;//4insns
-    addPendingJump(src, target->raw(), Relocation::IONCODE);
+        mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
+        mcss.push(mRegisterID(v0.code()));//2insns
+        JmpSrc src(masm.size());
+        
+        masm.lui(t9.code(),0);//1insns
+        masm.ori(t9.code(),t9.code(),0);//1insns
+        masm.jalr(t9.code());//1insns
+        masm.nop();//1insns
+
+        addPendingJump(src, target->raw(), Relocation::IONCODE);
     }
-    
+    //hwj
     void call(ImmWord target) {
-//ok        JmpSrc src = masm.call();
-    //arm : ma_call((void *) word.value);
-//    mcss.offsetFromPCToV0(sizeof(int*)*7);//2insns
-//    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call().m_jmp;
-    addPendingJump(src, target.asPointer(), Relocation::HARDCODED);
+        mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
+        mcss.push(mRegisterID(v0.code()));//2insns
+        JmpSrc src(masm.size());
+        
+        masm.lui(t9.code(),0);//1insns
+        masm.ori(t9.code(),t9.code(),0);//1insns
+        masm.jalr(t9.code());//1insns
+        masm.nop();//1insns
+
+        addPendingJump(src, target.asPointer(), Relocation::HARDCODED);
     }
 
    //NOTE*:This is new in ff24.
@@ -1266,16 +1281,19 @@ class Assembler
     void align(int alignment) {
         masm.align(alignment);
     }
-    
+
+    //hwj
     //NOTE*:this function is new in ff24
     void writeCodePointer(AbsoluteLabel *label) {
       	ASSERT(0);
-   /*     JS_ASSERT(!label->bound());
+        JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
-        masm.jumpTablePointer(label->prev());
+        //masm.jumpTablePointer(label->prev());
+        masm.emitInst(label->prev());
         label->setPrev(masm.size());
-        */
+        // for JumpTable
+        label->setType(1);
     }
     //NOTE*:this function is new in ff24
     void writeDoubleConstant(double d, Label *label) {
@@ -1614,9 +1632,10 @@ class Assembler
     }
 
   protected:
+    //hwj
     JmpSrc jSrc(Condition cond, Label *label) {
-//okm        JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
-        JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
+        //hwj:use function JmpSrc instead of accessing private variable m_jmp
+        JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1627,9 +1646,10 @@ class Assembler
         }
         return j;
     }
+    //hwj
     JmpSrc jmpSrc(Label *label) {
-//ok        JmpSrc j = masm.jmp();
-        JmpSrc j = mcss.jump().m_jmp;
+        //ok JmpSrc j = masm.jmp();
+        JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1644,9 +1664,10 @@ class Assembler
     // Comparison of EAX against the address given by a Label.
     JmpSrc cmpSrc(Label *label) ;
 */
+    //hwj
     JmpSrc jSrc(Condition cond, RepatchLabel *label) {
-     //   JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
-       JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
+        //JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
+       JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1655,8 +1676,10 @@ class Assembler
         }
         return j;
     }
+    //hwj
     JmpSrc jmpSrc(RepatchLabel *label) {
-      /*  JmpSrc j = masm.jmp();
+        //JmpSrc j = masm.jmp();
+        JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1664,10 +1687,7 @@ class Assembler
             // Thread the jump list through the unpatched jump targets.
             label->use(j.offset());
         }
-        return j;*/
-	ASSERT(0);
-	//in mips jmp() need to define in assembler/assembler/
-	return 0;
+        return j;
     }
 
   public:
@@ -1693,24 +1713,32 @@ class Assembler
     }
     // no used
  //   void cmpEAX(Label *label) { cmpSrc(label); }
+ //   hwj
     void bind(Label *label) {
         JSC::MacroAssembler::Label jsclabel;
+        //JSC::MIPSAssembler::JmpDest dst(masm.label());
+        JSC::MIPSAssembler::JmpDst dst(masm.label());
         if (label->used()) {
             bool more;
             JSC::MIPSAssembler::JmpSrc jmp(label->offset());
             do {
                 JSC::MIPSAssembler::JmpSrc next;
                 more = masm.nextJump(jmp, &next);
-                masm.linkJump(jmp, masm.label());
+                //hwj
+                masm.clearOffsetForLabel(jmp);
+                masm.linkJump(jmp, dst);
                 jmp = next;
             } while (more);
         }
-        label->bind(masm.label().offset());
+        label->bind(dst.offset());
     }
+    //hwj
     void bind(RepatchLabel *label) {
         JSC::MacroAssembler::Label jsclabel;
         if (label->used()) {
             JSC::MIPSAssembler::JmpSrc jmp(label->offset());
+            //hwj
+            masm.clearOffsetForLabel(jmp);
             masm.linkJump(jmp, masm.label());
         }
         label->bind(masm.label().offset());
@@ -1743,17 +1771,40 @@ class Assembler
         }
         label->reset();
     }
-  static void Bind(uint8_t *raw, AbsoluteLabel *label, const void *address) {
-        if (label->used()) {
+    //hwj
+    static void Bind(uint8_t *raw, AbsoluteLabel *label, const void *address) {
+        if (label->used()&&(label->getType())) {//1 jump table
             intptr_t src = label->offset();
             do {
                 intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
                 JSC::MIPSAssembler::setPointer(raw + src, address);
                 src = next;
             } while (src != AbsoluteLabel::INVALID_OFFSET);
+        } else if (label->used()&&(!label->getType())) {
+            //0 for mov function
+            intptr_t src = label->offset();
+            do {
+                //hwj   //wangqing
+                //intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
+                //raw+codeLabel.dest()->offset  <--->raw+codeLabel.src()-->offset
+                int* ptrLuiIns = (int*)(raw+src-2);
+                int* ptrOriIns = (int*)(raw+src-1);
+                
+                int luiIns = *ptrLuiIns;
+                int oriIns = *ptrOriIns;
+
+                JS_ASSERT((luiIns&0xfc000000)==0x3c000000);
+                JS_ASSERT((oriIns&0xfc000000)==0x34000000);
+
+                intptr_t next = ((luiIns & 0x0000ffff)<<16) |(oriIns &0x0000ffff);
+                *(ptrLuiIns) = (luiIns&0xffff0000)|((((int)address)&0xffff0000)>>16);
+                *(ptrOriIns) = (oriIns&0xffff0000)|(((int)address)&0x0000ffff);
+                src = next;
+            } while (src != AbsoluteLabel::INVALID_OFFSET);
         }
         label->bind();
     }
+
     void ret() {
 //ok        masm.ret();
         pop(ra);

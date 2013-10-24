@@ -202,6 +202,7 @@ Assembler::TraceJumpRelocations(JSTracer *trc, IonCode *code, CompactBufferReade
         JS_ASSERT(child == CodeFromJump(code->raw() + iter.offset()));
     }
 }
+//hwj
 void
 Assembler::executableCopy(uint8_t *buffer)
 {
@@ -209,8 +210,7 @@ Assembler::executableCopy(uint8_t *buffer)
 
     for (size_t i = 0; i < jumps_.length(); i++) {
         RelativePatch &rp = jumps_[i];
-//ok        JSC::X86Assembler::setRel32(buffer + rp.offset, rp.target);
-        mcss.repatchJump(JSC::CodeLocationJump(buffer + rp.offset), JSC::CodeLocationLabel(rp.target));
+        mcss.linkPointer(buffer, JmpDst(rp.offset), (void*)(rp.target));
     }
 }
 void
@@ -221,54 +221,33 @@ Assembler::retn(Imm32 n) {
     mcss.ret((n.value - sizeof(void *)));
     //mcss.ret((n.value));
 }
-Assembler::JmpSrc
-Assembler::callWithPush() 
-{
-    mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
-    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call().m_jmp;//4insns
-    return src;
-}
-Assembler::JmpSrc
-Assembler::callRelWithPush() 
-{
-    mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns//
-    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.callRel().m_jmp;//4insns
-    return src;
-}
 
+//hwj
 void 
 Assembler::call(Label *label) {
-    if (label->bound()) {
-//ok            masm.linkJump(mcss.call(), JmpDst(label->offset()));
-//ok    masm.linkJump(mcss.call().m_jmp, JmpDst(label->offset()));
-    masm.linkJump(callRelWithPush(), JmpDst(label->offset()));
-} else {
-//ok            JmpSrc j = mcss.call();
-//ok        JmpSrc j = mcss.call().m_jmp;
-        JmpSrc j = callRelWithPush();
-        JmpSrc prev = JmpSrc(label->use(j.offset()));
-        masm.setNextJump(j, prev);
-    }
+    mcss.offsetFromPCToV0(sizeof(int*)*9);//1insns^M
+    mcss.push(mRegisterID(v0.code()));//2insns^M
+    jmp(label);//6insns
 }
+//hwj
 void 
 Assembler::call(const Register &reg) {
 //ok    mcss.call(reg.code());
-    ma_callIonHalfPush(reg);
+    mcss.offsetFromPCToV0(sizeof(int*)*5);//1insns^M
+    mcss.push(mRegisterID(v0.code()));//2insns^M
+    masm.jalr(reg.code());//1insns^M
+    masm.nop();//1insns^M
 }
+//hwj
 void 
 Assembler::call(const Operand &op) {
     switch (op.kind()) {
       case Operand::REG:
-//ok        mcss.call(op.reg());
-        ma_callIonHalfPush(Register::FromCode((int)(op.reg()))); //force cast
+        call(Register::FromCode((int)(op.reg())));//op.reg()<->Registers::Code
         break;
       case Operand::REG_DISP:            	
-//ok            masm.call_m(op.disp(), op.base());
-//ok        mcss.call(mAddress(op.base(), op.disp()));
         mcss.load32(mAddress(op.base(), op.disp()), v1.code());
-        ma_callIonHalfPush(v1);
+        call(v1);
         break;
       default:
         JS_NOT_REACHED("unexpected operand kind");
@@ -299,7 +278,7 @@ Assembler::ma_callIonNoPush(const Register r)
     mcss.offsetFromPCToV0(sizeof(int*)*8);//1insns
     mcss.add32(mTrustedImm32(4), sp.code());//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call(r.code()).m_jmp;//2insns
+    JmpSrc src = mcss.call(r.code()).m_jmp;//4insns
     return src;
 }
 
@@ -313,7 +292,7 @@ Assembler::ma_callIonHalfPush(const Register r)
     //as_blx(r);
     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call(r.code()).m_jmp;//2insns
+    JmpSrc src = mcss.call(r.code()).m_jmp;//4insns
     return src;
 }
 
