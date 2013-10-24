@@ -2291,7 +2291,7 @@ class Assembler
       //  it's the only invoking point of udiv, and already do the 
       //  masm.xorl(t7/*edx*/,t7/* edx*/);
       //  so we directly invoke div here.
-      masm.div(mRegisterID(t6.code()), divisor.code());
+      masm.divu(mRegisterID(t6.code()), divisor.code());
       masm.mflo((mRegisterID(divisor.code())));
     }
 

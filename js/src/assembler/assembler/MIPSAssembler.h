@@ -316,6 +316,12 @@ public:
         emitInst(0x0000001a | (rs << OP_SH_RS) | (rt << OP_SH_RT));
     }
 
+	//by weizhenwei, 2013.10.24
+    void divu(RegisterID rs, RegisterID rt)
+    {
+        emitInst(0x0000001b | (rs << OP_SH_RS) | (rt << OP_SH_RT));
+    }
+
     void mfhi(RegisterID rd)
     {
         emitInst(0x00000010 | (rd << OP_SH_RD));
