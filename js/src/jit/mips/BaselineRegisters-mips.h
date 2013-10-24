@@ -18,9 +18,10 @@ static const Register BaselineFrameReg = fp;
 static const Register BaselineStackReg = sp;
 
 // ValueOperands R0, R1, and R2
-static const ValueOperand R0(v1, v0);
+// xsb :need fix
+static const ValueOperand R0(t7, t8);
 static const ValueOperand R1(s1, s0);
-static const ValueOperand R2(t7, t6);
+static const ValueOperand R2(v1,v0 );
 
 // BaselineTailCallReg and BaselineStubReg reuse
 // registers from R2.
