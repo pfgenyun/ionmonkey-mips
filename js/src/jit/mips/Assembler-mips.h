@@ -2638,16 +2638,22 @@ class Assembler
     static void ToggleToJmp(CodeLocationLabel inst) {
         int *ptr = (int *)inst.raw();
                 
-        ASSERT((*(ptr+2)) == 0x10000008); //cmp eax
-        *(ptr+2)=0x10000004;    //jmp
+        ASSERT(*(ptr) == 0x10000005); //cmp eax
+        *(ptr)=*(ptr+5);    //jmp recover
+        *(ptr+5) = 0x00000000;
+        //cache problem
     }
 
     //JMP->CMP
     static void ToggleToCmp(CodeLocationLabel inst) {//cmp eax (nop)
         int *ptr = (int *)inst.raw();
                 
-        ASSERT((*(ptr+2)) == 0x10000004); //jmp
-        *(ptr+2)=0x10000008;    //cmp eax
+        //ASSERT((*(ptr+2)) == 0x10000004); //jmp
+        ASSERT(*(ptr+5) == 0x00000000);
+        *(ptr+5) = *ptr;    //backup fisrt instruction to nop
+        *(ptr)=0x10000005;    //cmp eax
+        
+        //cache problem
     }
 
     //set CMP|CALL     
