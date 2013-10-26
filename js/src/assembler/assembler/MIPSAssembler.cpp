@@ -55,131 +55,38 @@ namespace JSC {
         return call.m_offset;
     }
 
-
+    //hwj
     bool MIPSAssembler::nextJump(const JmpSrc& from, JmpSrc* next)
     {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + from.m_offset);
-            /*
-                Possible sequence:
-                  beq $2, $3, target
-                  nop
-                  b 1f
-                  nop
-                  nop
-                  nop
-                1:
+        if (oom())
+               return false;
+        char* code = reinterpret_cast<char*>(m_buffer.data());
+        int32_t offset = getInt32(code + from.m_offset-4);
 
-                OR:
-                  bne $2, $3, 1f
-                  nop
-                  j    target
-                  nop
-                  nop
-                  nop
-                1:
-
-                OR:
-                  bne $2, $3, 1f
-                  nop
-                  lui $25, target >> 16
-                  ori $25, $25, target & 0xffff
-                  jr $25
-                  nop
-                1:
-
-                OR:
-                  nop
-                  nop
-                  jal    target
-                  nop
-                1:
-
-                OR:
-                  nop
-                  nop
-                  bal offset
-                  nop
-                1:
-
-                OR:
-                  lui $25, 0
-                  ori $25, $25, 0
-                  jalr  $25
-                  nop
-                1:
-            */
-        //int32_t offset = getInt32(code + from.m_offset);
-        int32_t offset = -2;
-
-        insn -= 6;
-        insn -= 3;
-        if((*insn & 0xfc000000) == 0x10000000 // beq
-            || (*insn & 0xfc000000) == 0x14000000 // bne
-            || (*insn & 0xffff0000) == 0x45010000 // bc1t
-            || (*insn & 0xffff0000) == 0x45000000) // bc1f
-        {
-            if (*(insn + 2) == 0x10000003) {
-                offset = (*insn & 0x0000ffff);} // b
-            else if ((*(insn + 2) & 0xfc000000) == 0x08000000) {
-                offset = (*(insn + 2) & 0x03ffffff) << 2;} // j
-            else {
-                insn += 2;
-		ASSERT(((*(insn) & 0xffe00000) == 0x3c000000) && ((*(insn + 1) & 0xfc000000) == 0x34000000));
-                offset = (*insn & 0x0000ffff) << 16; // lui
-                offset |= (*(insn + 1) & 0x0000ffff); // ori
-            }
-        }
-        else{
-            insn += 3;
-            insn += 2;
-            if ((*(insn + 2) & 0xffff0000) == 0x04110000) { // bal
-                offset = (*(insn + 2) & 0xffff);
-                if(offset == 0xffff)
-                    offset = -1; // stop offset
-            }else
-            if ((*(insn + 2) & 0xfc000000) == 0x0c000000) { // jal
-                offset = (*(insn + 2) & 0x03ffffff) << 2;}
-            else{
-		ASSERT(((*(insn) & 0xffe00000) == 0x3c000000) && ((*(insn + 1) & 0xfc000000) == 0x34000000));
-                offset = (*insn & 0x0000ffff) << 16;
-                offset |= (*(insn + 1) & 0x0000ffff);
-            }
-        }
-        ASSERT(offset != -2);
         if (offset == -1)
             return false;
         *next = JmpSrc(offset);
         return true;
     }
 
+    //hwj
     void MIPSAssembler::setNextJump(const JmpSrc& from, const JmpSrc &to)
     {
         // Sanity check - if the assembler has OOM'd, it will start overwriting
         // its internal buffer and thus our links could be garbage.
         if (oom())
             return;
-
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + from.m_offset);
-        MIPSWord* toPos = reinterpret_cast<MIPSWord*>(to.m_offset);
-
-        insn -= 3;
-        if (((*(insn + 1) & 0xffff0000) != 0x04110000) && ((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) ||
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x03200008)))){
-            ASSERT((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) ||
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x03200008)));
-            insn = insn - 6;
-            linkWithOffset(insn, toPos);
-        }else if (((*(insn + 1) & 0xffff0000) == 0x04110000) && !(*(insn -1 )) && !(*(insn))) {
-            *(insn + 1) |= to.m_offset & 0xffff; //bal temp offset
-        }else{
-            insn += 3;
-            ASSERT((((*(insn - 2) & 0xfc000000) == 0x0c000000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x0320f809)));
-            
-            linkCallInternal(insn, toPos);
-        }
+        char* code = reinterpret_cast<char*>(m_buffer.data());
+        setInt32(code + from.m_offset-4, to.m_offset);
     }
-
+    
+    //hwj:set nop
+    void MIPSAssembler::clearOffsetForLabel(const JmpSrc& from)
+    {
+        char* code = reinterpret_cast<char*>(m_buffer.data());
+        setInt32(code + from.m_offset-4, 0);   
+    }
+    //hwj
     void MIPSAssembler::linkJump(JmpSrc from, JmpDst to)
     {
         ASSERT(to.m_offset != -1);
@@ -187,52 +94,29 @@ namespace JSC {
         MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + from.m_offset);
         MIPSWord* toPos = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + to.m_offset);
 
-        insn -= 3;
-        if (((*(insn + 1) & 0xffff0000) != 0x04110000) && ((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) ||
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x03200008)))){
-            ASSERT((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) ||
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x03200008)));
-            insn = insn - 6;
-            linkWithOffset(insn, toPos);
-        }else{
-            insn += 3;
-            ASSERT((((*(insn - 2) & 0xfc000000) == 0x0c000000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-                   (((*(insn - 2) & 0xffff0000) == 0x04110000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-            (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x0320f809)));
-            
-            linkCallInternal(insn, toPos);
-        }
+        ASSERT((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))));
+        insn = insn - 6;
+        linkWithOffset(insn, toPos);
     }
-
+    //hwj
     void MIPSAssembler::linkJump(void* code, JmpSrc from, void* to)
     {
         ASSERT(from.m_offset != -1);
         MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(code) + from.m_offset);
 
-        insn -= 3;
-        if (!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) {
-            ASSERT(!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5)));
-            insn = insn - 6;
-            linkWithOffset(insn, to);
-        }else{
-            insn += 3;
-            ASSERT((((*(insn - 2) & 0xfc000000) == 0x0c000000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-            (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x0320f809)));
-            
-            linkCallInternal(insn, to);
-        }
+        ASSERT((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))));
+        insn = insn - 6;
+        linkWithOffset(insn, to);
     }
 
     bool MIPSAssembler::canRelinkJump(void* from, void* to)
     {
         return true;
     }
-
+    //hwj
     void MIPSAssembler::linkCall(void* code, JmpSrc from, void* to)
     {
         MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(code) + from.m_offset);
-        ASSERT((((*(insn - 2) & 0xfc000000) == 0x0c000000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-            (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x0320f809)));
         linkCallInternal(insn, to);
     }
 
@@ -246,23 +130,14 @@ namespace JSC {
         *insn = (*insn & 0xffff0000) | (reinterpret_cast<intptr_t>(to) & 0xffff);
     }
 
+    // hwj
     void MIPSAssembler::relinkJump(void* from, void* to)
     {
         MIPSWord* insn = reinterpret_cast<MIPSWord*>(from);
-
-        int flushSize = 0;
-        insn -= 3;
-        if(!(*(insn - 1)) && !(*(insn - 5))) {
-            insn = insn - 6;
-            flushSize = linkWithOffset(insn, to);
-        } else {
-            insn += 3;
-            flushSize = linkCallInternal(from, to);
-            if (flushSize == sizeof(MIPSWord))
-                insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(from) - 2 * sizeof(MIPSWord));
-            else
-                insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(from) - 4 * sizeof(MIPSWord));
-        }
+        
+        ASSERT(!(*(insn-1)) && !(*(insn - 5)));
+        insn = insn - 6;
+        int flushSize = linkWithOffset(insn, to);
 
         ExecutableAllocator::cacheFlush(insn, flushSize);
     }
@@ -364,32 +239,11 @@ namespace JSC {
         offset |= (*(insn + 1) & 0x0000ffff); // ori
         return reinterpret_cast<void **>(offset);
     }
-
+    //hwj
     void MIPSAssembler::setPointer(void* where, const void* value)
     {
-        //setInt32(where, reinterpret_cast<int32_t>(value));
-        //reinterpret_cast<const void**>(where)[-1] = value;
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(where));
-        int32_t offset = -2;
-
-        insn -= 2;
-        if(((*(insn) & 0xfc000000) == 0x3c000000) && (((*(insn + 1)) & 0xfc000000) == 0x34000000)){
-            //load mem
-        }else{
-            insn -= 2;
-            if(((*(insn) & 0xfc000000) == 0x3c000000) && (((*(insn + 1)) & 0xfc000000) == 0x34000000)){
-                //move mem to gpr
-            }else{
-                //move mem to fpr
-                insn -= 2;
-            }
-        }
-		ASSERT(((*(insn) & 0xfc000000) == 0x3c000000) && (((*(insn + 1)) & 0xfc000000) == 0x34000000));
-        offset = reinterpret_cast<int32_t>(value);
-        *insn &= 0xffff0000;
-        *(insn + 1) &= 0xffff0000;
-        *insn |= offset >> 16;
-        *(insn + 1) |= offset & 0x0000ffff;
+        staticSpew("##setPtr     ((where=%p)) ((value=%p))", where, value);
+        reinterpret_cast<const void**>(where)[-1] = value;
     }
 
     int32_t MIPSAssembler::getInt32(void* where)

@@ -419,8 +419,11 @@ public:
         }
 
         bool isSet() const { return m_jmp.isSet(); }
-
-//xsb:need fix
+        
+        //hwj
+        JmpSrc getJmpSrc (){
+            return m_jmp;
+        }
 //    private:
         JmpSrc m_jmp;
     };

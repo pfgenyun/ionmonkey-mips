@@ -88,24 +88,24 @@ MacroAssemblerMIPS::setupAlignedABICall(uint32_t args)
 }
 
 void
-MacroAssemblerMIPS::setupUnalignedABICall(uint32_t args, const Register &scratch)//与X86不同，MIPS中使用的堆栈指针为sp
+MacroAssemblerMIPS::setupUnalignedABICall(uint32_t args, const Register &scratch)
 {
     setupABICall(args);
     dynamicAlignment_ = true;
 
     movl(sp, scratch);
-    andl(Imm32(~(StackAlignment - 1)), sp);//在MIPS中StackAlignment=16，将sp的后四位全部设为0
+    andl(Imm32(~(StackAlignment - 1)), sp);
     push(scratch);
 }
 
 void
-MacroAssemblerMIPS::passABIArg(const MoveOperand &from) //传递一个参数
+MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
 {
     MoveOperand to;
 
-    ++passedArgs_; //参数个数加1
+    ++passedArgs_; 
 
-    if(passedArgs_ <= 4){ //参数小于4个时，仅用寄存器便可以完成参数传递
+    if(passedArgs_ <= 4){ 
         Register destReg;
         FloatRegister destFloatReg;
     
@@ -117,7 +117,7 @@ MacroAssemblerMIPS::passABIArg(const MoveOperand &from) //传递一个参数
             to = MoveOperand(destReg);
             enoughMemory_ &= moveResolver_.addMove(from, to, Move::GENERAL);
         }
-    }else{//参数大于四个时，需要通过堆栈来存放传递参数
+    }else{
 #if 1
         to = MoveOperand(StackPointer, stackForCall_);
         if (from.isDouble()) {
@@ -147,10 +147,10 @@ void
 MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {
     JS_ASSERT(inCall_);
-    JS_ASSERT(args_ == passedArgs_);//检测所有的参数是否都传递进来
+    JS_ASSERT(args_ == passedArgs_);
 
-    uint32_t stackAdjust = ((passedArgs_ > 4) ? passedArgs_ : 4) * STACK_SLOT_SIZE;//为参数预留栈空间
-    if (dynamicAlignment_) {//非对齐ABI调用
+    uint32_t stackAdjust = ((passedArgs_ > 4) ? passedArgs_ : 4) * STACK_SLOT_SIZE;
+    if (dynamicAlignment_) {
 #if 0
         stackAdjust = stackForCall_
                     + ComputeByteAlignment(stackForCall_,
@@ -172,7 +172,7 @@ MacroAssemblerMIPS::callWithABI(void *fun, Result result)
         if (!enoughMemory_)
             return;
 
-        MoveEmitter emitter(*this);// ？
+        MoveEmitter emitter(*this);
         emitter.emit(moveResolver_);
         emitter.finish();
     }
@@ -195,9 +195,9 @@ MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 //    addl(Imm32(16), StackPointer);
     freeStack(stackAdjust);
     if (result == DOUBLE) {
-        reserveStack(sizeof(double));//申请空间
-        fstp(Operand(sp, 0));//，
-        movsd(Operand(sp, 0), ReturnFloatReg);//sp指向的值加载至ReturnFloatReg；
+        reserveStack(sizeof(double));
+        fstp(Operand(sp, 0));
+        movsd(Operand(sp, 0), ReturnFloatReg);
         freeStack(sizeof(double));
     }
     if (dynamicAlignment_)
@@ -284,7 +284,7 @@ MacroAssemblerMIPS::handleException()
     movl(sp, a0);
 
     // Ask for an exception handler.
-    setupUnalignedABICall(1, v0);//传递一个参数，将sp的值放至v0中；
+    setupUnalignedABICall(1, v0);
     passABIArg(a0);
     callWithABI(JS_FUNC_TO_DATA_PTR(void *, ion::HandleException));
     
@@ -365,7 +365,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     movl(sp, a0);
 
     // Ask for an exception handler.
-    setupUnalignedABICall(1, v0);//传递一个参数，将sp的值放至v0中；
+    setupUnalignedABICall(1, v0);
     passABIArg(a0);
     callWithABI(JS_FUNC_TO_DATA_PTR(void *, jit::HandleException));
     
@@ -428,8 +428,8 @@ MacroAssemblerMIPS::testNegativeZero(const FloatRegister &reg, const Register &s
 
 void 
 MacroAssemblerMIPS::callWithExitFrame(IonCode *target, Register dynStack) {
-    addPtr(Imm32(framePushed()), dynStack);//dynStack+当前已经使用堆栈的大小
-    makeFrameDescriptor(dynStack, IonFrame_OptimizedJS);//对dynStack左移4位，并根据IonFrame_OptimizedJS的值将dynStack的某些位置1；
+    addPtr(Imm32(framePushed()), dynStack);
+    makeFrameDescriptor(dynStack, IonFrame_OptimizedJS);
     Push(dynStack);//
 //ok    //arm : ma_callIonHalfPush
     call(target);
@@ -456,7 +456,7 @@ MacroAssemblerMIPS::callIon(const Register &callee) {
     }
 */
 //ok    call(callee);
-    ma_callIonHalfPush(callee);//ok   //获取到当前的pc+7的值，存放至v0后压栈，然后成跳转至callee的跳转指令；
+    ma_callIonHalfPush(callee);//ok   
 #if 0 //try above line
     JS_ASSERT((framePushed() & 3) == 0);
     if ((framePushed() & 7) == 4) {
@@ -477,7 +477,7 @@ MacroAssemblerMIPS::enterOsr(Register calleeToken, Register code) {
     push(Imm32(MakeFrameDescriptor(0, IonFrame_Osr)));
 //ok    //arm : ma_callIonHalfPush
 //ok    call(code);
-    ma_callIonHalfPush(code);//获取到当前的pc+7，然后压栈，跳转至code处；
+    ma_callIonHalfPush(code);
 #if ! defined (JS_CPU_MIPS)
     addl(Imm32(sizeof(uintptr_t) * 2), sp);
 #endif

@@ -70,14 +70,17 @@ Assembler::TraceDataRelocations(JSTracer *trc, IonCode *code, CompactBufferReade
 }
 void
 Assembler::absd(const FloatRegister &src) {
+    //ok, by weizhenwei, 2013.10.20
     mcss.absDouble(mFPRegisterID(src.code()), mFPRegisterID(src.code()));
 }
 void
 Assembler::zerod(const FloatRegister &src) {
+    //ok, by weizhenwei, 2013.10.20
     mcss.zeroDouble(mFPRegisterID(src.code()));
 }
 void
 Assembler::negd(const FloatRegister &src, const FloatRegister &dest) {
+    //ok, by weizhenwei, 2013.10.20
     mcss.negDouble(mFPRegisterID(src.code()), mFPRegisterID(dest.code()));
 }
 Assembler::Condition
@@ -108,6 +111,11 @@ Assembler::InvertCondition(Condition cond)
         JS_NOT_REACHED("unexpected condition");
         return Equal;
     }
+}
+//edit by Quqiuwen,do not support PF
+void Assembler::setCC(Condition cond,const Register &r)
+{
+    mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),cmpTempRegister.code(),cmpTemp2Register.code(),r.code());
 }
 void
 Assembler::trace(JSTracer *trc)
@@ -194,6 +202,7 @@ Assembler::TraceJumpRelocations(JSTracer *trc, IonCode *code, CompactBufferReade
         JS_ASSERT(child == CodeFromJump(code->raw() + iter.offset()));
     }
 }
+//hwj
 void
 Assembler::executableCopy(uint8_t *buffer)
 {
@@ -201,8 +210,7 @@ Assembler::executableCopy(uint8_t *buffer)
 
     for (size_t i = 0; i < jumps_.length(); i++) {
         RelativePatch &rp = jumps_[i];
-//ok        JSC::X86Assembler::setRel32(buffer + rp.offset, rp.target);
-        mcss.repatchJump(JSC::CodeLocationJump(buffer + rp.offset), JSC::CodeLocationLabel(rp.target));
+        mcss.linkPointer(buffer, JmpDst(rp.offset), (void*)(rp.target));
     }
 }
 void
@@ -210,57 +218,36 @@ Assembler::retn(Imm32 n) {
     // Remove the size of the return address which is included in the frame.
 //okm   masm.ret(n.value - sizeof(void *));
     pop(ra);
-    mcss.ret((n.value - sizeof(void *)));//参数代表恢复栈的空间大小
+    mcss.ret((n.value - sizeof(void *)));
     //mcss.ret((n.value));
 }
-Assembler::JmpSrc
-Assembler::callWithPush() 
-{
-    mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
-    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call().m_jmp;//4insns
-    return src;
-}
-Assembler::JmpSrc
-Assembler::callRelWithPush() 
-{
-    mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns//
-    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.callRel().m_jmp;//4insns
-    return src;
-}
 
+//hwj
 void 
 Assembler::call(Label *label) {
-    if (label->bound()) {
-//ok            masm.linkJump(mcss.call(), JmpDst(label->offset()));
-//ok    masm.linkJump(mcss.call().m_jmp, JmpDst(label->offset()));
-    masm.linkJump(callRelWithPush(), JmpDst(label->offset()));
-} else {
-//ok            JmpSrc j = mcss.call();
-//ok        JmpSrc j = mcss.call().m_jmp;
-        JmpSrc j = callRelWithPush();
-        JmpSrc prev = JmpSrc(label->use(j.offset()));
-        masm.setNextJump(j, prev);
-    }
+    mcss.offsetFromPCToV0(sizeof(int*)*9);//1insns^M
+    mcss.push(mRegisterID(v0.code()));//2insns^M
+    jmp(label);//6insns
 }
+//hwj
 void 
 Assembler::call(const Register &reg) {
 //ok    mcss.call(reg.code());
-    ma_callIonHalfPush(reg);
+    mcss.offsetFromPCToV0(sizeof(int*)*5);//1insns^M
+    mcss.push(mRegisterID(v0.code()));//2insns^M
+    masm.jalr(reg.code());//1insns^M
+    masm.nop();//1insns^M
 }
+//hwj
 void 
 Assembler::call(const Operand &op) {
     switch (op.kind()) {
       case Operand::REG:
-//ok        mcss.call(op.reg());
-        ma_callIonHalfPush(Register::FromCode((int)(op.reg()))); //force cast
+        call(Register::FromCode((int)(op.reg())));//op.reg()<->Registers::Code
         break;
       case Operand::REG_DISP:            	
-//ok            masm.call_m(op.disp(), op.base());
-//ok        mcss.call(mAddress(op.base(), op.disp()));
         mcss.load32(mAddress(op.base(), op.disp()), v1.code());
-        ma_callIonHalfPush(v1);
+        call(v1);
         break;
       default:
         JS_NOT_REACHED("unexpected operand kind");
@@ -291,7 +278,7 @@ Assembler::ma_callIonNoPush(const Register r)
     mcss.offsetFromPCToV0(sizeof(int*)*8);//1insns
     mcss.add32(mTrustedImm32(4), sp.code());//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call(r.code()).m_jmp;//2insns
+    JmpSrc src = mcss.call(r.code()).m_jmp;//4insns
     return src;
 }
 
@@ -305,7 +292,7 @@ Assembler::ma_callIonHalfPush(const Register r)
     //as_blx(r);
     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call(r.code()).m_jmp;//2insns
+    JmpSrc src = mcss.call(r.code()).m_jmp;//4insns
     return src;
 }
 
@@ -326,27 +313,41 @@ static unsigned int* __getpc(void)
     return rtaddr;
 }
 
+//hwj
 void
 Assembler::patchWrite_NearCall(CodeLocationLabel startLabel, CodeLocationLabel target){
- /*     uint8_t *start = startLabel.raw();
-              *start = 0xE8;
-                      ptrdiff_t offset = target - startLabel - patchWrite_NearCallSize();
-                              JS_ASSERT(int32_t(offset) == offset);
-                                      *((int32_t *) (start + 1)) = offset;*/
-        //TBD ok
- unsigned lw, hg;
+    /*uint8_t *start = startLabel.raw();
+   *start = 0xE8;
+   ptrdiff_t offset = target - startLabel - patchWrite_NearCallSize();
+   JS_ASSERT(int32_t(offset) == offset);
+   *((int32_t *) (start + 1)) = offset;*/
+    //TBD ok
+    unsigned lw, hg;
     hg = ((unsigned int)__getpc)>>16;
     lw = ((unsigned int)__getpc)&0xffff;
 
     uint32_t *start = (uint32_t*)startLabel.raw();
     uint32_t *to = (uint32_t*)target.raw();
-    *start = 0x3c190000 | hg;
-    *(start + 1) = 0x37390000 | lw;
-    *(start + 2) = 0x0320f809;
-    *(start + 4) = 0x24420000 | 0x14;
-    *(start + 5) = 0x27bdfffc;
-    *(start + 6) = 0xafa20000;
-    *(start + 7) = 0x0c000000 | (((reinterpret_cast<intptr_t>(to)) >> 2) & 0x3ffffff);
+    *(start + 0) = 0x3c190000 | hg;   //lui t9, hg
+    *(start + 1) = 0x37390000 | lw; //ori t9 t9,hw
+    *(start + 2) = 0x0320f809;  //jalr t9
+    *(start + 3) = 0x00000000;  //nop
+    *(start + 4) = 0x24420000 | 0x1c; // addiu v0 v0 7
+    
+    //*(start + 4) = 0x24420000 | 0x14; // addiu v0 v0 5
+    *(start + 5) = 0x27bdfffc;  //addiiu sp sp -4
+    *(start + 6) = 0xafa20000;  //sw sp v0 0
+    
+    unsigned tolw, tohg;
+    tohg = (unsigned int)to>>16;
+    tolw = (unsigned int)to&0xffff;
+
+    *(start + 7) = 0x3c190000 | tohg;   //lui t9, hg
+    *(start + 8) = 0x37390000 | tolw; //ori t9 t9,hw
+    *(start + 9) = 0x0320f809;  //jalr t9
+
+    //*(start + 7) = 0x0c000000 | (((reinterpret_cast<intptr_t>(to)) >> 2) & 0x3ffffff);//jal
+    *(start + 10) = 0x00000000;  //nop
 }
 void
 AutoFlushCache::update(uintptr_t newStart, size_t len)

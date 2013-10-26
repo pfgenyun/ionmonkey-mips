@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jsion_move_resolver_mips_h__
-#define jsion_move_resolver_mips_h__
+#ifndef jit_mips_MoveEmitter_mips_h
+#define jit_mips_MoveEmitter_mips_h
 
 #include "jit/MoveResolver.h"
 #include "jit/IonMacroAssembler.h"
@@ -59,9 +59,9 @@ class MoveEmitterMIPS
 
 typedef MoveEmitterMIPS MoveEmitter;
 
-} // ion
-} // js
+} // namespace jit
+} // namespace js
 
-#endif // jsion_move_resolver_x86_shared_h__
+#endif // jit_mips_MoveEmitter_mips_h
 
 

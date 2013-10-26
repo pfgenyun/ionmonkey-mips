@@ -125,13 +125,12 @@ static const MOZ_CONSTEXPR Register CallTempReg3 = s4;//ecx;
 static const MOZ_CONSTEXPR Register CallTempReg4 = s5;//esi;
 static const MOZ_CONSTEXPR Register CallTempReg5 = s6;//edx;
 static const MOZ_CONSTEXPR Register CallTempReg6 = s7;//ebp;
-//这几个寄存器为MIPS自定义
-//static const MOZ_CONSTEXPR Register immTempRegister  = t0;//在Ion目录下没有用到；在assembler/assembler目录下已经定义
-static const MOZ_CONSTEXPR Register dataTempRegister = t1;//x86中的指令可直接对内存数进行ALU运算，因此对于这类运算，MIPS先将内存数取出，放入一个指定寄存器，运算完成后再放回内存；
-static const MOZ_CONSTEXPR Register addrTempRegister = t2;//在Ion目录下没有用到；在assembler/assembler目录下已经定义
+static const MOZ_CONSTEXPR Register immTempRegister  = t0;
+static const MOZ_CONSTEXPR Register dataTempRegister = t1;
+static const MOZ_CONSTEXPR Register addrTempRegister = t2;
 static const MOZ_CONSTEXPR Register cmpTempRegister  = t3;
+static const MOZ_CONSTEXPR Register dataTemp2Register = t4;
 static const MOZ_CONSTEXPR Register cmpTemp2Register  = t5;
-//static const MOZ_CONSTEXPR Register dataTemp2Register = t4;//在Ion目录下没有用到；在assembler/assembler目录下已经定义
 
 
 static const MOZ_CONSTEXPR FloatRegister fpTempRegister = f28;
@@ -154,9 +153,9 @@ class ABIArgGenerator
     uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
 
     // Note: these registers are all guaranteed to be different
-    static const Register NonArgReturnVolatileReg0;//在AsmJS.cpp中使用；
-    static const Register NonArgReturnVolatileReg1;//在AsmJS.cpp中使用；
-    static const Register NonVolatileReg;//在AsmJS.cpp中使用；
+    static const Register NonArgReturnVolatileReg0;
+    static const Register NonArgReturnVolatileReg1;
+    static const Register NonVolatileReg;
 };
 
 static const MOZ_CONSTEXPR Register OsrFrameReg = s6;//edx;
@@ -301,7 +300,7 @@ namespace js {
 namespace jit {
 
 static inline void
-PatchJump(CodeLocationJump jump, CodeLocationLabel label)//在IonCaches.cpp中被使用；
+PatchJump(CodeLocationJump jump, CodeLocationLabel label)
 {
 #ifdef DEBUG
     // Assert that we're overwriting a jump instruction, either:
@@ -351,7 +350,7 @@ class Assembler
             dataRelocations_.writeUnsigned(masm.currentOffset());
     }
     //this is new in ff24
-    void writePrebarrierOffset(CodeOffsetLabel label) {//在IonMacroAssembler.h中被使用；
+    void writePrebarrierOffset(CodeOffsetLabel label) {
         preBarriers_.writeUnsigned(label.offset());
     }
     //end
@@ -488,7 +487,7 @@ class Assembler
     {
     }
 
-      static Condition InvertCondition(Condition cond);//将条件转换为对立的一个，例如等于零转换为非零；
+      static Condition InvertCondition(Condition cond);
 
     // Return the primary condition to test. Some primary conditions may not
     // handle NaNs properly and may therefore require a secondary condition.
@@ -583,13 +582,46 @@ class Assembler
     }
 
     CodeOffsetLabel pushWithPatch(const ImmWord &word) {
-        push(Imm32(word.value));
-        return masm.currentOffset();
+//        CodeOffsetLabel label = CodeOffsetLabel(size());
+//        push(Imm32(word.value));
+//        return label;
+//        return masm.currentOffset();
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-18
+         * 
+         * lui immTemp.code(), word.value>>16
+         * ori immTemp.code(), immTemp.code(), word.value&0x0000ffff
+         * addiu sp, sp, -4
+         * sw immTemp.code(), sp, 0
+         *
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(immTempRegister.code(), word.value >> 16);
+        masm.ori(immTempRegister.code(), immTempRegister.code(), word.value & 0x0000ffff);
+        masm.addiu(JSC::MIPSRegisters::sp, JSC::MIPSRegisters::sp, -4);
+        masm.sw(immTempRegister.code(), JSC::MIPSRegisters::sp, 0);
+        return label;
+
     }
 
     CodeOffsetLabel movWithPatch(const ImmWord &word, const Register &dest) {
-        movl(Imm32(word.value), dest);
-        return masm.currentOffset();
+//        movl(Imm32(word.value), dest);
+//        return masm.currentOffset();
+
+        /* OK 
+         * author: wangqing
+         * date: 2013-10-21
+         *
+         * lui dest.code(), word.value >> 16
+         * ori dest.code(), dest.code(), word.value & 0x0000ffff
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(dest.code(), word.value >> 16);
+        masm.ori(dest.code(), dest.code(), word.value & 0x0000ffff);
+        return label;
+
     }
 
   void fastStoreDouble(const FloatRegister &src, Register lo, Register hi){
@@ -653,13 +685,16 @@ class Assembler
     void mov(Imm32 imm, const Operand &dest) {
         movl(imm, dest);
     }
+    //hwj
     void mov(AbsoluteLabel *label, const Register &dest) {
         JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
-     //   masm.movl_i32r(label->prev(), dest.code());
-       mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(label->prev())), dest.code());
-        label->setPrev(masm.size());
+        // masm.movl_i32r(label->prev(), dest.code());
+       int offset = label->prev();
+       masm.lui(dest.code(), offset >> 16);
+       masm.ori(dest.code(), dest.code(), offset&0x0000ffff);       
+       label->setPrev(masm.size());
     }
 //wangce
     void mov(const Register &src, const Register &dest) {
@@ -669,110 +704,127 @@ class Assembler
     void lea(const Operand &src, const Register &dest) {
             return leal(src, dest);
     }
-
+     //edit by QuQiuwen,OK
     void cmpl(const Register src, ImmWord ptr) {
-     //   masm.cmpl_ir(ptr.value, src.code());
-        mcss.move(src.code(), cmpTempRegister.code());
-        mcss.move(mTrustedImm32(ptr.value), cmpTemp2Register.code());
+        movl(src,cmpTempRegister);
+        movl(ptr,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Register src, ImmGCPtr ptr) {
-     //   masm.cmpl_ir(ptr.value, src.code());
-        mcss.move(src.code(), cmpTempRegister.code());
-        mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(ptr.value)), cmpTemp2Register.code());
+        movl(src,cmpTempRegister);
+        movl(ptr,cmpTemp2Register);
         writeDataRelocation(ptr);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Register &lhs, const Register &rhs) {
-     //   masm.cmpl_rr(rhs.code(), lhs.code());
-       mcss.move(lhs.code(), cmpTempRegister.code());
-       mcss.move(rhs.code(), cmpTemp2Register.code());
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &op, ImmGCPtr imm) {
-        switch (op.kind()) {
-          case Operand::REG:
-        //    masm.cmpl_ir_force32(imm.value, op.reg());
-           mcss.move(op.reg(), cmpTempRegister.code());
-            mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(imm.value)), cmpTemp2Register.code());
-            writeDataRelocation(imm);
-            break;
-          case Operand::REG_DISP:
-     //   masm.cmpl_im_force32(imm.value, op.disp(), op.base());
-              mcss.load32(mAddress(op.base(), op.disp()), cmpTempRegister.code());
-            mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(imm.value)), cmpTemp2Register.code());
-            writeDataRelocation(imm);
-            break;
-          case Operand::ADDRESS:
-           // masm.cmpl_im(imm.value, op.address());
-            mcss.load32(op.address(), cmpTempRegister.code());
-            mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(imm.value)), cmpTemp2Register.code());
-            writeDataRelocation(imm);
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
+        movl(op,cmpTempRegister);
+        movl(imm,cmpTemp2Register);
+        writeDataRelocation(imm);
     }
        //NOTE*:This is new in ff24. 
-       //将立即数与寄存器的数作比较；该函数ARM和x64中均没有定义，
     CodeOffsetLabel cmplWithPatch(const Register &lhs, Imm32 rhs) {
+//   masm.cmpl_ir_force32(rhs.value, lhs.code());
+     //   mcss.move(lhs.code(),cmpTempRegister.code());
+     //   mcss.move(mTrustedImm32(rhs.value),cmpTemp2Register.code());
+     //   return masm.currentOffset();
 
-     //   masm.cmpl_ir_force32(rhs.value, lhs.code());
-     mcss.move(lhs.code(),cmpTempRegister.code());
-     mcss.move(mTrustedImm32(rhs.value),cmpTemp2Register.code());
-       return masm.currentOffset();
+       /* OK
+        * author: wangqing
+        * date: 2010-10-23
+        *
+        * move lhs.code(), cmpTemp.code()
+        * lui cmpTemp2.code(), rhs.value >> 16
+        * ori cmpTemp2.code(), cmpTemp2.code(), rhs.value & 0x0000ffff
+        */
+       masm.move(lhs.code(),cmpTempRegister.code());
+       CodeOffsetLabel label = CodeOffsetLabel(size());
+       masm.lui(cmpTemp2Register.code(), rhs.value >> 16);
+       masm.ori(cmpTemp2Register.code(), cmpTemp2Register.code(), rhs.value & 0x0000ffff);
+       return label; 
+
     }
-
+    //hwj
     void jmp(void *target, Relocation::Kind reloc = Relocation::HARDCODED) {
      //  JmpSrc src = masm.jmp();
          JmpSrc src = mcss.jump().m_jmp;
         addPendingJump(src, target, reloc);
     }
+    //hwj
     void j(Condition cond, void *target,
            Relocation::Kind reloc = Relocation::HARDCODED) {
     //    JmpSrc src = masm.jCC(static_cast<JSC::MIPSAssembler::Condition>(cond));
        JmpSrc src = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
         addPendingJump(src, target, reloc);
     }
-
+    //hwj
     void jmp(IonCode *target) {
         jmp(target->raw(), Relocation::IONCODE);
     }
+    //hwj
     void j(Condition cond, IonCode *target) {
         j(cond, target->raw(), Relocation::IONCODE);
     }
+    //hwj
     void call(IonCode *target) {
-  //      JmpSrc src = masm.call();
-     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns获取到当前pc的值然后压栈；
-    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call().m_jmp;//4insns
-    addPendingJump(src, target->raw(), Relocation::IONCODE);
+        mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
+        mcss.push(mRegisterID(v0.code()));//2insns
+        JmpSrc src(masm.size());
+        
+        masm.lui(t9.code(),0);//1insns
+        masm.ori(t9.code(),t9.code(),0);//1insns
+        //masm.jalr(t9.code());//1insns
+        masm.jr(t9.code());//1insns
+        masm.nop();//1insns
+
+        addPendingJump(src, target->raw(), Relocation::IONCODE);
     }
-    
+    //hwj
     void call(ImmWord target) {
-//ok        JmpSrc src = masm.call();
-    //arm : ma_call((void *) word.value);
-//    mcss.offsetFromPCToV0(sizeof(int*)*7);//2insns
-//    mcss.push(mRegisterID(v0.code()));//2insns
-    JmpSrc src = mcss.call().m_jmp;
-    addPendingJump(src, target.asPointer(), Relocation::HARDCODED);
+        mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
+        mcss.push(mRegisterID(v0.code()));//2insns
+        JmpSrc src(masm.size());
+        
+        masm.lui(t9.code(),0);//1insns
+        masm.ori(t9.code(),t9.code(),0);//1insns
+        masm.jalr(t9.code());//1insns
+        masm.nop();//1insns
+
+        addPendingJump(src, target.asPointer(), Relocation::HARDCODED);
     }
 
    //NOTE*:This is new in ff24.
-    //若要与x86保持一致，需要定义一条指令用来模拟空指令；
        // Emit a CALL or CMP (nop) instruction. ToggleCall can be used to patch
-    // this instruction.
-    CodeOffsetLabel toggledCall(IonCode *target, bool enabled) {
- 	ASSERT(0);
+    // this instruction. 
+    // 11 ins
+    CodeOffsetLabel toggledCall(IonCode *target, bool enabled) {    
         CodeOffsetLabel offset(size());
-     /*  JmpSrc src = enabled ? masm.call() : masm.cmp_eax();
-     addPendingJump(src, target->raw(), Relocation::IONCODE);
-          JS_ASSERT(size() - offset.offset() == ToggledCallSize());
-     */
-   return offset;
+
+        if(enabled) 
+            mcss.offsetFromPCToV0(sizeof(int*)*7);//1 insns (4+1)
+        else 
+            mcss.skipOffsetFromPCToV0(sizeof(int*)*8);//1insns
+        
+        mcss.push(mRegisterID(v0.code()));//2insns
+        JmpSrc src(masm.size());
+        
+        masm.lui(t9.code(),0);//1insns
+        masm.ori(t9.code(),t9.code(),0);//1insns
+        masm.jr(t9.code());//1insns
+        masm.nop();//1insns
+
+        addPendingJump(src, target->raw(), Relocation::IONCODE);      
+        JS_ASSERT(size() - offset.offset() == ToggledCallSize());
+        return offset;
     }
    //NOTE*:This is new in ff24! This is need to update!
     static size_t ToggledCallSize() {
         // Size of a call instruction.
-    //    return 5;
-    		return 32; //在mips中call()会生成4条指令；但是x86为什么为设定为5？
+    	return 44; //11*4
     }
 
     // Re-routes pending jumps to an external target, flushing the label in the
@@ -799,135 +851,461 @@ class Assembler
     }
 
 
-   //NOTE*:following  is new in ff24  ； mov**WithPatch为自定义代码
+   //NOTE*:following  is new in ff24 
     // Move a 32-bit immediate into a register where the immediate can be
     // patched.
     CodeOffsetLabel movlWithPatch(Imm32 imm, Register dest) {
   //      masm.movl_i32r(imm.value, dest.code());
-    mcss.move(mTrustedImm32(imm.value), dest.code());
-        return masm.currentOffset();
+  //      mcss.move(mTrustedImm32(imm.value), dest.code());
+  //      return masm.currentOffset();
+
+        /*
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui dest.code(), imm.value >> 16
+         * ori dest.code(), dest.code(), imm.value&0x0000ffff
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(dest.code(), imm.value >> 16);
+        masm.ori(dest.code(), dest.code(), imm.value & 0x0000ffff);
+        return label;
+
     }
 
     // Load from *addr where addr can be patched.
     CodeOffsetLabel movlWithPatch(void *addr, Register dest) {
       //  masm.movl_mr(addr, dest.code());
-      mcss.load32(addr,dest.code());
-        return masm.currentOffset();
+      //  mcss.load32(addr,dest.code());
+      //  return masm.currentOffset();
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp.code(), addr >> 16
+         * ori addrTemp.code(), addr & 0x0000ffff
+         * lw dest.code(), addrTemp.code(), 0
+         */
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);
+        masm.lw(dest.code(), addrTempRegister.code(), 0);
+        return label;
+
     }
     CodeOffsetLabel movsdWithPatch(void *addr, FloatRegister dest) {
-     //   JS_ASSERT(HasSSE2());
+  //   JS_ASSERT(HasSSE2());
   //      masm.movsd_mr(addr, dest.code());
-   mcss.loadDouble(addr,dest.code());
-        return masm.currentOffset();
+  //      mcss.loadDouble(addr,dest.code());
+  //      return masm.currentOffset();
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp, addr >> 16
+         * ori addrTemp, addrTemp, addr & 0x0000ffff
+         * lwc1 dest, addrTemp, 0
+	 * lwc1 dest+1, addrTemp, 4
+         */
+        
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);  
+	masm.lwc1(dest.code(), addrTempRegister.code(), 0);
+	masm.lwc1(mFPRegisterID(dest.code()+1), addrTempRegister.code(), 4);
+	return label;
+
     }
 
     // Store to *addr where addr can be patched
     CodeOffsetLabel movlWithPatch(Register src, void *addr) {
      //   masm.movl_rm(src.code(), addr);
-      mcss.store32(src.code(), addr);
-        return masm.currentOffset();
+     //   mcss.store32(src.code(), addr);
+     //   return masm.currentOffset();
+        
+        /* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp, addr >> 16
+         * ori addrTemp, addrTemp, addr & 0x0000ffff
+         * sw src.code(), addrTemp, 0
+         */
+        
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);
+        masm.sw(src.code(), addrTempRegister.code(), 0);
+        return label;
+
     }
     CodeOffsetLabel movsdWithPatch(FloatRegister dest, void *addr) {
   //      JS_ASSERT(HasSSE2());
   //      masm.movsd_rm(dest.code(), addr);
- ASSERT(0);  
+ //  ASSERT(0);  
 // mcss.storeDouble(dest.code(), addr);
-        return masm.currentOffset();
+  //      return masm.currentOffset();
+
+	/* OK
+         * author: wangqing
+         * date: 2010-10-23
+         *
+         * lui addrTemp, addr >> 16
+         * ori addrTemp, addrTemp, addr & 0x0000ffff
+         * swc1 dest, addrTemp, 0
+	 * swc1 dest+1, addrTemp, 4
+         */
+        
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(addrTempRegister.code(), (int)addr >> 16);
+        masm.ori(addrTempRegister.code(), addrTempRegister.code(), (int)addr & 0x0000ffff);  
+	masm.swc1(dest.code(), addrTempRegister.code(), 0);
+	masm.swc1(mFPRegisterID(dest.code()+1), addrTempRegister.code(), 4);
+	return label;
+
     }
 
     // Load from *(base + disp32) where disp32 can be patched.
     CodeOffsetLabel movxblWithPatch(Address src, Register dest) {
-      //   masm.movxbl_mr_disp32(src.offset, src.base.code(), dest.code());//movxbl in x86
-         movxbl(Operand(src),dest);
-        return masm.currentOffset();
+//   masm.movxbl_mr_disp32(src.offset, src.base.code(), dest.code());//movxbl in x86
+//         movxbl(Operand(src),dest);
+//         return masm.currentOffset();
+
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset&0x0000ffff 
+             addu    addrTemp, addrTemp, base
+             lb      dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lb(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movzblWithPatch(Address src, Register dest) {
   //      masm.movzbl_mr_disp32(src.offset, src.base.code(), dest.code());
-  	movzbl(Operand(src),dest);
-       return masm.currentOffset();
+  //  	 movzbl(Operand(src),dest);
+  //       return masm.currentOffset();
+       
+         /* OK
+          *
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff 
+             addu    addrTemp, addrTemp, base
+             lbu     dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lbu(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movxwlWithPatch(Address src, Register dest) {
         //  masm.movxwl_mr_disp32(src.offset, src.base.code(), dest.code());
-      movxwl(Operand(src),dest);
-        return masm.currentOffset();
+        //  movxwl(Operand(src),dest);
+        //  return masm.currentOffset();
+
+         /* OK
+          *
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lh      dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lh(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movzwlWithPatch(Address src, Register dest) {
       //  masm.movzwl_mr_disp32(src.offset, src.base.code(), dest.code());
-      movzwl(Operand(src),dest);
-        return masm.currentOffset();
+      //  movzwl(Operand(src),dest);
+      //  return masm.currentOffset();
+
+         /* OK
+          *
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset&0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lhu     dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lhu(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movlWithPatch(Address src, Register dest) {
         //   masm.movl_mr_disp32(src.offset, src.base.code(), dest.code());
-       movl(Operand(src),dest);
-        return masm.currentOffset();
+        //   movl(Operand(src),dest);
+        //   return masm.currentOffset();
+         /* 
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset&0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lw      dest, (0)(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lw(dest.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movssWithPatch(Address src, FloatRegister dest) {
     //    JS_ASSERT(HasSSE2());
     //    masm.movss_mr_disp32(src.offset, src.base.code(), dest.code());
-       movss(Operand(src),dest);
-   return masm.currentOffset();
+    //   movss(Operand(src),dest);
+    //   return masm.currentOffset();
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             lwc1    dest, (0)(addrTemp)
+             cvt.d.s dest, dest
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lwc1(dest.code(), addrTempRegister.code(), 0);
+         masm.cvtds(dest.code(), dest.code());
+         return label;
+
     }
     CodeOffsetLabel movsdWithPatch(Address src, FloatRegister dest) {
-     //   JS_ASSERT(HasSSE2());
+    //   JS_ASSERT(HasSSE2());
     //    masm.movsd_mr_disp32(src.offset, src.base.code(), dest.code());
-   		movsd(Operand(src),dest);
-   		return masm.currentOffset();
+//   		movsd(Operand(src),dest);
+//   		return masm.currentOffset();
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+               lui         addrTemp, offset >> 16
+               ori         addrTemp, addrTemp, offset & 0x0000ffff
+               addu        addrTemp, addrTemp, base
+               lwc1        dest, 0(addrTemp)
+               lwc1        dest+1, 4(addrTemp)
+         */
+          
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), src.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), src.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), src.base.code());
+         masm.lwc1(dest.code(), addrTempRegister.code(), 0);
+         masm.lwc1(mFPRegisterID(dest.code() + 1), addrTempRegister.code(), 4);
+         return label;
+
     }
 
     // Store to *(base + disp32) where disp32 can be patched.
     CodeOffsetLabel movbWithPatch(Register src, Address dest) {
       //  masm.movb_rm_disp32(src.code(), dest.offset, dest.base.code());
-     ASSERT(0);
+//        ASSERT(0);
       //	movv(src,Operand(dest));
-        return masm.currentOffset();
+//        return masm.currentOffset();
+//ok            masm.movb_rm(src.code(), dest.disp(), dest.base());
+//            mcss.store8(src.code(), mAddress(dest1.base(), dest1.disp()));
+         /*
+          * OK
+          * author: wangqing
+          * date: 2013-23
+          *
+             lui     addrTemp, (offset + 0x8000) >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             sb      src, (0)(addrTemp)
+         */   
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.sb(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movwWithPatch(Register src, Address dest) {
-          // masm.movw_rm_disp32(src.code(), dest.offset, dest.base.code());
-          movw(src,Operand(dest));
-        return masm.currentOffset();
+         // masm.movw_rm_disp32(src.code(), dest.offset, dest.base.code());
+//          movw(src,Operand(dest));
+//          return masm.currentOffset();
+
+//ok            masm.movw_rm(src.code(), dest.disp(), dest.base());
+//            mcss.store16(src.code(), mAddress(dest1.base(), dest1.disp()));
+         /* 
+          * OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+              lui     addrTemp, offset >> 16
+              ori     addrTemp, addrTemp, offset & 0x0000ffff
+              addu    addrTemp, addrTemp, base
+              sh      src, (0)(addrTemp)
+         */  
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.sh(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movlWithPatch(Register src, Address dest) {
    //     masm.movl_rm_disp32(src.code(), dest.offset, dest.base.code());
-     		movl(src,Operand(dest));
-   	     return masm.currentOffset();
+   //  		movl(src,Operand(dest));
+   //	     return masm.currentOffset();
+         
+     //       masm.movl_rm(src.code(), dest.disp(), dest.base());
+     //   mcss.store32(src.code(), mAddress(dest1.base(), dest1.disp()));
+         /*
+          * OK
+          * author : wangqing
+          * date: 2013-10-23
+          *
+             lui     addrTemp, offset >> 16
+             ori     addrTemp, addrTemp, offset & 0x0000ffff
+             addu    addrTemp, addrTemp, base
+             sw      src, addrTemp, 0
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.sw(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movssWithPatch(FloatRegister src, Address dest) {
       //  JS_ASSERT(HasSSE2());
       //  masm.movss_rm_disp32(src.code(), dest.offset, dest.base.code());
-   	   movss(src,Operand(dest));
-         return masm.currentOffset();
+   	  //   movss(src,Operand(dest));
+      //   return masm.currentOffset();
+
+           
+         /* OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+              lui     addrTemp, offset >> 16
+              ori     addrTemp, addrTemp, offset & 0xffff
+              addu    addrTemp, addrTemp, base
+              swc1    src, addrTemp, 0
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.swc1(src.code(), addrTempRegister.code(), 0);
+         return label;
+
     }
     CodeOffsetLabel movsdWithPatch(FloatRegister src, Address dest) {
-      //  JS_ASSERT(HasSSE2());
+     //  JS_ASSERT(HasSSE2());
     //    masm.movsd_rm_disp32(src.code(), dest.offset, dest.base.code());
-    		movsd(src,Operand(dest));
-          return masm.currentOffset();
+    //    		movsd(src,Operand(dest));
+     //     return masm.currentOffset();
+
+//ok            masm.movsd_rm(src.code(), dest.disp(), dest.base());
+         /* OK
+          * author: wangqing
+          * date: 2013-10-23
+          *
+            li          addrTemp, address.offset
+            addu        addrTemp, addrTemp, base
+            swc1        dest, 0(addrTemp)
+            swc1        dest+1, 4(addrTemp)
+         */
+         CodeOffsetLabel label = CodeOffsetLabel(size());
+         masm.lui(addrTempRegister.code(), dest.offset >> 16);
+         masm.ori(addrTempRegister.code(), addrTempRegister.code(), dest.offset & 0x0000ffff);
+         masm.addu(addrTempRegister.code(), addrTempRegister.code(), dest.base.code());
+         masm.swc1(src.code(), addrTempRegister.code(), 0);
+         masm.swc1(mFPRegisterID(src.code() + 1), addrTempRegister.code(), 4);
+         return label;
+
     }
 
     // Load from *(addr + index*scale) where addr can be patched.
     CodeOffsetLabel movlWithPatch(void *addr, Register index, Scale scale, Register dest) {
    //      masm.movl_mr(addr, index.code(), scale, dest.code());
-   ASSERT(0);
-  //		 mov(mImmPtr(addr),addrTempRegister);
+   //   ASSERT(0);
+   //		 mov(mImmPtr(addr),addrTempRegister);
     //mBaseIndex need to review!          
        //  mcss.load32(mBaseIndex(addrTempRegister, index, mScale(scale)), dest.code());
-           return masm.currentOffset();
+   //         return masm.currentOffset();
+        /*
+         * OK
+         * author: wangqing * date: 2013-10-23
+         *	
+             sll     addrTemp, address.index, address.scale
+             addu    addrTemp, addrTemp, address.base
+             lui     immTemp, address.offset >> 16
+             ori     immTemp, immTemp, address.offset & 0xffff
+             addu    addrTemp, addrTemp, immTemp
+             lw      dest, 0(addrTemp)
+        */
+        masm.sll(addrTempRegister.code(), index.code(), (int)scale);
+        CodeOffsetLabel label = CodeOffsetLabel(size());
+        masm.lui(immTempRegister.code(), (int)addr >> 16);
+        masm.ori(immTempRegister.code(), immTempRegister.code(), (int)addr & 0x0000ffff);
+        masm.addu(addrTempRegister.code(), addrTempRegister.code(), immTempRegister.code());
+        masm.lw(dest.code(), addrTempRegister.code(), 0);
+	return label;
+
     }
     // folloing is from Assembler-x86-shared.h
    public:
     void align(int alignment) {
         masm.align(alignment);
     }
-    
+
+    //hwj
     //NOTE*:this function is new in ff24
     void writeCodePointer(AbsoluteLabel *label) {
       	ASSERT(0);
-   /*     JS_ASSERT(!label->bound());
+        JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
-        masm.jumpTablePointer(label->prev());
+        //masm.jumpTablePointer(label->prev());
+        masm.emitInst(label->prev());
         label->setPrev(masm.size());
-        */
+        // for JumpTable
+        label->setType(1);
     }
     //NOTE*:this function is new in ff24
     void writeDoubleConstant(double d, Label *label) {
@@ -1090,7 +1468,7 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
-    /* //128位数的移动操作；
+    /* 
     void movdqa(const Operand &src, const FloatRegister &dest) {
         JS_ASSERT(HasSSE2());
         switch (src.kind()) {
@@ -1266,9 +1644,10 @@ class Assembler
     }
 
   protected:
+    //hwj
     JmpSrc jSrc(Condition cond, Label *label) {
-//okm        JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
-        JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
+        //hwj:use function JmpSrc instead of accessing private variable m_jmp
+        JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1279,9 +1658,10 @@ class Assembler
         }
         return j;
     }
+    //hwj
     JmpSrc jmpSrc(Label *label) {
-//ok        JmpSrc j = masm.jmp();
-        JmpSrc j = mcss.jump().m_jmp;
+        //ok JmpSrc j = masm.jmp();
+        JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1296,9 +1676,10 @@ class Assembler
     // Comparison of EAX against the address given by a Label.
     JmpSrc cmpSrc(Label *label) ;
 */
+    //hwj
     JmpSrc jSrc(Condition cond, RepatchLabel *label) {
-     //   JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
-       JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
+        //JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
+       JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1307,8 +1688,10 @@ class Assembler
         }
         return j;
     }
+    //hwj
     JmpSrc jmpSrc(RepatchLabel *label) {
-      /*  JmpSrc j = masm.jmp();
+        //JmpSrc j = masm.jmp();
+        JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
@@ -1316,10 +1699,7 @@ class Assembler
             // Thread the jump list through the unpatched jump targets.
             label->use(j.offset());
         }
-        return j;*/
-	ASSERT(0);
-	//in mips jmp() need to define in assembler/assembler/
-	return 0;
+        return j;
     }
 
   public:
@@ -1345,24 +1725,32 @@ class Assembler
     }
     // no used
  //   void cmpEAX(Label *label) { cmpSrc(label); }
+ //   hwj
     void bind(Label *label) {
         JSC::MacroAssembler::Label jsclabel;
+        //JSC::MIPSAssembler::JmpDest dst(masm.label());
+        JSC::MIPSAssembler::JmpDst dst(masm.label());
         if (label->used()) {
             bool more;
             JSC::MIPSAssembler::JmpSrc jmp(label->offset());
             do {
                 JSC::MIPSAssembler::JmpSrc next;
                 more = masm.nextJump(jmp, &next);
-                masm.linkJump(jmp, masm.label());
+                //hwj
+                masm.clearOffsetForLabel(jmp);
+                masm.linkJump(jmp, dst);
                 jmp = next;
             } while (more);
         }
-        label->bind(masm.label().offset());
+        label->bind(dst.offset());
     }
+    //hwj
     void bind(RepatchLabel *label) {
         JSC::MacroAssembler::Label jsclabel;
         if (label->used()) {
             JSC::MIPSAssembler::JmpSrc jmp(label->offset());
+            //hwj
+            masm.clearOffsetForLabel(jmp);
             masm.linkJump(jmp, masm.label());
         }
         label->bind(masm.label().offset());
@@ -1395,17 +1783,40 @@ class Assembler
         }
         label->reset();
     }
-  static void Bind(uint8_t *raw, AbsoluteLabel *label, const void *address) {
-        if (label->used()) {
+    //hwj
+    static void Bind(uint8_t *raw, AbsoluteLabel *label, const void *address) {
+        if (label->used()&&(label->getType())) {//1 jump table
             intptr_t src = label->offset();
             do {
                 intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
                 JSC::MIPSAssembler::setPointer(raw + src, address);
                 src = next;
             } while (src != AbsoluteLabel::INVALID_OFFSET);
+        } else if (label->used()&&(!label->getType())) {
+            //0 for mov function
+            intptr_t src = label->offset();
+            do {
+                //hwj   //wangqing
+                //intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
+                //raw+codeLabel.dest()->offset  <--->raw+codeLabel.src()-->offset
+                int* ptrLuiIns = (int*)(raw+src-2);
+                int* ptrOriIns = (int*)(raw+src-1);
+                
+                int luiIns = *ptrLuiIns;
+                int oriIns = *ptrOriIns;
+
+                JS_ASSERT((luiIns&0xfc000000)==0x3c000000);
+                JS_ASSERT((oriIns&0xfc000000)==0x34000000);
+
+                intptr_t next = ((luiIns & 0x0000ffff)<<16) |(oriIns &0x0000ffff);
+                *(ptrLuiIns) = (luiIns&0xffff0000)|((((int)address)&0xffff0000)>>16);
+                *(ptrOriIns) = (oriIns&0xffff0000)|(((int)address)&0x0000ffff);
+                src = next;
+            } while (src != AbsoluteLabel::INVALID_OFFSET);
         }
         label->bind();
     }
+
     void ret() {
 //ok        masm.ret();
         pop(ra);
@@ -1434,168 +1845,64 @@ class Assembler
     //    masm.int3();
       mcss.breakpoint();
     }
-/*
-    static bool HasSSE2() {
-        return JSC::MacroAssembler::getSSEState() >= JSC::MacroAssembler::HasSSE2;
-    }
-    static bool HasSSE3() {
-        return JSC::MacroAssembler::getSSEState() >= JSC::MacroAssembler::HasSSE3;
-    }
-    static bool HasSSE41() {
-        return JSC::MacroAssembler::getSSEState() >= JSC::MacroAssembler::HasSSE4_1;
-    }
-*/
     // The below cmpl methods switch the lhs and rhs when it invokes the
     // macroassembler to conform with intel standard.  When calling this
     // function put the left operand on the left as you would expect.
-  /*  void cmpl(const Register &lhs, const Register &rhs) {
-//okm        masm.cmpl_rr(rhs.code(), lhs.code());
-// there must be a j following this cmpl in x86
-        mcss.move(lhs.code(), cmpTempRegister.code());
-        mcss.move(rhs.code(), cmpTemp2Register.code());
-    }*/
+     //edit by QuQiuwen,OK
     void cmpl(const Register &lhs, const Operand &rhs) {
-        switch (rhs.kind()) {
-          case Operand::REG:
-//okm            masm.cmpl_rr(rhs.reg(), lhs.code());
-            mcss.move(lhs.code(), cmpTempRegister.code());
-            mcss.move(rhs.reg(), cmpTemp2Register.code());
-            break;
-          case Operand::REG_DISP:
-//okm            masm.cmpl_mr(rhs.disp(), rhs.base(), lhs.code());
-            mcss.move(lhs.code(), cmpTempRegister.code());
-            mcss.load32(mAddress(rhs.base(), rhs.disp()), cmpTemp2Register.code());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Register &src, Imm32 imm) {
-//okm        masm.cmpl_ir(imm.value, src.code());
-        mcss.move(src.code(), cmpTempRegister.code());
-        mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
+        movl(src,cmpTempRegister);
+        movl(imm,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &op, Imm32 imm) {
-        switch (op.kind()) {
-          case Operand::REG:
-//okm            masm.cmpl_ir(imm.value, op.reg());
-            mcss.move(op.reg(), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-          case Operand::REG_DISP:
-//okm            masm.cmpl_im(imm.value, op.disp(), op.base());
-            mcss.load32(mAddress(op.base(), op.disp()), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-          case Operand::SCALE:
-//okm            masm.cmpl_im(imm.value, op.disp(), op.base(), op.index(), op.scale());
-            mcss.load32(mBaseIndex(op.base(), op.index(), mScale(op.scale()), op.disp()), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-//#ifdef JS_CPU_X86
-          case Operand::ADDRESS:
-//okm            masm.cmpl_im(imm.value, op.address());
-            mcss.load32(op.address(), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-//#endif
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
+        movl(op,cmpTempRegister);
+        movl(imm,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &lhs, const Register &rhs) {
-        switch (lhs.kind()) {
-          case Operand::REG:
-//okm            masm.cmpl_rr(rhs.code(), lhs.reg());
-            mcss.move(lhs.reg(), cmpTempRegister.code());
-            mcss.move(rhs.code(), cmpTemp2Register.code());
-            break;
-          case Operand::REG_DISP:
-//okm            masm.cmpl_rm(rhs.code(), lhs.disp(), lhs.base());
-            mcss.load32(mAddress(lhs.base(), lhs.disp()), cmpTempRegister.code());
-            mcss.move(rhs.code(), cmpTemp2Register.code());
-            break;
-//#ifdef JS_CPU_X86
-          case Operand::ADDRESS:
-//okm            masm.cmpl_rm(rhs.code(), lhs.address());
-            mcss.load32(lhs.address(), cmpTempRegister.code());
-            mcss.move(rhs.code(), cmpTemp2Register.code());
-            break;
-//#endif
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void cmpl(const Operand &op, ImmWord imm) {
-        switch (op.kind()) {
-          case Operand::REG:
-//okm            masm.cmpl_ir(imm.value, op.reg());
-            mcss.move(op.reg(), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-          case Operand::REG_DISP:
-//okm            masm.cmpl_im(imm.value, op.disp(), op.base());
-            mcss.load32(mAddress(op.base(), op.disp()), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-//#ifdef JS_CPU_X86
-          case Operand::ADDRESS:
-//okm            masm.cmpl_im(imm.value, op.address());
-            mcss.load32(op.address(), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(imm.value), cmpTemp2Register.code());
-            break;
-//#endif
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
+        movl(op,cmpTempRegister);
+        movl(imm,cmpTemp2Register);
     }
-    void setCC(Condition cond, const Register &r){
-    //    masm.setCC_r(static_cast<JSC::X86Assembler::Condition>(cond), r.code());
-    }
-    
-    //NOTE*:in MIPS ,funtion about test need to modify;
-    //testb仅在Trampoline-xxx.cpp中被使用
+    void setCC(Condition cond, const Register &r);
+     //edit by QuQiuwen,OK
     void testb(const Register &lhs, const Register &rhs) {
-        JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));
-        JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(rhs));
-     //   masm.testb_rr(rhs.code(), lhs.code());
-        mcss.move(lhs.code(), cmpTempRegister.code());
-        mcss.move(rhs.code(), cmpTemp2Register.code());
-        mcss.move(mRegisterID(0), cmpTempRegister.code());
+        JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));//SingleBytesRegs:t6,t7,t8,s0...s7,v0
+        JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(rhs));//?
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void testl(const Register &lhs, const Register &rhs) {
-     //   masm.testl_rr(rhs.code(), lhs.code());
-       mcss.move(lhs.code(), cmpTempRegister.code());
-        mcss.move(rhs.code(), cmpTemp2Register.code());
-        mcss.move(mRegisterID(0), cmpTempRegister.code());
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
     void testl(const Register &lhs, Imm32 rhs) {
-     //   masm.testl_i32r(rhs.value, lhs.code());
-           mcss.move(lhs.code(), cmpTempRegister.code());
-        mcss.move(mTrustedImm32(rhs.value), cmpTemp2Register.code());
-        mcss.and32(cmpTemp2Register.code(), cmpTempRegister.code());
-        mcss.move(mRegisterID(0), cmpTemp2Register.code());
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
+     //edit by QuQiuwen,OK
    void testl(const Operand &lhs, Imm32 rhs) {
-        switch (lhs.kind()) {
-          case Operand::REG:
-//okm            masm.testl_i32r(rhs.value, lhs.reg());
-            mcss.move(lhs.reg(), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(rhs.value), cmpTemp2Register.code());
-            mcss.and32(cmpTemp2Register.code(), cmpTempRegister.code());
-            mcss.move(mRegisterID(0), cmpTemp2Register.code());
-            break;
-          case Operand::REG_DISP:
-//okm            masm.testl_i32m(rhs.value, lhs.disp(), lhs.base());
-            mcss.load32(mAddress(lhs.base(), lhs.disp()), cmpTempRegister.code());
-            mcss.move(mTrustedImm32(rhs.value), cmpTemp2Register.code());
-            mcss.and32(cmpTemp2Register.code(), cmpTempRegister.code());
-            mcss.move(mRegisterID(0), cmpTemp2Register.code());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-            break;
-        }
+        movl(lhs,cmpTempRegister);
+        movl(rhs,cmpTemp2Register);
+        andl(cmpTemp2Register,cmpTempRegister);
+        movl(zero,cmpTemp2Register);
     }
 
     void addl(Imm32 imm, const Register &dest) {
@@ -1711,6 +2018,7 @@ class Assembler
     //NOTE*:this is new in ff24;
     void andl(const Register &src, const Register &dest) {
       // masm.andl_rr(src.code(), dest.code());
+      // ok by weizhenwei, 2013.10.20
         mcss.and32(src.code(), dest.code());
     }
     void andl(Imm32 imm, const Register &dest) {
@@ -1846,6 +2154,7 @@ class Assembler
     //NOTE* :this is new in ff24;
     void notl(const Register &reg) {
       //  masm.notl_r(reg.code());
+      //  ok by weizhenwei, 2013.10.20
       mcss.not32(reg.code());
     }
     void shrl(const Imm32 imm, const Register &dest) {
@@ -1862,19 +2171,23 @@ class Assembler
     }
     void shrl_cl(const Register &dest) {
      //  masm.shrl_CLr(dest.code());
-         mcss.urshift32(mRegisterID(v0.code()), dest.code());
+     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+         mcss.urshift32(mRegisterID(t8.code()), dest.code());
     }
     void shll_cl(const Register &dest) {
      //  masm.shll_CLr(dest.code());
-        mcss.lshift32(mRegisterID(v0.code()), dest.code());
+     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+        mcss.lshift32(mRegisterID(t8.code()), dest.code());
     }
     void sarl_cl(const Register &dest) {
-  //      masm.sarl_CLr(dest.code());
-      mcss.rshift32(mRegisterID(v0.code()), dest.code());
+     // masm.sarl_CLr(dest.code());
+     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+      mcss.rshift32(mRegisterID(t8.code()), dest.code());
     }
 
     void push(const Imm32 imm) {
 //ok??        masm.push_i32(imm.value);
+//ok by weizhenwei, 2013.10.20, according MacroAssemblerMIPS.h:1515,void push(TrustImm32)
         mcss.push(mTrustedImm32(imm.value));
     }
 
@@ -1932,16 +2245,15 @@ class Assembler
         }else 
             mcss.pop(mRegisterID(src.code()));
     }
-    //NOTE*:this is new in ff24; 
-    //push_flags() and push_flags() is not define in mips;
+     //edit by QuQiuwen,OK
     void pushFlags() {
-    	  ASSERT(0);
- //       masm.push_flags();
+        push(cmpTempRegister);
+        push(cmpTemp2Register);
     }
-    // //NOTE*:this is new in ff24;
+     //edit by QuQiuwen,OK
     void popFlags() {
-    	  ASSERT(0);
-    //    masm.pop_flags();
+        pop(cmpTemp2Register);
+        pop(cmpTempRegister);
     }
 
 /*#ifdef JS_CPU_X86
@@ -1959,25 +2271,40 @@ class Assembler
     void movzxbl(const Register &src, const Register &dest)
     { 
     	//masm.movzbl_rr(src.code(), dest.code());
-    	mcss.zeroExtend32ToPtr(src.code(),dest.code());//mips中并没有实现扩展！
+    	mcss.zeroExtend32ToPtr(src.code(),dest.code());
     }
     //Converts signed DWORD in EAX to a signed quad word in EDX:EAX by
   //      extending the high order bit of EAX throughout EDX
     void cdq() {
       //  masm.cdq();
-        ASSERT(0);
+      //  ASSERT(0);
+      //  ok, by weizhenwei, 2013.10.21
+      //  according jit/mips/CodeGenerator-mips.cpp:visitDivI(),
+      //  eax = t6, edx = t7
+      //  so mov(t6, t7), sar(32, 0x1F); signal extend.
+//        Imm32 imm = Imm32(0x1F);
+//        mcss.mov(mRegisterID(t6.code()), mRegisterID(t7.code()));
+//        mcss.rshift32(mTrustedImm32(imm.value), mRegisterID(t7.code()));
     }
     void idiv(Register divisor) {
       //  masm.idivl_r(divisor.code());//in x86:idivl  signed
       //   mcss.div(t6.code(), divisor.code());
       //  mcss.mflo(divisor.code());
-         masm.div(t6.code(), divisor.code());
-        masm.mflo(divisor.code());
+      //  ok, by weizhenwei, 2013.10.21
+      masm.div(mRegisterID(t6.code()), divisor.code());
+      masm.mflo(mRegisterID(divisor.code()));
     }
     //NOTE*:this is new in ff24; Need to update!
     void udiv(Register divisor) {
-       ASSERT(0);
+      // ASSERT(0);
       // masm.divl_r(divisor.code());// in x86:div unsigned
+      //  ok, by weizhenwei, 2013.10.21
+      //  according jit/mips/CodeGenerator-mips.cpp:visitAsmJSDivOrMod(),
+      //  it's the only invoking point of udiv, and already do the 
+      //  masm.xorl(t7/*edx*/,t7/* edx*/);
+      //  so we directly invoke div here.
+      masm.divu(mRegisterID(t6.code()), divisor.code());
+      masm.mflo((mRegisterID(divisor.code())));
     }
 
     void unpcklps(const FloatRegister &src, const FloatRegister &dest) {
@@ -2063,10 +2390,11 @@ class Assembler
         masm.dmfc1(mRegisterID(src.code()), mFPRegisterID(dest.code()));
     masm.dsrl32(mRegisterID(dest.code()), mRegisterID(dest.code()), 31);
     }
- 
+// NOT OK! This is about double compare. --QuQiuwen 
     void ucomisd(const FloatRegister &lhs, const FloatRegister &rhs) {
      //   JS_ASSERT(HasSSE2());
    //     masm.ucomisd_rr(rhs.code(), lhs.code());
+   ASSERT(0);
      mcss.moveDouble(lhs.code(), fpTempRegister.code());
      mcss.moveDouble(rhs.code(), fpTemp2Register.code());
     }
@@ -2240,10 +2568,9 @@ class Assembler
     }
 
     // Patching.
-
+    //hwj
     static size_t patchWrite_NearCallSize() {
-     //   return 5;
-         return 36;
+         return 44;//11*4
     }
     //NOTE*: the type of return is changed;
     static uintptr_t getPointer(uint8_t *instPtr) {
@@ -2268,9 +2595,33 @@ class Assembler
 //        uintptr_t *ptr = ((uintptr_t *) data.raw()) - 1;
 //        JS_ASSERT(*ptr == expectedData.value);
 //        *ptr = newData.value;
-        uint32_t old = JSC::MIPSAssembler::getInt32(data.raw());
-        JS_ASSERT(old == expectedData.value);
-        JSC::MIPSAssembler::setInt32(((uint8_t *)data.raw()), (newData.value));
+
+//        uint32_t old = JSC::MIPSAssembler::getInt32(data.raw());
+//        JS_ASSERT(old == expectedData.value);
+//        JSC::MIPSAssembler::setInt32(((uint8_t *)data.raw()), (newData.value));
+
+        /* OK
+         * author: wangqing
+         * date: 2010-10-18
+         *
+         * The pointer given is a pointer to *before* the data.
+         *
+         * lui reg, oldData_hi
+         * ori reg, reg, oldData_low
+         *      |    |     
+         *      |    |
+         * lui reg, newData_hi
+         * ori reg, reg, newData_low
+         */
+        uint32_t *ptr = ((uintptr_t*) data.raw());
+        uint32_t luiIns = *ptr;
+        uint32_t oriIns = *(ptr+1);
+        JS_ASSERT(luiIns & 0xfc000000 == 0x3c000000); // whether is lui 
+        JS_ASSERT(oriIns & 0xfc000000 == 0x34000000); // whether is ori 
+        uint32_t oldData = ((luiIns & 0x0000ffff) << 16) | (oriIns & 0x0000ffff);
+        JS_ASSERT(oldData == expectedData.value);
+        *ptr = (luiIns & 0xffff0000) | ((newData.value & 0xffff0000) >> 16);
+        *(ptr+1) = (oriIns & 0xffff0000) | (newData.value & 0x0000ffff);
     }
                                         
     static uint32_t nopSize() {
@@ -2282,32 +2633,30 @@ class Assembler
      
     }
 
-//CMP->JMP
+    //CMP->JMP
     // Toggle a jmp or cmp emitted by toggledJump().
     static void ToggleToJmp(CodeLocationLabel inst) {
-  /*        uint8_t *ptr = (uint8_t *)inst.raw();
-    //CMP AX,imm16
-    JS_ASSERT(*ptr == 0x3D);
-    //JMP rel32
-    *ptr = 0xE9;*/
-    ASSERT(0);
+        int *ptr = (int *)inst.raw();
+                
+        ASSERT((*(ptr+2)) == 0x10000008); //cmp eax
+        *(ptr+2)=0x10000004;    //jmp
     }
+
     //JMP->CMP
-    static void ToggleToCmp(CodeLocationLabel inst) {
-     /*    uint8_t *ptr = (uint8_t *)inst.raw();
-    JS_ASSERT(*ptr == 0xE9);
-    *ptr = 0x3D;
-    */
-        ASSERT(0);
+    static void ToggleToCmp(CodeLocationLabel inst) {//cmp eax (nop)
+        int *ptr = (int *)inst.raw();
+                
+        ASSERT((*(ptr+2)) == 0x10000004); //jmp
+        *(ptr+2)=0x10000008;    //cmp eax
     }
- //set CMP|CALL     
-         //NOTE* :this is new in ff24;
+
+    //set CMP|CALL     
+    //NOTE* :this is new in ff24;
     static void ToggleCall(CodeLocationLabel inst, bool enabled) {
-   /*     uint8_t *ptr = (uint8_t *)inst.raw();
-        JS_ASSERT(*ptr == 0x3D || // CMP
-                  *ptr == 0xE8);  // CALL
-        *ptr = enabled ? 0xE8 : 0x3D;*/
-            ASSERT(0);
+        int *ptr = (int *)inst.raw();
+                
+        ASSERT((*(ptr+2)==0x10000008)||*(ptr+2)==0x0320f809);    //cmp eax | CALL
+        *(ptr+2) = enabled ? 0x0320f809 : 0x10000008;
     }
     
 };

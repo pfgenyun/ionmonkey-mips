@@ -1963,6 +1963,8 @@ public:
     Call call(Address address);
 
     void offsetFromPCToV0(int offset);
+    //hwj
+    void skipOffsetFromPCToV0(int offset);
 
     void ret()
     {
@@ -2595,13 +2597,11 @@ public:
         m_assembler.cvtdw(dest, fpTempRegister);
     }
 
+    //hwj
     void insertRelaxationWords()
     {
         /* We need four words for relaxation. */
         m_assembler.beq(MIPSRegisters::zero, MIPSRegisters::zero, 3); // Jump over nops;
-        m_assembler.nop();
-        m_assembler.nop();
-        m_assembler.nop();
         m_assembler.nop();
         m_assembler.nop();
         m_assembler.nop();
