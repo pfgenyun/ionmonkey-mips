@@ -313,27 +313,41 @@ static unsigned int* __getpc(void)
     return rtaddr;
 }
 
+//hwj
 void
 Assembler::patchWrite_NearCall(CodeLocationLabel startLabel, CodeLocationLabel target){
- /*     uint8_t *start = startLabel.raw();
-              *start = 0xE8;
-                      ptrdiff_t offset = target - startLabel - patchWrite_NearCallSize();
-                              JS_ASSERT(int32_t(offset) == offset);
-                                      *((int32_t *) (start + 1)) = offset;*/
-        //TBD ok
- unsigned lw, hg;
+    /*uint8_t *start = startLabel.raw();
+   *start = 0xE8;
+   ptrdiff_t offset = target - startLabel - patchWrite_NearCallSize();
+   JS_ASSERT(int32_t(offset) == offset);
+   *((int32_t *) (start + 1)) = offset;*/
+    //TBD ok
+    unsigned lw, hg;
     hg = ((unsigned int)__getpc)>>16;
     lw = ((unsigned int)__getpc)&0xffff;
 
     uint32_t *start = (uint32_t*)startLabel.raw();
     uint32_t *to = (uint32_t*)target.raw();
-    *start = 0x3c190000 | hg;
-    *(start + 1) = 0x37390000 | lw;
-    *(start + 2) = 0x0320f809;
-    *(start + 4) = 0x24420000 | 0x14;
-    *(start + 5) = 0x27bdfffc;
-    *(start + 6) = 0xafa20000;
-    *(start + 7) = 0x0c000000 | (((reinterpret_cast<intptr_t>(to)) >> 2) & 0x3ffffff);
+    *(start + 0) = 0x3c190000 | hg;   //lui t9, hg
+    *(start + 1) = 0x37390000 | lw; //ori t9 t9,hw
+    *(start + 2) = 0x0320f809;  //jalr t9
+    *(start + 3) = 0x00000000;  //nop
+    *(start + 4) = 0x24420000 | 0x1c; // addiu v0 v0 7
+    
+    //*(start + 4) = 0x24420000 | 0x14; // addiu v0 v0 5
+    *(start + 5) = 0x27bdfffc;  //addiiu sp sp -4
+    *(start + 6) = 0xafa20000;  //sw sp v0 0
+    
+    unsigned tolw, tohg;
+    tohg = (unsigned int)to>>16;
+    tolw = (unsigned int)to&0xffff;
+
+    *(start + 7) = 0x3c190000 | tohg;   //lui t9, hg
+    *(start + 8) = 0x37390000 | tolw; //ori t9 t9,hw
+    *(start + 9) = 0x0320f809;  //jalr t9
+
+    //*(start + 7) = 0x0c000000 | (((reinterpret_cast<intptr_t>(to)) >> 2) & 0x3ffffff);//jal
+    *(start + 10) = 0x00000000;  //nop
 }
 void
 AutoFlushCache::update(uintptr_t newStart, size_t len)

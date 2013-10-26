@@ -777,7 +777,8 @@ class Assembler
         
         masm.lui(t9.code(),0);//1insns
         masm.ori(t9.code(),t9.code(),0);//1insns
-        masm.jalr(t9.code());//1insns
+        //masm.jalr(t9.code());//1insns
+        masm.jr(t9.code());//1insns
         masm.nop();//1insns
 
         addPendingJump(src, target->raw(), Relocation::IONCODE);
@@ -798,21 +799,32 @@ class Assembler
 
    //NOTE*:This is new in ff24.
        // Emit a CALL or CMP (nop) instruction. ToggleCall can be used to patch
-    // this instruction.
-    CodeOffsetLabel toggledCall(IonCode *target, bool enabled) {
- 	ASSERT(0);
+    // this instruction. 
+    // 11 ins
+    CodeOffsetLabel toggledCall(IonCode *target, bool enabled) {    
         CodeOffsetLabel offset(size());
-     /*  JmpSrc src = enabled ? masm.call() : masm.cmp_eax();
-     addPendingJump(src, target->raw(), Relocation::IONCODE);
-          JS_ASSERT(size() - offset.offset() == ToggledCallSize());
-     */
-   return offset;
+
+        if(enabled) 
+            mcss.offsetFromPCToV0(sizeof(int*)*7);//1 insns (4+1)
+        else 
+            mcss.skipOffsetFromPCToV0(sizeof(int*)*8);//1insns
+        
+        mcss.push(mRegisterID(v0.code()));//2insns
+        JmpSrc src(masm.size());
+        
+        masm.lui(t9.code(),0);//1insns
+        masm.ori(t9.code(),t9.code(),0);//1insns
+        masm.jr(t9.code());//1insns
+        masm.nop();//1insns
+
+        addPendingJump(src, target->raw(), Relocation::IONCODE);      
+        JS_ASSERT(size() - offset.offset() == ToggledCallSize());
+        return offset;
     }
    //NOTE*:This is new in ff24! This is need to update!
     static size_t ToggledCallSize() {
         // Size of a call instruction.
-    //    return 5;
-    		return 32; 
+    	return 44; //11*4
     }
 
     // Re-routes pending jumps to an external target, flushing the label in the
@@ -2556,10 +2568,9 @@ class Assembler
     }
 
     // Patching.
-
+    //hwj
     static size_t patchWrite_NearCallSize() {
-     //   return 5;
-         return 36;
+         return 44;//11*4
     }
     //NOTE*: the type of return is changed;
     static uintptr_t getPointer(uint8_t *instPtr) {
@@ -2622,32 +2633,30 @@ class Assembler
      
     }
 
-//CMP->JMP
+    //CMP->JMP
     // Toggle a jmp or cmp emitted by toggledJump().
     static void ToggleToJmp(CodeLocationLabel inst) {
-  /*        uint8_t *ptr = (uint8_t *)inst.raw();
-    //CMP AX,imm16
-    JS_ASSERT(*ptr == 0x3D);
-    //JMP rel32
-    *ptr = 0xE9;*/
-    ASSERT(0);
+        int *ptr = (int *)inst.raw();
+                
+        ASSERT((*(ptr+2)) == 0x10000008); //cmp eax
+        *(ptr+2)=0x10000004;    //jmp
     }
+
     //JMP->CMP
-    static void ToggleToCmp(CodeLocationLabel inst) {
-     /*    uint8_t *ptr = (uint8_t *)inst.raw();
-    JS_ASSERT(*ptr == 0xE9);
-    *ptr = 0x3D;
-    */
-        ASSERT(0);
+    static void ToggleToCmp(CodeLocationLabel inst) {//cmp eax (nop)
+        int *ptr = (int *)inst.raw();
+                
+        ASSERT((*(ptr+2)) == 0x10000004); //jmp
+        *(ptr+2)=0x10000008;    //cmp eax
     }
- //set CMP|CALL     
-         //NOTE* :this is new in ff24;
+
+    //set CMP|CALL     
+    //NOTE* :this is new in ff24;
     static void ToggleCall(CodeLocationLabel inst, bool enabled) {
-   /*     uint8_t *ptr = (uint8_t *)inst.raw();
-        JS_ASSERT(*ptr == 0x3D || // CMP
-                  *ptr == 0xE8);  // CALL
-        *ptr = enabled ? 0xE8 : 0x3D;*/
-            ASSERT(0);
+        int *ptr = (int *)inst.raw();
+                
+        ASSERT((*(ptr+2)==0x10000008)||*(ptr+2)==0x0320f809);    //cmp eax | CALL
+        *(ptr+2) = enabled ? 0x0320f809 : 0x10000008;
     }
     
 };

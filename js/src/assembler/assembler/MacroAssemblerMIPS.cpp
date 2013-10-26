@@ -189,4 +189,19 @@ MacroAssemblerMIPS::offsetFromPCToV0(int offset){
     m_assembler.addiu(MIPSRegisters::v0, MIPSRegisters::v0, offset);
 }
 
+//hwj
+void
+MacroAssemblerMIPS::skipOffsetFromPCToV0(int offset){
+    unsigned lw, hg;
+    hg = ((unsigned int)__getpc)>>16;
+    lw = ((unsigned int)__getpc)&0xffff;
+    
+    
+    m_assembler.lui(MIPSRegisters::t9, hg);
+    m_assembler.ori(MIPSRegisters::t9, MIPSRegisters::t9, lw);
+    m_assembler.beq(MIPSRegisters::r0, MIPSRegisters::r0, offset);//below this instruction would not execute
+    m_assembler.nop();
+    m_assembler.addiu(MIPSRegisters::v0, MIPSRegisters::v0, offset);
+}
+
 #endif /* ENABLE_ASSEMBLER && WTF_CPU_MIPS */

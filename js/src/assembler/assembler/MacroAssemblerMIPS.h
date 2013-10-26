@@ -1963,6 +1963,8 @@ public:
     Call call(Address address);
 
     void offsetFromPCToV0(int offset);
+    //hwj
+    void skipOffsetFromPCToV0(int offset);
 
     void ret()
     {
