@@ -299,14 +299,13 @@ MacroAssemblerMIPS::handleException()
 void
 MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
 {
-	/*
     // Reserve space for exception information.
-    subl(Imm32(sizeof(ResumeFromException)), esp);
-    movl(esp, eax);
+    subl(Imm32(sizeof(ResumeFromException)), sp);
+    movl(sp, t6);
 
     // Ask for an exception handler.
-    setupUnalignedABICall(1, ecx);
-    passABIArg(eax);
+    setupUnalignedABICall(1, t8);
+    passABIArg(t6);
     callWithABI(handler);
 
     Label entryFrame;
@@ -314,11 +313,11 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     Label finally;
     Label return_;
 
-    loadPtr(Address(esp, offsetof(ResumeFromException, kind)), eax);
-    branch32(Assembler::Equal, eax, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
-    branch32(Assembler::Equal, eax, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
-    branch32(Assembler::Equal, eax, Imm32(ResumeFromException::RESUME_FINALLY), &finally);
-    branch32(Assembler::Equal, eax, Imm32(ResumeFromException::RESUME_FORCED_RETURN), &return_);
+    loadPtr(Address(sp, offsetof(ResumeFromException, kind)), t6);
+    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
+    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
+    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_FINALLY), &finally);
+    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_FORCED_RETURN), &return_);
 
     breakpoint(); // Invalid kind.
 
@@ -326,55 +325,40 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     // and return from the entry frame.
     bind(&entryFrame);
     moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
-    movl(Operand(esp, offsetof(ResumeFromException, stackPointer)), esp);
+    movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
     ret();
 
     // If we found a catch handler, this must be a baseline frame. Restore state
     // and jump to the catch block.
     bind(&catch_);
-    movl(Operand(esp, offsetof(ResumeFromException, target)), eax);
-    movl(Operand(esp, offsetof(ResumeFromException, framePointer)), ebp);
-    movl(Operand(esp, offsetof(ResumeFromException, stackPointer)), esp);
-    jmp(Operand(eax));
+    movl(Operand(sp, offsetof(ResumeFromException, target)), t6);
+    movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
+    movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
+    jmp(Operand(t6));
 
     // If we found a finally block, this must be a baseline frame. Push
     // two values expected by JSOP_RETSUB: BooleanValue(true) and the
     // exception.
     bind(&finally);
-    ValueOperand exception = ValueOperand(ecx, edx);
-    loadValue(Operand(esp, offsetof(ResumeFromException, exception)), exception);
+    ValueOperand exception = ValueOperand(t7, t8);
+    loadValue(Operand(sp, offsetof(ResumeFromException, exception)), exception);
 
-    movl(Operand(esp, offsetof(ResumeFromException, target)), eax);
-    movl(Operand(esp, offsetof(ResumeFromException, framePointer)), ebp);
-    movl(Operand(esp, offsetof(ResumeFromException, stackPointer)), esp);
+    movl(Operand(sp, offsetof(ResumeFromException, target)), t6);
+    movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
+    movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
 
     pushValue(BooleanValue(true));
     pushValue(exception);
-    jmp(Operand(eax));
+    jmp(Operand(t6));
 
     // Only used in debug mode. Return BaselineFrame->returnValue() to the caller.
     bind(&return_);
-    movl(Operand(esp, offsetof(ResumeFromException, framePointer)), ebp);
-    movl(Operand(esp, offsetof(ResumeFromException, stackPointer)), esp);
-    loadValue(Address(ebp, BaselineFrame::reverseOffsetOfReturnValue()), JSReturnOperand);
-    movl(ebp, esp);
-    pop(ebp);
-    ret();
-    */
-    // Reserve space for exception information.
-    subl(Imm32(sizeof(ResumeFromException)), sp);
-    movl(sp, a0);
-
-    // Ask for an exception handler.
-    setupUnalignedABICall(1, v0);
-    passABIArg(a0);
-    callWithABI(JS_FUNC_TO_DATA_PTR(void *, jit::HandleException));
-    
-    // Load the error value, load the new stack pointer, and return.
-    moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
+    movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
+    loadValue(Address(fp, BaselineFrame::reverseOffsetOfReturnValue()), JSReturnOperand);
+    movl(fp, sp);
+    pop(fp);
     ret();
-    
     
 }
 

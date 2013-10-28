@@ -855,7 +855,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), StackPointer);
 
             loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), jitcodeReg);
-#if defined(JS_CPU_X86) || defined(JS_CPU_X64)
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64) || defined(JS_CPU_MIPS)
             push(BaselineTailCallReg);
 #endif
             jump(jitcodeReg);

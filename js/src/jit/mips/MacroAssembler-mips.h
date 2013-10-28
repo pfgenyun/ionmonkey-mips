@@ -719,6 +719,7 @@ class MacroAssemblerMIPS : public Assembler
 #endif
         fastLoadDouble(src.payloadReg(), src.typeReg(), dest);
     }
+    //xsb:fixme
     void unboxDouble(const Operand &payload, const Operand &type,
                      const Register &scratch, const FloatRegister &dest) {
         JS_ASSERT(dest != ScratchFloatReg);
@@ -1048,7 +1049,7 @@ class MacroAssemblerMIPS : public Assembler
             movl(imm, dest);
     }
            //NOTE*:this is new in ff24
-        void move32(const Imm32 &imm, const Operand &dest) {
+    void move32(const Imm32 &imm, const Operand &dest) {
         movl(imm, dest);
     }
     
@@ -1074,7 +1075,7 @@ class MacroAssemblerMIPS : public Assembler
         testl(lhs, rhs);
     }
       //NOTE*:this is new in ff24
-        void test32(const Address &addr, Imm32 imm) {
+    void test32(const Address &addr, Imm32 imm) {
         testl(Operand(addr), imm);
     }
     void cmp32(Register a, Register b) {
@@ -1093,7 +1094,7 @@ class MacroAssemblerMIPS : public Assembler
         addl(imm, Operand(dest));
     }
           //NOTE*:this is new in ff24
-        void add32(Register src, Register dest) {
+    void add32(Register src, Register dest) {
         addl(src, dest);
     }
     void sub32(Imm32 imm, Register dest) {
@@ -1299,7 +1300,8 @@ class MacroAssemblerMIPS : public Assembler
     /*  void negDouble(FloatRegister src, FloatRegister dest) {
         negd(src, dest);
     }*/
-        //NOTE*:this is new in ff24 
+        //NOTE*:this is new in ff24
+        //xsb:fixme 
     void negateDouble(FloatRegister reg) {
   /*      // From MacroAssemblerX86Shared::maybeInlineDouble
         pcmpeqw(ScratchFloatReg, ScratchFloatReg);

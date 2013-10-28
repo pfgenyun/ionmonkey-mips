@@ -21,12 +21,12 @@ static const Register BaselineStackReg = sp;
 // xsb :need fix
 static const ValueOperand R0(t7, t8);
 static const ValueOperand R1(s1, s0);
-static const ValueOperand R2(v1,v0 );
+static const ValueOperand R2(s3, s4);
 
 // BaselineTailCallReg and BaselineStubReg reuse
 // registers from R2.
-static const Register BaselineTailCallReg = v1;
-static const Register BaselineStubReg     = v0;
+static const Register BaselineTailCallReg = s3;
+static const Register BaselineStubReg     = s4;
 
 static const Register ExtractTemp0        = InvalidReg;
 static const Register ExtractTemp1        = InvalidReg;

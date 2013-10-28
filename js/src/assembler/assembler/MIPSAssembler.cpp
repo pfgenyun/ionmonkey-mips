@@ -248,83 +248,13 @@ namespace JSC {
 
     int32_t MIPSAssembler::getInt32(void* where)
     {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(where));
-        int32_t offset = -2;
 
-        insn -= 6;
-        if((*insn & 0xfc000000) == 0x10000000 // beq
-               || (*insn & 0xfc000000) == 0x14000000 // bne
-               || (*insn & 0xffff0000) == 0x45010000 // bc1t
-               || (*insn & 0xffff0000) == 0x45000000) // bc1f
-        {
-            if (*(insn + 2) == 0x10000003) {
-                offset = (*insn & 0x0000ffff);} // b
-            else if ((*(insn + 2) & 0xfc000000) == 0x08000000) {
-                offset = (*(insn + 2) & 0x03ffffff) << 2;} // j
-            else {
-                insn += 2;
-		ASSERT(((*(insn) & 0xffe00000) == 0x3c000000) && ((*(insn) & 0xfc000000) == 0x34000000));
-                offset = (*insn & 0x0000ffff) << 16; // lui
-                offset |= (*(insn + 1) & 0x0000ffff); // ori
-            }
-        }else if(((*(insn + 2) & 0xffe00000) == 0x3c000000) && ((*(insn + 3) & 0xfc000000) == 0x34000000)) {
-            // push imm32
-            insn += 2;
-            offset = (*insn & 0x0000ffff) << 16; // lui
-            offset |= (*(insn + 1) & 0x0000ffff); // ori
-        }else{
-            insn += 2;
-            if ((*(insn + 2) & 0xfc000000) == 0x0c000000) { // jal
-                offset = (*(insn + 2) & 0x03ffffff) << 2;}
-            else{
-		ASSERT(((*(insn) & 0xffe00000) == 0x3c000000) && ((*(insn) & 0xfc000000) == 0x34000000));
-                offset = (*insn & 0x0000ffff) << 16;
-                offset |= (*(insn + 1) & 0x0000ffff);
-            }
-            {}
-        }
-        ASSERT(offset != -2);
-        return offset;
+        return *((int32_t*)where);
     }
 
     void MIPSAssembler::setInt32(void* where, int32_t value)
     {
-        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(where));
-        MIPSWord* toPos = reinterpret_cast<MIPSWord*>(value);
-        insn -= 3;
-        if(((*(insn - 1) & 0xffe00000) == 0x3c000000) && ((*(insn) & 0xfc000000) == 0x34000000)) {
-            // push imm32
-            insn -= 1;
-            *insn &= 0xffff0000;
-            *insn = (*insn) | ((value >> 16) & 0xffff);
-            *(insn + 1) &= 0xffff0000;
-            *(insn + 1) = (*(insn + 1)) | (value & 0xffff);
-        }else if ((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) ||
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x03200008))){
-            ASSERT((!(*(insn - 1)) && !(*(insn - 2)) && !(*(insn - 3)) && !(*(insn - 5))) ||
-                (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x03200008)));
-            insn = insn - 6;
-            linkWithOffset(insn, toPos);
-        }else if 
-            ((((*(insn - 2) & 0xfc000000) == 0x0c000000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-            (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x0320f809)))
-        {
-            insn += 3;
-            ASSERT((((*(insn - 2) & 0xfc000000) == 0x0c000000) && !(*(insn - 3)) && !(*(insn - 4))) || 
-            (((*(insn - 4) & 0xffe00000) == 0x3c000000) && ((*(insn - 3) & 0xfc000000) == 0x34000000) && (*(insn - 2) == 0x0320f809)));
-            
-            linkCallInternal(insn, toPos);
-        } else{
-            insn -= 1;
-            ASSERT((!(*(insn + 1)) && !(*(insn))) &&
-                (((*(insn + 2)) != 0x0320f809) && ((*(insn + 2) & 0xfc1fffff) == 0x0000f809)));
-            /* lui */
-            *insn = 0x3c000000 | (MIPSRegisters::t9 << OP_SH_RT) | ((value >> 16) & 0xffff);
-            /* ori */
-            *(insn + 1) = 0x34000000 | (MIPSRegisters::t9 << OP_SH_RT) | (MIPSRegisters::t9 << OP_SH_RS) | (value & 0xffff);
-            /* jalr t9 */
-            *(insn + 2) = 0x0000f809 | (MIPSRegisters::t9 << OP_SH_RS);
-        }
+        *((int32_t *)where)= value;
     }
 
     void MIPSAssembler::relocateJumps(void* oldBase, void* newBase)
