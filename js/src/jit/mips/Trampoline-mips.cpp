@@ -586,6 +586,11 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         masm.testb(v0, v0);
         masm.j(Assembler::Zero, &exception);
         break;
+        //edit by QuQiuwen
+      case Type_ParallelResult:
+        masm.testl(v0,v0);
+        masm.j(Assembler::NonZero,&exception);
+        break;
       default:
         JS_NOT_REACHED("unknown failure kind");
         break;
