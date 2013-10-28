@@ -251,7 +251,8 @@ MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
     {
         // Check call alignment.
         Label good;
-        testl(esp, Imm32(StackAlignment - 1));
+        /* by wangqing esp-->sp */
+        testl(sp, Imm32(StackAlignment - 1));
         j(Equal, &good);
         breakpoint();
         bind(&good);
