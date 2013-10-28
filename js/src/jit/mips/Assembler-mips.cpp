@@ -117,6 +117,8 @@ void Assembler::setCC(Condition cond,const Register &r)
 {
     mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),cmpTempRegister.code(),cmpTemp2Register.code(),r.code());
 }
+
+//hwj 1028
 void
 Assembler::trace(JSTracer *trc)
 {
@@ -186,10 +188,17 @@ class RelocationIterator
         return offset_;
     }
 };
+
+//hwj 1028
 static inline IonCode *
 CodeFromJump(uint8_t *jump)
 {
-    uint8_t *target = (uint8_t *)JSC::MIPSAssembler::getRel32Target(jump);
+    int luiIns = *((int*)(jump-8));
+    int oriIns = *((int*)(jump-4));
+    int temp = (luiIns & 0x0000ffff) << 16;
+    temp = temp | (oriIns&0x0000ffff);
+    uint8_t *target = (uint8_t*)temp;
+
     return IonCode::FromExecutable(target);
 }
 void
@@ -202,17 +211,14 @@ Assembler::TraceJumpRelocations(JSTracer *trc, IonCode *code, CompactBufferReade
         JS_ASSERT(child == CodeFromJump(code->raw() + iter.offset()));
     }
 }
-//hwj
+
+//hwj 1028
 void
 Assembler::executableCopy(uint8_t *buffer)
 {
     masm.executableCopy(buffer);
-
-    for (size_t i = 0; i < jumps_.length(); i++) {
-        RelativePatch &rp = jumps_[i];
-        mcss.linkPointer(buffer, JmpDst(rp.offset), (void*)(rp.target));
-    }
 }
+
 void
 Assembler::retn(Imm32 n) {
     // Remove the size of the return address which is included in the frame.

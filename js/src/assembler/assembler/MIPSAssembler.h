@@ -900,6 +900,8 @@ public:
 
     static int linkWithOffset(MIPSWord* insn, void* to);
 
+    void preLink(JmpSrc jump, void* target);
+
     static int linkCallInternal(void* from, void* to);
 
     AssemblerBuffer m_buffer;

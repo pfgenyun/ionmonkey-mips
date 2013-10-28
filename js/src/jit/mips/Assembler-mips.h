@@ -858,14 +858,104 @@ class Assembler
     void jmp(void *target, Relocation::Kind reloc = Relocation::HARDCODED) {
      //  JmpSrc src = masm.jmp();
          JmpSrc src = mcss.jump().m_jmp;
-        addPendingJump(src, target, reloc);
+         int to = (int)target;
+         masm.lui(t9.code(), to>>16);
+         masm.ori(t9.code(), t9.code(), to&0x0000ffff);
+         
+         if(reloc == Relocation::IONCODE) {
+             JmpSrc src(size());
+             addPendingJump(src, target, reloc);
+         }
+         
+         masm.jr(t9.code());
+         masm.nop();
     }
     //hwj
     void j(Condition cond, void *target,
            Relocation::Kind reloc = Relocation::HARDCODED) {
-    //    JmpSrc src = masm.jCC(static_cast<JSC::MIPSAssembler::Condition>(cond));
-       JmpSrc src = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).m_jmp;
-        addPendingJump(src, target, reloc);
+        JSC::MIPSAssembler::RegisterID left = cmpTempRegister.code(); 
+        JSC::MIPSAssembler::RegisterID right = cmpTemp2Register.code();
+        JSC::MIPSAssembler::RegisterID regZero = zero.code();
+        JSC::MIPSAssembler::RegisterID tmp = dataTempRegister.code();
+        int to = (int)(target);
+
+        if (cond == Equal || cond == Zero)
+        {
+            masm.bne(left, right, 4);
+        }
+        else if (cond == NotEqual || cond == NonZero)
+        {
+            masm.beq(left, right, 4);
+        }
+        else if (cond == Above) {
+            masm.sltu(tmp, right, left);
+            masm.beq(tmp, regZero, 4);
+        }
+        else if (cond == AboveOrEqual) {
+            masm.sltu(tmp, left, right);
+            masm.bne(tmp, regZero, 4);
+        }
+        else if (cond == Below) {
+            masm.sltu(tmp, left, right);
+            masm.beq(tmp, regZero, 4);
+        }
+        else if (cond == BelowOrEqual) {
+            masm.sltu(tmp, right, left);
+            masm.bne(tmp, regZero, 4);
+        }
+        else if (cond == GreaterThan) {
+            masm.slt(tmp, right, left);
+            masm.beq(tmp, regZero, 4);
+        }
+        else if (cond == GreaterThanOrEqual) {
+            masm.slt(tmp, left, right);
+            masm.bne(tmp, regZero, 4);
+        }
+        else if (cond == LessThan) {
+            masm.slt(tmp, left, right);
+            masm.beq(tmp, regZero, 4);
+        }
+        else if (cond == LessThanOrEqual) {
+            masm.slt(tmp, right, left);
+            masm.bne(tmp, regZero, 4);
+        }
+        else if (cond == Overflow) {
+        /*
+            xor     cmpTemp, left, right
+            bgez    No_overflow, cmpTemp    # same sign bit -> no overflow
+            nop
+            subu    cmpTemp, left, right
+            xor     cmpTemp, cmpTemp, left
+            bgez    No_overflow, cmpTemp    # same sign bit -> no overflow
+           
+            lui
+            ori     
+            jr
+            nop
+
+          No_overflow:
+        */
+            masm.xorInsn(tmp, left, right);
+            masm.bgez(tmp, 8);
+            masm.nop();
+            masm.subu(tmp, left, right);
+            masm.xorInsn(tmp, tmp, left);
+            masm.bgez(tmp, 4);
+        }
+        else if (cond == Signed) {
+            masm.subu(tmp, left, right);
+            // Check if the result is negative.
+            masm.slt(tmp, tmp, regZero);
+            masm.beq(tmp, regZero, 4);
+        }
+        masm.lui(t9.code(),to>>16);
+        masm.ori(t9.code(),t9.code(),to&0x0000ffff);
+        if(reloc == Relocation::IONCODE) {
+            JmpSrc src(size());
+            addPendingJump(src, target, reloc);
+        }
+        masm.jr(t9.code());
+        masm.nop();
     }
     //hwj
     void jmp(IonCode *target) {
@@ -877,64 +967,75 @@ class Assembler
     }
     //hwj
     void call(IonCode *target) {
-        mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
-        mcss.push(mRegisterID(v0.code()));//2insns
-        JmpSrc src(masm.size());
+        int to = (int)(target->raw());
+        CodeLabel cl;
+        mov(cl.dest(),t9);
+        push(t9);
         
-        masm.lui(t9.code(),0);//1insns
-        masm.ori(t9.code(),t9.code(),0);//1insns
-        //masm.jalr(t9.code());//1insns
-        masm.jr(t9.code());//1insns
-        masm.nop();//1insns
-
+        masm.lui(t9.code(),to>>16);
+        masm.ori(t9.code(),t9.code(),to&0x0000ffff);
+        
+        JmpSrc src(size());
         addPendingJump(src, target->raw(), Relocation::IONCODE);
+        
+        masm.jalr(t9.code());
+        masm.nop();
+        bind(cl.src());
     }
+
     //hwj
     void call(ImmWord target) {
-        mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
-        mcss.push(mRegisterID(v0.code()));//2insns
-        JmpSrc src(masm.size());
-        
-        masm.lui(t9.code(),0);//1insns
-        masm.ori(t9.code(),t9.code(),0);//1insns
-        masm.jalr(t9.code());//1insns
-        masm.nop();//1insns
+        int to = (int)(target.value);
+        CodeLabel cl;
+        mov(cl.dest(),t9);
+        push(t9);
 
-        addPendingJump(src, target.asPointer(), Relocation::HARDCODED);
+        masm.lui(t9.code(),to>>16);
+        masm.ori(t9.code(),t9.code(),to&0x0000ffff);
+        
+        masm.jalr(t9.code());
+        masm.nop();
+        bind(cl.src());
     }
 
    //NOTE*:This is new in ff24.
        // Emit a CALL or CMP (nop) instruction. ToggleCall can be used to patch
     // this instruction. 
-    // 11 ins
+    // 8 ins
     CodeOffsetLabel toggledCall(IonCode *target, bool enabled) {    
         CodeOffsetLabel offset(size());
 
-        if(enabled) 
-            mcss.offsetFromPCToV0(sizeof(int*)*7);//1 insns (4+1)
-        else 
-            mcss.skipOffsetFromPCToV0(sizeof(int*)*8);//1insns
+        int to = (int)(target->raw());
+        JSC::MIPSAssembler::RegisterID regZero = zero.code();
+        CodeLabel cl;
+        mov(cl.dest(),t9);
+        if(enabled){
+            push(t9);
+        } else{
+            masm.beq(regZero, regZero, 5);
+            masm.nop();
+        }
+        masm.lui(t9.code(),to>>16);
+        masm.ori(t9.code(),t9.code(),to&0x0000ffff);
         
-        mcss.push(mRegisterID(v0.code()));//2insns
-        JmpSrc src(masm.size());
+        JmpSrc src(size());
+        addPendingJump(src, target->raw(), Relocation::IONCODE);
         
-        masm.lui(t9.code(),0);//1insns
-        masm.ori(t9.code(),t9.code(),0);//1insns
-        masm.jr(t9.code());//1insns
-        masm.nop();//1insns
-
-        addPendingJump(src, target->raw(), Relocation::IONCODE);      
-        JS_ASSERT(size() - offset.offset() == ToggledCallSize());
+        masm.jalr(t9.code());
+        masm.nop();
+        
+        JS_ASSERT((size() - offset.offset()) == ToggledCallSize());
         return offset;
     }
    //NOTE*:This is new in ff24! This is need to update!
     static size_t ToggledCallSize() {
         // Size of a call instruction.
-    	return 44; //11*4
+    	return 32; //8*4
     }
 
     // Re-routes pending jumps to an external target, flushing the label in the
     // process.
+    // hwj
     void retarget(Label *label, void *target, Relocation::Kind reloc) {
         JSC::MacroAssembler::Label jsclabel;
         if (label->used()) {
@@ -943,7 +1044,14 @@ class Assembler
             do {
                 JSC::MIPSAssembler::JmpSrc next;
                 more = masm.nextJump(jmp, &next);
-                addPendingJump(jmp, target, reloc);
+                //hwj
+                masm.clearOffsetForLabel(jmp);
+                masm.preLink(jmp, target);
+                
+                //save the pointer after lui,ori 
+                if(reloc == Relocation::IONCODE)
+                    addPendingJump(JSC::MIPSAssembler::JmpSrc(jmp.offset()-8), target, reloc);
+                
                 jmp = next;
             } while (more);
         }
@@ -2767,10 +2875,17 @@ class Assembler
     static void ToggleCall(CodeLocationLabel inst, bool enabled) {
         int *ptr = (int *)inst.raw();
                 
-        ASSERT((*(ptr+2)==0x10000008)||*(ptr+2)==0x0320f809);    //cmp eax | CALL
-        *(ptr+2) = enabled ? 0x0320f809 : 0x10000008;
+        ASSERT(((*(ptr+2)==0x10000005)&&(*(ptr+3) == 0x00000000))       //beq 0,0,5; nop ;        
+             ||((*(ptr+2)==0x27bdfffc)&&(*(ptr+3) == 0xafb90000)));    //addiu, sp, sp,-4; sw t9,0(sp);
+        if(enabled) { 
+            *(ptr+2) = 0x27bdfffc;      //addiu, sp, sp,-4
+            *(ptr+3) = 0xafb90000;      //sw t9,0(sp)
+        }
+        else {
+            *(ptr+2) = 0x10000005;      //beq r0, r0,5
+            *(ptr+3) = 0x00000000;      //nop 
+        }        
     }
-    
 };
 
 // Get a register in which we plan to put a quantity that will be used as an

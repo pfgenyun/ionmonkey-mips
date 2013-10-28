@@ -369,7 +369,7 @@ namespace JSC {
             }
         }
     }
-
+    
     int MIPSAssembler::linkWithOffset(MIPSWord* insn, void* to)
     {
         ASSERT((*insn & 0xfc000000) == 0x10000000 // beq
@@ -444,6 +444,66 @@ namespace JSC {
 
         *insn = (*insn & 0xffff0000) | (diff & 0xffff);
         return sizeof(MIPSWord);
+    }
+
+    void MIPSAssembler::preLink(JmpSrc jump, void* target)
+    {
+        ASSERT(m_jumps.size() > 0);
+        MIPSWord* insn = (MIPSWord*)(m_buffer.size()+jump.offset()-6);//head
+        Jumps tmp;
+
+        for (Jumps::Iterator iter = m_jumps.begin(); iter != m_jumps.end(); ++iter){
+            if(*iter != jump.offset()) {
+                tmp.append(*iter);
+            }         
+        }
+        
+        m_jumps.clear();
+        
+        for (Jumps::Iterator iter = tmp.begin(); iter != tmp.end(); ++iter){
+            m_jumps.append(*iter);
+        }
+        tmp.clear();
+        /*
+        for(i = 0; i < m_jumps.size(); i++)
+        {
+            if(m_jumps[i] == jump.offset()) {
+                m_jumps[i] = m_jumps.last();
+                break;
+            }
+        }
+        ASSERT(i < m_jumps.size());
+        */
+        /*
+        if(i < m_jumps.size())        
+            m_jumps.removeLast();
+        */
+
+        ASSERT((*insn & 0xfc000000) == 0x10000000 // beq
+               || (*insn & 0xfc000000) == 0x14000000 // bne
+               || (*insn & 0xffff0000) == 0x45010000 // bc1t
+               || (*insn & 0xffff0000) == 0x45000000); // bc1f
+        
+        if ((*insn & 0xfc000000) == 0x10000000) // beq
+            *insn = (*insn & 0x03ff0000) | 0x14000005; // bne
+        else if ((*insn & 0xfc000000) == 0x14000000) // bne
+            *insn = (*insn & 0x03ff0000) | 0x10000005; // beq
+        else if ((*insn & 0xffff0000) == 0x45010000) // bc1t
+            *insn = 0x45000005; // bc1f
+        else if ((*insn & 0xffff0000) == 0x45000000) // bc1f
+            *insn = 0x45010005; // bc1t
+        else
+            ASSERT(0);
+        ASSERT(*(insn + 1) == 0x00000000);
+
+        int to = (int)target;
+        //lui
+        *(insn + 2) = 0x3c000000 | (MIPSRegisters::t9 << OP_SH_RT) | (to >> 16);
+        //ori
+        *(insn + 3) = 0x34000000 | (MIPSRegisters::t9 << OP_SH_RT) | (MIPSRegisters::t9 << OP_SH_RS) | (to & 0x0000ffff);
+        /* jr */
+        *(insn + 4) = 0x00000008 | (MIPSRegisters::t9 << OP_SH_RS);
+        *(insn + 5) = 0x00000000;
     }
 
     int MIPSAssembler::linkCallInternal(void* from, void* to)
