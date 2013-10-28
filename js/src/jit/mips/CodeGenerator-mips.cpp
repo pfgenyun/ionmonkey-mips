@@ -482,11 +482,17 @@ class OutOfLineUndoALUOperation : public OutOfLineCodeBase<CodeGeneratorMIPS>
 bool
 CodeGeneratorMIPS::visitAddI(LAddI *ins)
 {
-
-    if (ins->rhs()->isConstant())
+    //edit by QuQiuwen
+    if (ins->rhs()->isConstant()){
+        masm.cmpl(ToOperand(ins->lhs()), Imm32(ToInt32(ins->rhs())));
+        masm.negl(cmpTemp2Register);
         masm.addl(Imm32(ToInt32(ins->rhs())), ToOperand(ins->lhs()));
-    else
+    }
+    else{
+        masm.cmpl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
+        masm.negl(cmpTemp2Register);
         masm.addl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
+    }
 
     if (ins->snapshot()) {
         if (ins->recoversInput()) {
@@ -512,10 +518,15 @@ CodeGeneratorMIPS::visitAddI(LAddI *ins)
 bool
 CodeGeneratorMIPS::visitSubI(LSubI *ins)
 {
-   if (ins->rhs()->isConstant())
+    //add cmpl ,edit by QuQiuwen,
+   if (ins->rhs()->isConstant()){
+        masm.cmpl(ToOperand(ins->lhs()),Imm32(ToInt32(ins->rhs())));
         masm.subl(Imm32(ToInt32(ins->rhs())), ToOperand(ins->lhs()));
-    else
+     }
+    else{
+        masm.cmpl(ToRegister(ins->lhs()),ToOperand(ins->rhs()));
         masm.subl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
+    }
 
     if (ins->snapshot()) {
         if (ins->recoversInput()) {

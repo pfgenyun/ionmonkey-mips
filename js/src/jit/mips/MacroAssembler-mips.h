@@ -548,6 +548,8 @@ class MacroAssemblerMIPS : public Assembler
     }
     void decBranchPtr(Condition cond, const Register &lhs, Imm32 imm, Label *label) {
         subPtr(imm, lhs);
+        //add by QuQiuwen
+        cmpl(lhs,zero);
         j(cond, label);
     }
 
@@ -891,7 +893,7 @@ class MacroAssemblerMIPS : public Assembler
         addl(Imm32(1), Operand(dest));
         Label noOverflow;
       //add by QuQiuwen
-     cmpl(zero,Operand(dest));
+        cmpl(Operand(dest),zero);
         j(NonZero, &noOverflow);
         addl(Imm32(1), Operand(dest.offset(4)));
         bind(&noOverflow);
@@ -1377,7 +1379,7 @@ class MacroAssemblerMIPS : public Assembler
                 movmskpd(src, dest);
                 andl(Imm32(1), dest);
                 //add by QuQiuwen
-                cmpl(zero,dest);
+                cmpl(dest,zero);
                 j(Assembler::NonZero, fail);
    //         }
 
