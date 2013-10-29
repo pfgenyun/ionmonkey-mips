@@ -158,8 +158,8 @@ class ABIArgGenerator
     static const Register NonVolatileReg;
 };
 
-static const MOZ_CONSTEXPR Register OsrFrameReg = s6;//edx;
-static const MOZ_CONSTEXPR Register PreBarrierReg =s6;// edx;
+static const MOZ_CONSTEXPR Register OsrFrameReg = t7;//edx;
+static const MOZ_CONSTEXPR Register PreBarrierReg =t7;// edx;
 
 // GCC stack is aligned on 16 bytes, but we don't maintain the invariant in
 // jitted code.

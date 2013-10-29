@@ -503,6 +503,8 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         break;
 
       case Type_Int32:
+//xsb:fixme
+      case Type_Pointer:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(int32));
         masm.movl(sp, outReg);
@@ -605,6 +607,8 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         break;
 
       case Type_Int32:
+      //xsb:fixme
+      case Type_Pointer:
         masm.load32(Address(sp, 0), ReturnReg);
         masm.freeStack(sizeof(JSBool));
         break;
