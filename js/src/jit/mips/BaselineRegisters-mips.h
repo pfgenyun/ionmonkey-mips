@@ -14,7 +14,9 @@
 namespace js {
 namespace jit {
 
-static const Register BaselineFrameReg = fp;
+// by wangqing, fp-->s2
+//static const Register BaselineFrameReg = fp;
+static const Register BaselineFrameReg = s2;
 static const Register BaselineStackReg = sp;
 
 // ValueOperands R0, R1, and R2
@@ -40,4 +42,4 @@ static const FloatRegister FloatReg1      = f2;
 
 #endif // JS_ION
 
-#endif /* jit_x86_BaselineRegisters_x86_h */
+#endif /* jit_mips_BaselineRegisters_mips_h */

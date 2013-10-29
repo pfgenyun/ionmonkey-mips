@@ -2827,11 +2827,11 @@ class Assembler
          * lui reg, newData_hi
          * ori reg, reg, newData_low
          */
-        uint32_t *ptr = ((uintptr_t*) data.raw());
+        uint32_t *ptr = ((uint32_t*) data.raw());
         uint32_t luiIns = *ptr;
         uint32_t oriIns = *(ptr+1);
-        JS_ASSERT(luiIns & 0xfc000000 == 0x3c000000); // whether is lui 
-        JS_ASSERT(oriIns & 0xfc000000 == 0x34000000); // whether is ori 
+        JS_ASSERT((luiIns & 0xfc000000) == 0x3c000000); // whether is lui 
+        JS_ASSERT((oriIns & 0xfc000000) == 0x34000000); // whether is ori 
         uint32_t oldData = ((luiIns & 0x0000ffff) << 16) | (oriIns & 0x0000ffff);
         JS_ASSERT(oldData == expectedData.value);
         *ptr = (luiIns & 0xffff0000) | ((newData.value & 0xffff0000) >> 16);

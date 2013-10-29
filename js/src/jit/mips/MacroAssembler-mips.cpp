@@ -44,7 +44,7 @@ MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
     }
     Double &dbl = doubles_[doubleIndex]; 
  //  masm.movsd_mr(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
-   mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
+    mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
  
     dbl.uses.setPrev(masm.size());
 }

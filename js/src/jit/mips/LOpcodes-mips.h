@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jsion_lir_opcodes_mips_h__
-#define jsion_lir_opcodes_mips_h__
+#ifndef jit_mips_opcodes_mips_h__
+#define jit_mips_opcodes_mips_h__
 
 #define LIR_CPU_OPCODE_LIST(_)  \
     _(Unbox)                    \
@@ -22,6 +22,6 @@
     _(AsmJSDivOrMod)		\
    _(DivPowTwoI) 
 
-#endif // jsion_lir_opcodes_x86_h__
+#endif // jit_mips_opcodes_mips_h__
 
 
