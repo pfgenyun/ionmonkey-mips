@@ -1925,7 +1925,10 @@ class Assembler
 
    void jmp(const Operand &op){
         switch (op.kind()) {
-          case Operand::SCALE:
+            case Operand::REG_DISP:
+                mcss.jump(mAddress(op.base(), op.disp()));
+                break;
+            case Operand::SCALE:
 //ok            masm.jmp_m(op.disp(), op.base(), op.index(), op.scale());
             mcss.jump(mBaseIndex(op.base(), op.index(), mScale(op.scale()), op.disp()));
             break;
