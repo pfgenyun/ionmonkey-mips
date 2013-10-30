@@ -2891,211 +2891,211 @@ class Assembler
         }        
     }
 
-    void movz(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void movz(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.movz(rd, rs, rt);
+        masm.movz(rd.code(), rs.code(), rt.code());
     }
 
-    void move(mRegisterID rd, mRegisterID rs)
+    void move(const Register &rd, const Register &rs)
     {
-        masm.move(rd, rs);
+        masm.move(rd.code(), rs.code());
     }
 
     /* Set an immediate value to a register.  This may generate 1 or 2
        instructions.  */
-    void li(mRegisterID dest, int imm)
+    void li(const Register &dest, ImmWord imm)
     {
-        masm.li(dest, imm);
+        masm.li(dest.code(), imm.value);
     }
 
-    void lui(mRegisterID rt, int imm)
+    void lui(const Register &rt, ImmWord imm)
     {
-        masm.lui(rt, imm);
+        masm.lui(rt.code(), imm.value);
     }
 
-    void addiu(mRegisterID rt, mRegisterID rs, int imm)
+    void addiu(const Register &rt, const Register &rs, ImmWord imm)
     {
-        masm.addiu(rt, rs, imm);
+        masm.addiu(rt.code(), rs.code(), imm.value);
     }
 
-    void addu(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void addu(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.addu(rd, rs, rt);
+        masm.addu(rd.code(), rs.code(), rt.code());
     }
 
-    void subu(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void subu(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.subu(rd, rs, rt);
+        masm.subu(rd.code(), rs.code(), rt.code());
     }
 
-    void mult(mRegisterID rs, mRegisterID rt)
+    void mult(const Register &rs, const Register &rt)
     {
-        masm.mult(rs, rt);
+        masm.mult(rs.code(), rt.code());
     }
 
-    void div(mRegisterID rs, mRegisterID rt)
+    void div(const Register &rs, const Register &rt)
     {
-        masm.div(rs, rt);
+        masm.div(rs.code(), rt.code());
     }
 
-    void divu(mRegisterID rs, mRegisterID rt)
+    void divu(const Register &rs, const Register &rt)
     {
-        masm.divu(rs, rt);
+        masm.divu(rs.code(), rt.code());
     }
 
-    void mfhi(mRegisterID rd)
+    void mfhi(const Register &rd)
     {
-        masm.mfhi(rd);
+        masm.mfhi(rd.code());
     }
 
-    void mflo(mRegisterID rd)
+    void mflo(const Register &rd)
     {
-        masm.mflo(rd);
+        masm.mflo(rd.code());
     }
 
-    void mul(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void mul(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.mul(rd, rs, rt);
+        masm.mul(rd.code(), rs.code(), rt.code());
     }
 
-    void andInsn(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void andInsn(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.andInsn(rd, rs, rt);
+        masm.andInsn(rd.code(), rs.code(), rt.code());
     }
 
-    void andi(mRegisterID rt, mRegisterID rs, int imm)
+    void andi(const Register &rt, const Register &rs, ImmWord imm)
     {
-        masm.andi(rt, rs, imm);
+        masm.andi(rt.code(), rs.code(), imm.value);
     }
 
-    void nor(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void nor(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.nor(rd, rs, rt);
+        masm.nor(rd.code(), rs.code(), rt.code());
     }
 
-    void orInsn(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void orInsn(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.orInsn(rd, rs, rt);
+        masm.orInsn(rd.code(), rs.code(), rt.code());
     }
 
-    void ori(mRegisterID rt, mRegisterID rs, int imm)
+    void ori(const Register &rt, const Register &rs, ImmWord imm)
     {
-        masm.ori(rt, rs, imm);
+        masm.ori(rt.code(), rs.code(), imm.value);
     }
 
-    void xorInsn(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void xorInsn(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.xorInsn(rd, rs, rt);
+        masm.xorInsn(rd.code(), rs.code(), rt.code());
     }
 
-    void xori(mRegisterID rt, mRegisterID rs, int imm)
+    void xori(const Register &rt, const Register &rs, ImmWord imm)
     {
-        masm.xori(rt, rs, imm);
+        masm.xori(rt.code(), rs.code(), imm.value);
     }
 
-    void slt(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void slt(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.slt(rd, rs, rt);
+        masm.slt(rd.code(), rs.code(), rt.code());
     }
 
-    void sltu(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    void sltu(const Register &rd, const Register &rs, const Register &rt)
     {
-        masm.sltu(rd, rs, rt);
+        masm.sltu(rd.code(), rs.code(), rt.code());
     }
 
-    void sltiu(mRegisterID rt, mRegisterID rs, int imm)
+    void sltiu(const Register &rt, const Register &rs, ImmWord imm)
     {
-        masm.sltiu(rt, rs, imm);
+        masm.sltiu(rt.code(), rs.code(), imm.value);
     }
 
-    void sll(mRegisterID rd, mRegisterID rt, int shamt)
+    void sll(const Register &rd, const Register &rt, ImmWord shamt)
     {
-        masm.sll(rd, rt, shamt);
+        masm.sll(rd.code(), rt.code(), shamt.value);
     }
 
-    void sllv(mRegisterID rd, mRegisterID rt, int rs)
+    void sllv(const Register &rd, const Register &rt, ImmWord rs)
     {
-        masm.sllv(rd, rt, rs);
+        masm.sllv(rd.code(), rt.code(), rs.value);
     }
 
-    void sra(mRegisterID rd, mRegisterID rt, int shamt)
+    void sra(const Register &rd, const Register &rt, ImmWord shamt)
     {
-        masm.sra(rd, rt, shamt);
+        masm.sra(rd.code(), rt.code(), shamt.value);
     }
 
-    void srav(mRegisterID rd, mRegisterID rt, mRegisterID rs)
+    void srav(const Register &rd, const Register &rt, const Register &rs)
     {
-        masm.srav(rd, rt, rs);
+        masm.srav(rd.code(), rt.code(), rs.code());
     }
 
-    void srl(mRegisterID rd, mRegisterID rt, int shamt)
+    void srl(const Register &rd, const Register &rt, ImmWord shamt)
     {
-        masm.srl(rd, rt, shamt);
+        masm.srl(rd.code(), rt.code(), shamt.value);
     }
 
-    void srlv(mRegisterID rd, mRegisterID rt, mRegisterID rs)
+    void srlv(const Register &rd, const Register &rt, const Register &rs)
     {
-        masm.srlv(rd, rt, rs);
+        masm.srlv(rd.code(), rt.code(), rs.code());
     }
 
-    void lb(mRegisterID rt, mRegisterID rs, int offset)
+    void lb(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lb(rt, rs, offset);
+        masm.lb(rt.code(), rs.code(), offset.value);
     }
 
-    void lbu(mRegisterID rt, mRegisterID rs, int offset)
+    void lbu(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lbu(rt, rs, offset);
+        masm.lbu(rt.code(), rs.code(), offset.value);
     }
 
-    void lw(mRegisterID rt, mRegisterID rs, int offset)
+    void lw(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lw(rt, rs, offset);
+        masm.lw(rt.code(), rs.code(), offset.value);
     }
 
-    void lwl(mRegisterID rt, mRegisterID rs, int offset)
+    void lwl(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lwl(rt, rs, offset);
+        masm.lwl(rt.code(), rs.code(), offset.value);
     }
 
-    void lwr(mRegisterID rt, mRegisterID rs, int offset)
+    void lwr(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lwr(rt, rs, offset);
+        masm.lwr(rt.code(), rs.code(), offset.value);
     }
 
-    void lh(mRegisterID rt, mRegisterID rs, int offset)
+    void lh(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lh(rt, rs, offset);
+        masm.lh(rt.code(), rs.code(), offset.value);
     }
 
-    void lhu(mRegisterID rt, mRegisterID rs, int offset)
+    void lhu(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.lhu(rt, rs, offset);
+        masm.lhu(rt.code(), rs.code(), offset.value);
     }
 
-    void sb(mRegisterID rt, mRegisterID rs, int offset)
+    void sb(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.sb(rt, rs, offset);
+        masm.sb(rt.code(), rs.code(), offset.value);
     }
 
-    void sh(mRegisterID rt, mRegisterID rs, int offset)
+    void sh(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.sh(rt, rs, offset);
+        masm.sh(rt.code(), rs.code(), offset.value);
     }
 
-    void sw(mRegisterID rt, mRegisterID rs, int offset)
+    void sw(const Register &rt, const Register &rs, ImmWord offset)
     {
-        masm.sw(rt, rs, offset);
+        masm.sw(rt.code(), rs.code(), offset.value);
     }
 
-    void jr(mRegisterID rs)
+    void jr(const Register &rs)
     {
-        masm.jr(rs);
+        masm.jr(rs.code());
     }
 
-    void jalr(mRegisterID rs)
+    void jalr(const Register &rs)
     {
-        masm.jalr(rs);
+        masm.jalr(rs.code());
     }
 
     void jal()
@@ -3108,29 +3108,29 @@ class Assembler
         masm.bkpt();
     }
 
-    void bal(int imm)
+    void bal(ImmWord imm)
     {
-        masm.bal(imm);
+        masm.bal(imm.value);
     }
 
-    void bgez(mRegisterID rs, int imm)
+    void bgez(const Register &rs, ImmWord imm)
     {
-        masm.bgez(rs, imm);
+        masm.bgez(rs.code(), imm.value);
     }
 
-    void bltz(mRegisterID rs, int imm)
+    void bltz(const Register &rs, ImmWord imm)
     {
-        masm.bltz(rs, imm);
+        masm.bltz(rs.code(), imm.value);
     }
 
-    void beq(mRegisterID rs, mRegisterID rt, int imm)
+    void beq(const Register &rs, const Register &rt, ImmWord imm)
     {
-        masm.beq(rs, rt, imm);
+        masm.beq(rs.code(), rt.code(), imm.value);
     }
 
-    void bne(mRegisterID rs, mRegisterID rt, int imm)
+    void bne(const Register &rs, const Register &rt, ImmWord imm)
     {
-        masm.bne(rs, rt, imm);
+        masm.bne(rs.code(), rt.code(), imm.value);
     }
 
     void bc1t()
@@ -3155,179 +3155,179 @@ class Assembler
         masm.appendJump();
     }
 
-    void movd(mFPRegisterID fd, mFPRegisterID fs)
+    void movd(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.movd(fd, fs);
+        masm.movd(fd.code(), fs.code());
     }
 
-    void addd(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    void addd(const FloatRegister &fd, const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.addd(fd, fs, ft);
+        masm.addd(fd.code(), fs.code(), ft.code());
     }
 
-    void subd(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    void subd(const FloatRegister &fd, const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.subd(fd, fs, ft);
+        masm.subd(fd.code(), fs.code(), ft.code());
     }
 
-    void muld(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    void muld(const FloatRegister &fd, const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.muld(fd, fs, ft);
+        masm.muld(fd.code(), fs.code(), ft.code());
     }
 
-    void divd(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    void divd(const FloatRegister &fd, const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.divd(fd, fs, ft);
+        masm.divd(fd.code(), fs.code(), ft.code());
+    }
+/*
+    void negd(const FloatRegister &fd, const FloatRegister &fs)
+    {
+        masm.negd(fd.code(), fs.code());
+    }
+*/
+    void absd(const FloatRegister &fd, const FloatRegister &fs)
+    {
+        masm.absd(fd.code(), fs.code());
     }
 
-    void negd(mFPRegisterID fd, mFPRegisterID fs)
+    void lwc1(const FloatRegister &ft, const Register &rs, ImmWord offset)
     {
-        masm.negd(fd, fs);
+        masm.lwc1(ft.code(), rs.code(), offset.value);
     }
 
-    void absd(mFPRegisterID fd, mFPRegisterID fs)
+    void ldc1(const FloatRegister &ft, const Register &rs, ImmWord offset)
     {
-        masm.absd(fd, fs);
+        masm.ldc1(ft.code(), rs.code(), offset.value);
     }
 
-    void lwc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    void swc1(const FloatRegister &ft, const Register &rs, ImmWord offset)
     {
-        masm.lwc1(ft, rs, offset);
+        masm.swc1(ft.code(), rs.code(), offset.value);
     }
 
-    void ldc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    void sdc1(const FloatRegister &ft, const Register &rs, ImmWord offset)
     {
-        masm.ldc1(ft, rs, offset);
+        masm.sdc1(ft.code(), rs.code(), offset.value);
     }
 
-    void swc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    void mtc1(const Register &rt, const FloatRegister &fs)
     {
-        masm.swc1(ft, rs, offset);
+        masm.mtc1(rt.code(), fs.code());
     }
 
-    void sdc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    void mthc1(const Register &rt, const FloatRegister &fs)
     {
-        masm.sdc1(ft, rs, offset);
+        masm.mthc1(rt.code(), fs.code());
     }
 
-    void mtc1(mRegisterID rt, mFPRegisterID fs)
+    void dsrl32(const Register &rt, const Register &rd, ImmWord saminus32)
     {
-        masm.mtc1(rt, fs);
+        masm.dsrl32(rt.code(), rd.code(), saminus32.value);
     }
 
-    void mthc1(mRegisterID rt, mFPRegisterID fs)
+    void dmfc1(const Register &rt, const FloatRegister &fs)
     {
-        masm.mthc1(rt, fs);
+        masm.dmfc1(rt.code(), fs.code());
     }
 
-    void dsrl32(mRegisterID rt, mRegisterID rd, int saminus32)
+    void mfc1(const Register &rt, const FloatRegister &fs)
     {
-        masm.dsrl32(rt, rd, saminus32);
+        masm.mfc1(rt.code(), fs.code());
     }
 
-    void dmfc1(mRegisterID rt, mFPRegisterID fs)
+    void sqrtd(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.dmfc1(rt, fs);
+        masm.sqrtd(fd.code(), fs.code());
     }
 
-    void mfc1(mRegisterID rt, mFPRegisterID fs)
+    void truncwd(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.mfc1(rt, fs);
+        masm.truncwd(fd.code(), fs.code());
     }
 
-    void sqrtd(mFPRegisterID fd, mFPRegisterID fs)
+    void floorwd(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.sqrtd(fd, fs);
+        masm.floorwd(fd.code(), fs.code());
     }
 
-    void truncwd(mFPRegisterID fd, mFPRegisterID fs)
+    void cvtdw(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.truncwd(fd, fs);
+        masm.cvtdw(fd.code(), fs.code());
     }
 
-    void floorwd(mFPRegisterID fd, mFPRegisterID fs)
+    void cvtds(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.floorwd(fd, fs);
+        masm.cvtds(fd.code(), fs.code());
     }
 
-    void cvtdw(mFPRegisterID fd, mFPRegisterID fs)
+    void cvtsd(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.cvtdw(fd, fs);
+        masm.cvtsd(fd.code(), fs.code());
     }
 
-    void cvtds(mFPRegisterID fd, mFPRegisterID fs)
+    void cvtwd(const FloatRegister &fd, const FloatRegister &fs)
     {
-        masm.cvtds(fd, fs);
+        masm.cvtwd(fd.code(), fs.code());
     }
 
-    void cvtsd(mFPRegisterID fd, mFPRegisterID fs)
+    void cud(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cvtsd(fd, fs);
+        masm.cud(fs.code(), ft.code());
     }
 
-    void cvtwd(mFPRegisterID fd, mFPRegisterID fs)
+    void ceqd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cvtwd(fd, fs);
+        masm.ceqd(fs.code(), ft.code());
     }
 
-    void cud(mFPRegisterID fs, mFPRegisterID ft)
+    void cseqd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cud(fs, ft);
+        masm.cseqd(fs.code(), ft.code());
     }
 
-    void ceqd(mFPRegisterID fs, mFPRegisterID ft)
+    void cngtd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.ceqd(fs, ft);
+        masm.cngtd(fs.code(), ft.code());
     }
 
-    void cseqd(mFPRegisterID fs, mFPRegisterID ft)
+    void cnged(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cseqd(fs, ft);
+        masm.cnged(fs.code(), ft.code());
     }
 
-    void cngtd(mFPRegisterID fs, mFPRegisterID ft)
+    void cltd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cngtd(fs, ft);
+        masm.cltd(fs.code(), ft.code());
     }
 
-    void cnged(mFPRegisterID fs, mFPRegisterID ft)
+    void cled(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cnged(fs, ft);
+        masm.cled(fs.code(), ft.code());
     }
 
-    void cltd(mFPRegisterID fs, mFPRegisterID ft)
+    void cueqd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cltd(fs, ft);
+        masm.cueqd(fs.code(), ft.code());
     }
 
-    void cled(mFPRegisterID fs, mFPRegisterID ft)
+    void coled(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cled(fs, ft);
+        masm.coled(fs.code(), ft.code());
     }
 
-    void cueqd(mFPRegisterID fs, mFPRegisterID ft)
+    void coltd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.cueqd(fs, ft);
+        masm.coltd(fs.code(), ft.code());
     }
 
-    void coled(mFPRegisterID fs, mFPRegisterID ft)
+    void culed(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.coled(fs, ft);
+        masm.culed(fs.code(), ft.code());
     }
 
-    void coltd(mFPRegisterID fs, mFPRegisterID ft)
+    void cultd(const FloatRegister &fs, const FloatRegister &ft)
     {
-        masm.coltd(fs, ft);
-    }
-
-    void culed(mFPRegisterID fs, mFPRegisterID ft)
-    {
-        masm.culed(fs, ft);
-    }
-
-    void cultd(mFPRegisterID fs, mFPRegisterID ft)
-    {
-        masm.cultd(fs, ft);
+        masm.cultd(fs.code(), ft.code());
     }
 
 };
