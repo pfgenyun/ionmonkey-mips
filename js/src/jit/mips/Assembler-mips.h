@@ -9,6 +9,7 @@
 
 #include "jit/shared/Assembler-shared.h"
 #include "assembler/assembler/MIPSAssembler.h"
+#include "assembler/assembler/AssemblerBuffer.h"
 #include "assembler/assembler/MacroAssemblerMIPS.h"
 #include "jit/CompactBuffer.h"
 #include "jit/IonCode.h"
@@ -2889,6 +2890,446 @@ class Assembler
             *(ptr+3) = 0x00000000;      //nop 
         }        
     }
+
+    void movz(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.movz(rd, rs, rt);
+    }
+
+    void move(mRegisterID rd, mRegisterID rs)
+    {
+        masm.move(rd, rs);
+    }
+
+    /* Set an immediate value to a register.  This may generate 1 or 2
+       instructions.  */
+    void li(mRegisterID dest, int imm)
+    {
+        masm.li(dest, imm);
+    }
+
+    void lui(mRegisterID rt, int imm)
+    {
+        masm.lui(rt, imm);
+    }
+
+    void addiu(mRegisterID rt, mRegisterID rs, int imm)
+    {
+        masm.addiu(rt, rs, imm);
+    }
+
+    void addu(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.addu(rd, rs, rt);
+    }
+
+    void subu(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.subu(rd, rs, rt);
+    }
+
+    void mult(mRegisterID rs, mRegisterID rt)
+    {
+        masm.mult(rs, rt);
+    }
+
+    void div(mRegisterID rs, mRegisterID rt)
+    {
+        masm.div(rs, rt);
+    }
+
+    void divu(mRegisterID rs, mRegisterID rt)
+    {
+        masm.divu(rs, rt);
+    }
+
+    void mfhi(mRegisterID rd)
+    {
+        masm.mfhi(rd);
+    }
+
+    void mflo(mRegisterID rd)
+    {
+        masm.mflo(rd);
+    }
+
+    void mul(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.mul(rd, rs, rt);
+    }
+
+    void andInsn(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.andInsn(rd, rs, rt);
+    }
+
+    void andi(mRegisterID rt, mRegisterID rs, int imm)
+    {
+        masm.andi(rt, rs, imm);
+    }
+
+    void nor(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.nor(rd, rs, rt);
+    }
+
+    void orInsn(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.orInsn(rd, rs, rt);
+    }
+
+    void ori(mRegisterID rt, mRegisterID rs, int imm)
+    {
+        masm.ori(rt, rs, imm);
+    }
+
+    void xorInsn(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.xorInsn(rd, rs, rt);
+    }
+
+    void xori(mRegisterID rt, mRegisterID rs, int imm)
+    {
+        masm.xori(rt, rs, imm);
+    }
+
+    void slt(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.slt(rd, rs, rt);
+    }
+
+    void sltu(mRegisterID rd, mRegisterID rs, mRegisterID rt)
+    {
+        masm.sltu(rd, rs, rt);
+    }
+
+    void sltiu(mRegisterID rt, mRegisterID rs, int imm)
+    {
+        masm.sltiu(rt, rs, imm);
+    }
+
+    void sll(mRegisterID rd, mRegisterID rt, int shamt)
+    {
+        masm.sll(rd, rt, shamt);
+    }
+
+    void sllv(mRegisterID rd, mRegisterID rt, int rs)
+    {
+        masm.sllv(rd, rt, rs);
+    }
+
+    void sra(mRegisterID rd, mRegisterID rt, int shamt)
+    {
+        masm.sra(rd, rt, shamt);
+    }
+
+    void srav(mRegisterID rd, mRegisterID rt, mRegisterID rs)
+    {
+        masm.srav(rd, rt, rs);
+    }
+
+    void srl(mRegisterID rd, mRegisterID rt, int shamt)
+    {
+        masm.srl(rd, rt, shamt);
+    }
+
+    void srlv(mRegisterID rd, mRegisterID rt, mRegisterID rs)
+    {
+        masm.srlv(rd, rt, rs);
+    }
+
+    void lb(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lb(rt, rs, offset);
+    }
+
+    void lbu(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lbu(rt, rs, offset);
+    }
+
+    void lw(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lw(rt, rs, offset);
+    }
+
+    void lwl(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lwl(rt, rs, offset);
+    }
+
+    void lwr(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lwr(rt, rs, offset);
+    }
+
+    void lh(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lh(rt, rs, offset);
+    }
+
+    void lhu(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.lhu(rt, rs, offset);
+    }
+
+    void sb(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.sb(rt, rs, offset);
+    }
+
+    void sh(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.sh(rt, rs, offset);
+    }
+
+    void sw(mRegisterID rt, mRegisterID rs, int offset)
+    {
+        masm.sw(rt, rs, offset);
+    }
+
+    void jr(mRegisterID rs)
+    {
+        masm.jr(rs);
+    }
+
+    void jalr(mRegisterID rs)
+    {
+        masm.jalr(rs);
+    }
+
+    void jal()
+    {
+        masm.jal();
+    }
+
+    void bkpt()
+    {
+        masm.bkpt();
+    }
+
+    void bal(int imm)
+    {
+        masm.bal(imm);
+    }
+
+    void bgez(mRegisterID rs, int imm)
+    {
+        masm.bgez(rs, imm);
+    }
+
+    void bltz(mRegisterID rs, int imm)
+    {
+        masm.bltz(rs, imm);
+    }
+
+    void beq(mRegisterID rs, mRegisterID rt, int imm)
+    {
+        masm.beq(rs, rt, imm);
+    }
+
+    void bne(mRegisterID rs, mRegisterID rt, int imm)
+    {
+        masm.bne(rs, rt, imm);
+    }
+
+    void bc1t()
+    {
+        masm.bc1t();
+    }
+
+    void bc1f()
+    {
+        masm.bc1f();
+    }
+
+    // by wangqing 2010-10-30
+    JmpSrc newJmpSrc()
+    {
+        JSC::AssemblerBuffer m_buffer;
+        return JSC::MIPSAssembler::JmpSrc(m_buffer.size());
+    }
+
+    void appendJump()
+    {
+        masm.appendJump();
+    }
+
+    void movd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.movd(fd, fs);
+    }
+
+    void addd(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.addd(fd, fs, ft);
+    }
+
+    void subd(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.subd(fd, fs, ft);
+    }
+
+    void muld(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.muld(fd, fs, ft);
+    }
+
+    void divd(mFPRegisterID fd, mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.divd(fd, fs, ft);
+    }
+
+    void negd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.negd(fd, fs);
+    }
+
+    void absd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.absd(fd, fs);
+    }
+
+    void lwc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    {
+        masm.lwc1(ft, rs, offset);
+    }
+
+    void ldc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    {
+        masm.ldc1(ft, rs, offset);
+    }
+
+    void swc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    {
+        masm.swc1(ft, rs, offset);
+    }
+
+    void sdc1(mFPRegisterID ft, mRegisterID rs, int offset)
+    {
+        masm.sdc1(ft, rs, offset);
+    }
+
+    void mtc1(mRegisterID rt, mFPRegisterID fs)
+    {
+        masm.mtc1(rt, fs);
+    }
+
+    void mthc1(mRegisterID rt, mFPRegisterID fs)
+    {
+        masm.mthc1(rt, fs);
+    }
+
+    void dsrl32(mRegisterID rt, mRegisterID rd, int saminus32)
+    {
+        masm.dsrl32(rt, rd, saminus32);
+    }
+
+    void dmfc1(mRegisterID rt, mFPRegisterID fs)
+    {
+        masm.dmfc1(rt, fs);
+    }
+
+    void mfc1(mRegisterID rt, mFPRegisterID fs)
+    {
+        masm.mfc1(rt, fs);
+    }
+
+    void sqrtd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.sqrtd(fd, fs);
+    }
+
+    void truncwd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.truncwd(fd, fs);
+    }
+
+    void floorwd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.floorwd(fd, fs);
+    }
+
+    void cvtdw(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.cvtdw(fd, fs);
+    }
+
+    void cvtds(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.cvtds(fd, fs);
+    }
+
+    void cvtsd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.cvtsd(fd, fs);
+    }
+
+    void cvtwd(mFPRegisterID fd, mFPRegisterID fs)
+    {
+        masm.cvtwd(fd, fs);
+    }
+
+    void cud(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cud(fs, ft);
+    }
+
+    void ceqd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.ceqd(fs, ft);
+    }
+
+    void cseqd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cseqd(fs, ft);
+    }
+
+    void cngtd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cngtd(fs, ft);
+    }
+
+    void cnged(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cnged(fs, ft);
+    }
+
+    void cltd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cltd(fs, ft);
+    }
+
+    void cled(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cled(fs, ft);
+    }
+
+    void cueqd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cueqd(fs, ft);
+    }
+
+    void coled(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.coled(fs, ft);
+    }
+
+    void coltd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.coltd(fs, ft);
+    }
+
+    void culed(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.culed(fs, ft);
+    }
+
+    void cultd(mFPRegisterID fs, mFPRegisterID ft)
+    {
+        masm.cultd(fs, ft);
+    }
+
 };
 
 // Get a register in which we plan to put a quantity that will be used as an
@@ -2937,4 +3378,4 @@ GetArgStackDisp(uint32_t arg)
 } // namespace jit
 } // namespace js
 
-#endif /* jit_x86_Assembler_x86_h */
+#endif /* jit_mips_Assembler_mips_h */
