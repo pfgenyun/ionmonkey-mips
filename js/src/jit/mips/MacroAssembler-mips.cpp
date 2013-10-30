@@ -266,12 +266,12 @@ MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
     freeStack(stackAdjust);
     if (result == DOUBLE) {
         reserveStack(sizeof(double));
-        fstp(Operand(esp, 0));
-        movsd(Operand(esp, 0), ReturnFloatReg);
+        fstp(Operand(sp, 0));
+        movsd(Operand(sp, 0), ReturnFloatReg);
         freeStack(sizeof(double));
     }
     if (dynamicAlignment_)
-        pop(esp);
+        pop(sp);
 
     JS_ASSERT(inCall_);
     inCall_ = false;
