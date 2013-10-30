@@ -16,6 +16,41 @@ using namespace js::jit;
 namespace js {
 namespace jit {
 
+//removed by weizhenwei, 2013.10.29
+//bool
+//ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
+//{
+//    Label failure, notNaN;
+//    masm.ensureDouble(R0, FloatReg0, &failure);
+//    masm.ensureDouble(R1, FloatReg1, &failure);
+//
+//    Register dest = R0.scratchReg();
+//
+//    Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
+//    masm.xorl(dest, dest);
+//    //masm.compareDouble(cond, FloatReg0, FloatReg1);
+//    masm.branchDouble(cond, FloatReg0, FloatReg1);
+//    masm.setCC(Assembler::ConditionFromDoubleCondition(cond), dest);
+//    //by weizhenwei, 2013.10.28
+//    masm.setDoubleCC(dest);
+//
+//    // Check for NaN, if needed.
+//    Assembler::NaNCond nanCond = Assembler::NaNCondFromDoubleCondition(cond);
+//    if (nanCond != Assembler::NaN_HandledByCond) {
+//      masm.j(Assembler::NoParity, &notNaN);
+//      masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
+//      masm.bind(&notNaN);
+//    }
+//
+//    masm.tagValue(JSVAL_TYPE_BOOLEAN, dest, R0);
+//    EmitReturnFromIC(masm);
+//
+//    // Failure case - jump to next stub
+//    masm.bind(&failure);
+//    EmitStubGuardFailure(masm);
+//    return true;
+//}
+//
 bool
 ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 {
@@ -25,18 +60,24 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 
     Register dest = R0.scratchReg();
 
+    Label done;
+    //first check NaN
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
-    masm.xorl(dest, dest);
-    masm.compareDouble(cond, FloatReg0, FloatReg1);
-    masm.setCC(Assembler::ConditionFromDoubleCondition(cond), dest);
-
-    // Check for NaN, if needed.
     Assembler::NaNCond nanCond = Assembler::NaNCondFromDoubleCondition(cond);
     if (nanCond != Assembler::NaN_HandledByCond) {
-      masm.j(Assembler::NoParity, &notNaN);
       masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
-      masm.bind(&notNaN);
+      masm.branchDouble(Assembler::DoubleUnordered, FloatReg0, FloatReg1, &done);
     }
+
+    //then check True or False
+    //Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
+    masm.mov(Imm32(1), dest);
+    //masm.addiu(dest, zero, 1);
+    masm.branchDouble(cond, FloatReg0, FloatReg1, &done);
+    //else false, then set dest to 0;
+    masm.xorl(dest, dest);
+
+    masm.bind(&done);
 
     masm.tagValue(JSVAL_TYPE_BOOLEAN, dest, R0);
     EmitReturnFromIC(masm);
@@ -48,7 +89,6 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 }
 
 // ICCompare_Int32
-
 bool
 ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
@@ -89,12 +129,22 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
     Label revertRegister, maybeNegZero;
 //xsb:fix me
-#if 0
+//#if 0
+//fixed by weizhenwei, 2013.10.25
     switch(op_) {
       case JSOP_ADD:
         // Add R0 and R1.  Don't need to explicitly unbox.
+        // original code, removed by weizhenwei, 2013.10.29
+//        masm.movl(R0.payloadReg(), scratchReg);
+//        masm.addl(R1.payloadReg(), scratchReg);
+
+        //prepared for Overflow check.
+        masm.cmpl(R0.payloadReg(), R1.payloadReg());
+        masm.negl(cmpTemp2Register);
+
         masm.movl(R0.payloadReg(), scratchReg);
         masm.addl(R1.payloadReg(), scratchReg);
+
 
         // Just jump to failure on overflow.  R0 and R1 are preserved, so we can just jump to
         // the next stub.
@@ -104,6 +154,8 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.movl(scratchReg, R0.payloadReg());
         break;
       case JSOP_SUB:
+        masm.cmpl(R0.payloadReg(), R1.payloadReg());
+
         masm.movl(R0.payloadReg(), scratchReg);
         masm.subl(R1.payloadReg(), scratchReg);
         masm.j(Assembler::Overflow, &failure);
@@ -127,8 +179,13 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
 
         // For idiv we need eax.
-        JS_ASSERT(R1.typeReg() == eax);
-        masm.movl(R0.payloadReg(), eax);
+//        JS_ASSERT(R1.typeReg() == eax);
+//        masm.movl(R0.payloadReg(), eax);
+        // by weizhenwei, 2013.10.28, in mips, eax = t6 
+        // see jit/mips/CodeGenerator-mips.cpp:visitDivI();
+        JS_ASSERT(R1.typeReg() == t6);
+        masm.movl(R0.payloadReg(), t6);
+
         // Preserve R0.payloadReg()/edx, eax is JSVAL_TYPE_INT32.
         masm.movl(R0.payloadReg(), scratchReg);
         // Sign extend eax into edx to make (edx:eax), since idiv is 64-bit.
@@ -136,9 +193,12 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.idiv(R1.payloadReg());
 
         // A remainder implies a double result.
-        masm.branchTest32(Assembler::NonZero, edx, edx, &revertRegister);
+        //masm.branchTest32(Assembler::NonZero, edx, edx, &revertRegister);
+        masm.branchTest32(Assembler::NonZero, t7, t7, &revertRegister);
 
-        masm.movl(eax, R0.payloadReg());
+        //masm.movl(eax, R0.payloadReg());
+        //by weizhenwei, 2013.10.25
+        masm.movl(t6, R0.payloadReg());
         break;
       case JSOP_MOD:
       {
@@ -149,8 +209,13 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
 
         // For idiv we need eax.
-        JS_ASSERT(R1.typeReg() == eax);
-        masm.movl(R0.payloadReg(), eax);
+//        JS_ASSERT(R1.typeReg() == eax);
+//        masm.movl(R0.payloadReg(), eax);
+        // by weizhenwei, 2013.10.25, in mips, eax = t6, edx = t7, ecx = t8;
+        // see jit/mips/CodeGenerator-mips.cpp:visitDivI();
+        JS_ASSERT(R1.typeReg() == t6);
+        masm.movl(R0.payloadReg(), t6);
+
         // Preserve R0.payloadReg()/edx, eax is JSVAL_TYPE_INT32.
         masm.movl(R0.payloadReg(), scratchReg);
         // Sign extend eax into edx to make (edx:eax), since idiv is 64-bit.
@@ -159,14 +224,18 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
         // Fail when we would need a negative remainder.
         Label done;
-        masm.branchTest32(Assembler::NonZero, edx, edx, &done);
+        //masm.branchTest32(Assembler::NonZero, edx, edx, &done);
+        masm.branchTest32(Assembler::NonZero, t7, t7, &done);
         masm.branchTest32(Assembler::Signed, scratchReg, scratchReg, &revertRegister);
         masm.branchTest32(Assembler::Signed, R1.payloadReg(), R1.payloadReg(), &revertRegister);
 
         masm.bind(&done);
         // Result is in edx, tag in ecx remains untouched.
-        JS_ASSERT(R0.payloadReg() == edx);
-        JS_ASSERT(R0.typeReg() == ecx);
+//        JS_ASSERT(R0.payloadReg() == edx);
+//        JS_ASSERT(R0.typeReg() == ecx);
+//        by weizhenwei, 201..10.25
+        JS_ASSERT(R0.payloadReg() == t7);
+        JS_ASSERT(R0.typeReg() == t8);
         break;
       }
       case JSOP_BITOR:
@@ -182,14 +251,19 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         break;
       case JSOP_LSH:
         // RHS needs to be in ecx for shift operations.
-        JS_ASSERT(R0.typeReg() == ecx);
-        masm.movl(R1.payloadReg(), ecx);
+//        JS_ASSERT(R0.typeReg() == ecx);
+//        masm.movl(R1.payloadReg(), ecx);
+//        by weizhenwei, 2013.10.25, in mips, ecx = t8
+        JS_ASSERT(R0.typeReg() == t8);
+        masm.movl(R1.payloadReg(), t8);
         masm.shll_cl(R0.payloadReg());
         // We need to tag again, because we overwrote it.
         masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
         break;
       case JSOP_RSH:
-        masm.movl(R1.payloadReg(), ecx);
+//        masm.movl(R1.payloadReg(), ecx);
+//        by weizhenwei, 2013.10.25, in mips, ecx = t8
+        masm.movl(R1.payloadReg(), t8);
         masm.sarl_cl(R0.payloadReg());
         masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
         break;
@@ -197,7 +271,9 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         if (!allowDouble_)
             masm.movl(R0.payloadReg(), scratchReg);
 
-        masm.movl(R1.payloadReg(), ecx);
+//        masm.movl(R1.payloadReg(), ecx);
+//        by weizhenwei, 2013.10.25, in mips, ecx = t8
+        masm.movl(R1.payloadReg(), t8);
         masm.shrl_cl(R0.payloadReg());
         masm.testl(R0.payloadReg(), R0.payloadReg());
         if (allowDouble_) {
@@ -220,7 +296,8 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
        JS_NOT_REACHED("Unhandled op for BinaryArith_Int32.  ");
        return false;
     }
-#endif
+//#endif
+
     // Return.
     EmitReturnFromIC(masm);
 

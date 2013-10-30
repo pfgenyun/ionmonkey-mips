@@ -713,6 +713,13 @@ public:
         copDelayNop();
     }
 
+	//by weizhenwei, 2013.10.29
+    void cseqd(FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003a | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+
     void cngtd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x4620003f | (fs << OP_SH_FS) | (ft << OP_SH_FT));
