@@ -263,7 +263,7 @@ MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
 void
 MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
 {
- /*   freeStack(stackAdjust);
+    freeStack(stackAdjust);
     if (result == DOUBLE) {
         reserveStack(sizeof(double));
         fstp(Operand(esp, 0));
@@ -274,7 +274,7 @@ MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
         pop(esp);
 
     JS_ASSERT(inCall_);
-    inCall_ = false;*/
+    inCall_ = false;
 }
 /*
 void
