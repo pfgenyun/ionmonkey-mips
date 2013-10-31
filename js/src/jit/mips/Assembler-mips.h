@@ -86,25 +86,7 @@ static const MOZ_CONSTEXPR FloatRegister f28 = { JSC::MIPSRegisters::f28 };
 static const MOZ_CONSTEXPR FloatRegister f29 = { JSC::MIPSRegisters::f29 };
 static const MOZ_CONSTEXPR FloatRegister f30 = { JSC::MIPSRegisters::f30 };
 static const MOZ_CONSTEXPR FloatRegister f31 = { JSC::MIPSRegisters::f31 };
-/*
-static const MOZ_CONSTEXPR Register eax = { JSC::MIPSRegisters::eax };
-static const MOZ_CONSTEXPR Register ecx = { JSC::MIPSRegisters::ecx };
-static const MOZ_CONSTEXPR Register edx = { JSC::MIPSRegisters::edx };
-static const MOZ_CONSTEXPR Register ebx = { JSC::MIPSRegisters::ebx };
-static const MOZ_CONSTEXPR Register esp = { JSC::MIPSRegisters::esp };
-static const MOZ_CONSTEXPR Register ebp = { JSC::MIPSRegisters::ebp }; static const MOZ_CONSTEXPR Register esi = { JSC::MIPSRegisters::esi };
-static const MOZ_CONSTEXPR Register edi = { JSC::MIPSRegisters::edi };
 
-static const MOZ_CONSTEXPR FloatRegister xmm0 = { JSC::MIPSRegisters::xmm0 };
-static const MOZ_CONSTEXPR FloatRegister xmm1 = { JSC::MIPSRegisters::xmm1 };
-static const MOZ_CONSTEXPR FloatRegister xmm2 = { JSC::MIPSRegisters::xmm2 };
-static const MOZ_CONSTEXPR FloatRegister xmm3 = { JSC::MIPSRegisters::xmm3 };
-static const MOZ_CONSTEXPR FloatRegister xmm4 = { JSC::MIPSRegisters::xmm4 };
-static const MOZ_CONSTEXPR FloatRegister xmm5 = { JSC::MIPSRegisters::xmm5 };
-static const MOZ_CONSTEXPR FloatRegister xmm6 = { JSC::MIPSRegisters::xmm6 };
-static const MOZ_CONSTEXPR FloatRegister xmm7 = { JSC::MIPSRegisters::xmm7 };
-
-*/
 static const MOZ_CONSTEXPR Register InvalidReg = { JSC::MIPSRegisters::invalid_reg };
 static const MOZ_CONSTEXPR FloatRegister InvalidFloatReg = { JSC::MIPSRegisters::invalid_freg };
 
