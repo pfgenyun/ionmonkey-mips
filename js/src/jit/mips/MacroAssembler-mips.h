@@ -12,9 +12,9 @@
 
 #include "jit/mips/Assembler-mips.h"
 #include "jit/IonCaches.h"
-#include "jsopcode.h"
 
 #include "jit/IonFrames.h"
+#include "jsopcode.h"
 #include "jit/MoveResolver.h"
 
 #include "jscompartment.h"
@@ -33,29 +33,27 @@ class MacroAssemblerMIPS : public Assembler
     bool dynamicAlignment_;
     bool enoughMemory_;
 
-//NOTE*:this is new in ff24
     struct Double {
         double value;
         AbsoluteLabel uses;
         Double(double value) : value(value) {}
     };
-    Vector<Double, 0, SystemAllocPolicy> doubles_; //this is only used in loadConstantDouble() and finish();
+    Vector<Double, 0, SystemAllocPolicy> doubles_;
 
     typedef HashMap<double, size_t, DefaultHasher<double>, SystemAllocPolicy> DoubleMap;
     DoubleMap doubleMap_;
-    
-    
+
   protected:
     MoveResolver moveResolver_;
 
   private:
-    Operand payloadOf(const Address &address) { 
+    Operand payloadOf(const Address &address) {
         return Operand(address.base, address.offset);
     }
     Operand tagOf(const Address &address) {
         return Operand(address.base, address.offset + 4);
     }
-    Operand tagOf(const BaseIndex &address) {//TBD BaseIndex special treat
+    Operand tagOf(const BaseIndex &address) {
         return Operand(address.base, address.index, address.scale, address.offset + 4);
     }
 
@@ -71,12 +69,10 @@ class MacroAssemblerMIPS : public Assembler
     typedef MoveResolver::MoveOperand MoveOperand;
     typedef MoveResolver::Move Move;
 
-//NOTE*:this is new in ff24
     // The buffer is about to be linked, make sure any constant pools or excess
     // bookkeeping has been flushed to the instruction stream.
     void finish();
-    
-    
+
     bool oom() const {
         return Assembler::oom() || !enoughMemory_;
     }
@@ -85,7 +81,7 @@ class MacroAssemblerMIPS : public Assembler
     // X86-specific interface.
     /////////////////////////////////////////////////////////////////
 
-    Operand ToPayload(Operand base) { 
+    Operand ToPayload(Operand base) {
         return base;
     }
     Operand ToType(Operand base) {
@@ -113,7 +109,6 @@ class MacroAssemblerMIPS : public Assembler
     void moveValue(const Value &val, const ValueOperand &dest) {
         moveValue(val, dest.typeReg(), dest.payloadReg());
     }
-//NOTE*:this is new in ff24
     void moveValue(const ValueOperand &src, const ValueOperand &dest) {
         JS_ASSERT(src.typeReg() != dest.payloadReg());
         JS_ASSERT(src.payloadReg() != dest.typeReg());
@@ -144,7 +139,7 @@ class MacroAssemblerMIPS : public Assembler
         storeTypeTag(ImmTag(jv.s.tag), Operand(dest));
         storePayload(val, Operand(dest));
     }
-    void storeValue(ValueOperand val, BaseIndex dest) {//TBD BaseIndex special treat
+    void storeValue(ValueOperand val, BaseIndex dest) {
         storeValue(val, Operand(dest));
     }
     void loadValue(Operand src, ValueOperand val) {
@@ -173,7 +168,7 @@ class MacroAssemblerMIPS : public Assembler
     void loadValue(Address src, ValueOperand val) {
         loadValue(Operand(src), val);
     }
-    void loadValue(const BaseIndex &src, ValueOperand val) {//TBD BaseIndex special treat
+    void loadValue(const BaseIndex &src, ValueOperand val) {
         loadValue(Operand(src), val);
     }
     void tagValue(JSValueType type, Register payload, ValueOperand dest) {
@@ -202,12 +197,10 @@ class MacroAssemblerMIPS : public Assembler
         push(ImmTag(JSVAL_TYPE_TO_TAG(type)));
         push(reg);
     }
-    //NOTE*:this is new in ff24
-        void pushValue(const Address &addr) {
+    void pushValue(const Address &addr) {
         push(tagOf(addr));
         push(payloadOf(addr));
-    }  
-    
+    }
     void storePayload(const Value &val, Operand dest) {
         jsval_layout jv = JSVAL_TO_IMPL(val);
         if (val.isMarkable())
@@ -225,12 +218,11 @@ class MacroAssemblerMIPS : public Assembler
     void movePtr(const Register &src, const Register &dest) {
         movl(src, dest);
     }
-    //NOTE*:this is new in ff24
     void movePtr(const Register &src, const Operand &dest) {
         movl(src, dest);
     }
-    
-        // Returns the register containing the type tag.
+
+    // Returns the register containing the type tag.
     Register splitTagForTest(const ValueOperand &value) {
         return value.typeReg();
     }
@@ -250,7 +242,7 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(tag, ImmTag(JSVAL_TAG_INT32));
         return cond;
     }
-    Condition testDouble(Condition cond, const Register &tag) { //?
+    Condition testDouble(Condition cond, const Register &tag) {
         JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
         Condition actual = (cond == Equal) ? Below : AboveOrEqual;
         cmpl(tag, ImmTag(JSVAL_TAG_CLEAR));
@@ -271,7 +263,7 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(tag, ImmTag(JSVAL_TAG_OBJECT));
         return cond;
     }
-    Condition testNumber(Condition cond, const Register &tag) { //?
+    Condition testNumber(Condition cond, const Register &tag) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         cmpl(tag, ImmTag(JSVAL_UPPER_INCL_TAG_OF_NUMBER_SET));
         return cond == Equal ? BelowOrEqual : Above;
@@ -291,18 +283,16 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(tagOf(address), ImmTag(JSVAL_TAG_MAGIC));
         return cond;
     }
-    
     Condition testMagic(Condition cond, const Register &tag) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         cmpl(tag, ImmTag(JSVAL_TAG_MAGIC));
         return cond;
-            }
-           //NOTE*:this is new in ff24     
+    }
     Condition testMagic(Condition cond, const Operand &operand) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         cmpl(ToType(operand), ImmTag(JSVAL_TAG_MAGIC));
         return cond;
-    }     
+    }
     Condition testPrimitive(Condition cond, const Register &tag) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         cmpl(tag, ImmTag(JSVAL_UPPER_EXCL_TAG_OF_PRIMITIVE_SET));
@@ -316,73 +306,20 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(ToType(operand), ImmTag(JSVAL_TAG_INT32));
         return cond;
     }
-//NOTE*:Following is new in ff24
-    Condition testUndefined(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_UNDEFINED));
-        return cond;
-    }
-    Condition testNull(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_NULL));
-        return cond;
-    }
-    Condition testBoolean(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_BOOLEAN));
-        return cond;
-    }
-    Condition testString(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_STRING));
-        return cond;
-    }
-    Condition testInt32(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_INT32));
-        return cond;
-    }
-   Condition testObject(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_OBJECT));
-        return cond;
-    }
-    Condition testDouble(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        Condition actual = (cond == Equal) ? Below : AboveOrEqual;
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_CLEAR));
-        return actual;
-    }
-    Condition testMagic(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_TAG_MAGIC));
-        return cond;
-    }
-    Condition testGCThing(Condition cond, const BaseIndex &address) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        cmpl(tagOf(address), ImmTag(JSVAL_LOWER_INCL_TAG_OF_GCTHING_SET));
-        return cond == Equal ? AboveOrEqual : Below;
-    }
-
-       //NOTE*:this is new in ff24   
     Condition testInt32(Condition cond, const Address &address) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         return testInt32(cond, Operand(address));
     }
-       //NOTE*:this is new in ff24   
     Condition testDouble(Condition cond, const Operand &operand) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         Condition actual = (cond == Equal) ? Below : AboveOrEqual;
         cmpl(ToType(operand), ImmTag(JSVAL_TAG_CLEAR));
         return actual;
     }
-       //NOTE*:this is new in ff24   
     Condition testDouble(Condition cond, const Address &address) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         return testDouble(cond, Operand(address));
     }
-    
-    
     Condition testUndefined(Condition cond, const ValueOperand &value) {
         return testUndefined(cond, value.typeReg());
     }
@@ -419,6 +356,69 @@ class MacroAssemblerMIPS : public Assembler
     Condition testPrimitive(Condition cond, const ValueOperand &value) {
         return testPrimitive(cond, value.typeReg());
     }
+
+
+    Condition testUndefined(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_UNDEFINED));
+        return cond;
+    }
+    Condition testNull(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_NULL));
+        return cond;
+    }
+    Condition testBoolean(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_BOOLEAN));
+        return cond;
+    }
+    Condition testString(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_STRING));
+        return cond;
+    }
+    Condition testInt32(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_INT32));
+        return cond;
+    }
+    Condition testObject(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_OBJECT));
+        return cond;
+    }
+    Condition testDouble(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        Condition actual = (cond == Equal) ? Below : AboveOrEqual;
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_CLEAR));
+        return actual;
+    }
+    Condition testMagic(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_TAG_MAGIC));
+        return cond;
+    }
+    Condition testGCThing(Condition cond, const BaseIndex &address) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmpl(tagOf(address), ImmTag(JSVAL_LOWER_INCL_TAG_OF_GCTHING_SET));
+        return cond == Equal ? AboveOrEqual : Below;
+    }
+
+
+
+    void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label);
+    void branchTestValue(Condition cond, const Address &valaddr, const ValueOperand &value,
+                         Label *label)
+    {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        branchPtr(cond, tagOf(valaddr), value.typeReg(), label);
+        branchPtr(cond, payloadOf(valaddr), value.payloadReg(), label);
+    }
+
+    void cmpPtr(Register lhs, const ImmWord rhs) {
+        cmpl(lhs, Imm32(rhs.value));
+    }
     void cmpPtr(Register lhs, const ImmGCPtr rhs) {
         cmpl(lhs, rhs);
     }
@@ -426,6 +426,9 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(lhs, rhs);
     }
     void cmpPtr(const Operand &lhs, const ImmGCPtr rhs) {
+        cmpl(lhs, rhs);
+    }
+    void cmpPtr(const Operand &lhs, const Imm32 rhs) {
         cmpl(lhs, rhs);
     }
     void cmpPtr(const Address &lhs, Register rhs) {
@@ -436,13 +439,6 @@ class MacroAssemblerMIPS : public Assembler
     }
     void cmpPtr(Register lhs, Register rhs) {
         cmpl(lhs, rhs);
-    }
-           //NOTE*:this is new in ff24   
-    void cmpPtr(const Operand &lhs, const Imm32 rhs) {
-        cmpl(lhs, rhs);
-    }
-    void cmpPtr(Register lhs, const ImmWord rhs) {
-        cmpl(lhs, Imm32(rhs.value));
     }
     void testPtr(Register lhs, Register rhs) {
         testl(lhs, rhs);
@@ -467,6 +463,7 @@ class MacroAssemblerMIPS : public Assembler
     void freeStack(Register amount) {
         addl(amount, StackPointer);
     }
+
     void addPtr(const Register &src, const Register &dest) {
         addl(src, dest);
     }
@@ -479,20 +476,26 @@ class MacroAssemblerMIPS : public Assembler
     void addPtr(Imm32 imm, const Address &dest) {
         addl(imm, Operand(dest));
     }
-       //NOTE*:this is new in ff24 
     void addPtr(const Address &src, const Register &dest) {
         addl(Operand(src), dest);
     }
     void subPtr(Imm32 imm, const Register &dest) {
         subl(imm, dest);
     }
-           //NOTE*:this is new in ff24 
     void subPtr(const Register &src, const Register &dest) {
         subl(src, dest);
     }
-           //NOTE*:this is new in ff24 
     void subPtr(const Address &addr, const Register &dest) {
         subl(Operand(addr), dest);
+    }
+
+    void branch32(Condition cond, const AbsoluteAddress &lhs, Imm32 rhs, Label *label) {
+        cmpl(Operand(lhs), rhs);
+        j(cond, label);
+    }
+    void branch32(Condition cond, const AbsoluteAddress &lhs, Register rhs, Label *label) {
+        cmpl(Operand(lhs), rhs);
+        j(cond, label);
     }
 
     template <typename T, typename S>
@@ -505,10 +508,11 @@ class MacroAssemblerMIPS : public Assembler
     void branchPrivatePtr(Condition cond, T lhs, ImmWord ptr, Label *label) {
         branchPtr(cond, lhs, ptr, label);
     }
- //NOTE*:this is new in ff24 
+
     void branchPrivatePtr(Condition cond, const Address &lhs, Register ptr, Label *label) {
         branchPtr(cond, lhs, ptr, label);
     }
+
     template <typename T, typename S>
     void branchPtr(Condition cond, T lhs, S ptr, RepatchLabel *label) {
         cmpl(Operand(lhs), ptr);
@@ -519,6 +523,7 @@ class MacroAssemblerMIPS : public Assembler
         jump(label);
         return CodeOffsetJump(size());
     }
+
     template <typename S, typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, S lhs, T ptr, RepatchLabel *label) {
         branchPtr(cond, lhs, ptr, label);
@@ -536,12 +541,10 @@ class MacroAssemblerMIPS : public Assembler
         testl(lhs, rhs);
         j(cond, label);
     }
-     //NOTE*:this is new in ff24 
     void branchTestPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
         testl(lhs, imm);
         j(cond, label);
     }
-     //NOTE*:this is new in ff24 
     void branchTestPtr(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
         testl(Operand(lhs), imm);
         j(cond, label);
@@ -562,15 +565,14 @@ class MacroAssemblerMIPS : public Assembler
     void loadPtr(const Address &address, Register dest) {
         movl(Operand(address), dest);
     }
-    void loadPtr(const BaseIndex &src, Register dest) {//TBD BaseIndex special treat
+    void loadPtr(const Operand &src, Register dest) {
+        movl(src, dest);
+    }
+    void loadPtr(const BaseIndex &src, Register dest) {
         movl(Operand(src), dest);
     }
     void loadPtr(const AbsoluteAddress &address, Register dest) {
         movl(Operand(address), dest);
-    }
-    ////NOTE*:this is new in ff24 
-        void loadPtr(const Operand &src, Register dest) {
-        movl(src, dest);
     }
     void loadPrivate(const Address &src, Register dest) {
         movl(payloadOf(src), dest);
@@ -584,18 +586,19 @@ class MacroAssemblerMIPS : public Assembler
     void storePtr(Register src, const Address &address) {
         movl(src, Operand(address));
     }
-    void storePtr(Register src, const AbsoluteAddress &address) {
-        movl(src, Operand(address));
-    }
-//NOTE*:this is new in ff24
     void storePtr(Register src, const Operand &dest) {
         movl(src, dest);
     }
+    void storePtr(Register src, const AbsoluteAddress &address) {
+        movl(src, Operand(address));
+    }
+
     void setStackArg(const Register &reg, uint32_t arg) {
         movl(reg, Operand(sp, arg * STACK_SLOT_SIZE));
     }
 
     // Type testing instructions can take a tag in a register or a
+    // ValueOperand.
     template <typename T>
     void branchTestUndefined(Condition cond, const T &t, Label *label) {
         cond = testUndefined(cond, t);
@@ -651,17 +654,6 @@ class MacroAssemblerMIPS : public Assembler
         cond = testMagic(cond, t);
         j(cond, label);
     }
-    void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label);
-
-//NOTE*:this is new in ff24
-    void branchTestValue(Condition cond, const Address &valaddr, const ValueOperand &value,
-                         Label *label)
-    {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
-        branchPtr(cond, tagOf(valaddr), value.typeReg(), label);
-        branchPtr(cond, payloadOf(valaddr), value.payloadReg(), label);
-    }
-//NOTE*:this is new in ff24
     void branchTestMagicValue(Condition cond, const ValueOperand &val, JSWhyMagic why,
                               Label *label)
     {
@@ -680,12 +672,9 @@ class MacroAssemblerMIPS : public Assembler
             branch32(NotEqual, val.payloadReg(), Imm32(static_cast<int32_t>(why)), label);
         }
     }
-
+    //It is different with x86!
     // Note: this function clobbers the source register.
     void boxDouble(const FloatRegister &src, const ValueOperand &dest) {
-//        movd(src, dest.payloadReg());
-//        psrldq(Imm32(4), src);
-//        movd(src, dest.typeReg());
         fastStoreDouble(src, dest.payloadReg(), dest.typeReg());
     }
     void boxNonDouble(JSValueType type, const Register &src, const ValueOperand &dest) {
@@ -699,56 +688,33 @@ class MacroAssemblerMIPS : public Assembler
     void unboxInt32(const Address &src, const Register &dest) {
         movl(payloadOf(src), dest);
     }
+    void unboxDouble(const Address &src, const FloatRegister &dest) {
+        movsd(Operand(src), dest);
+    }
     void unboxBoolean(const ValueOperand &src, const Register &dest) {
         movl(src.payloadReg(), dest);
     }
     void unboxBoolean(const Address &src, const Register &dest) {
         movl(payloadOf(src), dest);
     }
+    //It is different with x86!
     void unboxDouble(const ValueOperand &src, const FloatRegister &dest) {
         JS_ASSERT(dest != ScratchFloatReg);
-#if 0
-//        if (0/*Assembler::HasSSE41()*/) {
-//            movd(src.payloadReg(), dest);
-//            pinsrd(src.typeReg(), dest);
-//        } else {
-//            movd(src.payloadReg(), dest);
-//            movd(src.typeReg(), ScratchFloatReg);
-//            unpcklps(ScratchFloatReg, dest);
-//        }
-#endif
         fastLoadDouble(src.payloadReg(), src.typeReg(), dest);
     }
+    //It is different with x86!
     //xsb:fixme
     void unboxDouble(const Operand &payload, const Operand &type,
                      const Register &scratch, const FloatRegister &dest) {
         JS_ASSERT(dest != ScratchFloatReg);
         JS_ASSERT(0);
-//        if (0/*Assembler::HasSSE41()*/) {
-//            movl(payload, scratch);
-//            movd(scratch, dest);
-//            movl(type, scratch);
-//            pinsrd(scratch, dest);
-//        } else {
-//            movl(payload, scratch);
-//            movd(scratch, dest);
-//            movl(type, scratch);
-//            movd(scratch, ScratchFloatReg);
-//            unpcklps(ScratchFloatReg, dest);
-//        }
     }
     
-    //NOTE*:this is new in ff24
-    void unboxDouble(const Address &src, const FloatRegister &dest) {
-       movsd(Operand(src), dest);
-    }
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
         if (dest.isFloat()) {
             Label notInt32, end;
             branchTestInt32(Assembler::NotEqual, src, &notInt32);
-        //NOTE*:update in ff24;      
-        //    cvtsi2sd(Operand(src.payloadReg()), dest.fpu()); 
-          cvtsi2sd(src.payloadReg(), dest.fpu());
+            cvtsi2sd(src.payloadReg(), dest.fpu());
             jump(&end);
             bind(&notInt32);
             unboxDouble(src, dest.fpu());
@@ -762,10 +728,11 @@ class MacroAssemblerMIPS : public Assembler
         if (src.payloadReg() != dest)
             movl(src.payloadReg(), dest);
     }
-    //NOTE*:this is new in ff24
+
     void notBoolean(const ValueOperand &val) {
         xorl(Imm32(1), val.payloadReg());
     }
+
     // Extended unboxing API. If the payload is already in a register, returns
     // that register. Otherwise, provides a move to the given scratch register,
     // and returns that.
@@ -776,15 +743,12 @@ class MacroAssemblerMIPS : public Assembler
     Register extractObject(const ValueOperand &value, Register scratch) {
         return value.payloadReg();
     }
-      //NOTE*:this is new in ff24
     Register extractInt32(const ValueOperand &value, Register scratch) {
         return value.payloadReg();
     }
-      //NOTE*:this is new in ff24
     Register extractBoolean(const ValueOperand &value, Register scratch) {
         return value.payloadReg();
     }
-    
     Register extractTag(const Address &address, Register scratch) {
         movl(tagOf(address), scratch);
         return scratch;
@@ -792,6 +756,7 @@ class MacroAssemblerMIPS : public Assembler
     Register extractTag(const ValueOperand &value, Register scratch) {
         return value.typeReg();
     }
+
     void boolValueToDouble(const ValueOperand &operand, const FloatRegister &dest) {
         cvtsi2sd(operand.payloadReg(), dest);
     }
@@ -802,6 +767,15 @@ class MacroAssemblerMIPS : public Assembler
     void loadConstantDouble(double d, const FloatRegister &dest);
     void loadStaticDouble(const double *dp, const FloatRegister &dest) {
         movsd(dp, dest);
+    }
+
+    //It is different with x86!
+//xsb:fixme
+    void branchTruncateDouble(const FloatRegister &src, const Register &dest, Label *fail) {
+        JS_STATIC_ASSERT(INT_MIN == int(0x80000000));
+        cvttsd2si(src, dest);
+        cmpl(dest, Imm32(INT_MIN));
+        j(Assembler::Equal, fail);
     }
 
     Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
@@ -846,28 +820,21 @@ class MacroAssemblerMIPS : public Assembler
     void lshiftPtr(Imm32 imm, Register dest) {
         shll(imm, dest);
     }
-    //NOTE*:this is new in ff24
-        void xorPtr(Imm32 imm, Register dest) {
+    void xorPtr(Imm32 imm, Register dest) {
         xorl(imm, dest);
     }
-    //NOTE*:this is new in ff24
     void xorPtr(Register src, Register dest) {
         xorl(src, dest);
     }
-    
     void orPtr(Imm32 imm, Register dest) {
         orl(imm, dest);
     }
-
-    //NOTE*:this is new in ff24
     void orPtr(Register src, Register dest) {
         orl(src, dest);
     }
-    //NOTE*:this is new in ff24
-        void andPtr(Imm32 imm, Register dest) {
+    void andPtr(Imm32 imm, Register dest) {
         andl(imm, dest);
     }
-    //NOTE*:this is new in ff24
     void andPtr(Register src, Register dest) {
         andl(src, dest);
     }
@@ -900,7 +867,7 @@ class MacroAssemblerMIPS : public Assembler
         bind(&noOverflow);
     }
 
-    //NOTE*:this is new in ff24
+
     // If source is a double, load it into dest. If source is int32,
     // convert it to double. Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
@@ -927,7 +894,7 @@ class MacroAssemblerMIPS : public Assembler
     void setupAlignedABICall(uint32_t args);
 
     // Sets up an ABI call for when the alignment is not known. This may need a
-    // scratch register. 
+    // scratch register.
     void setupUnalignedABICall(uint32_t args, const Register &scratch);
 
     // Arguments must be assigned to a C/C++ call in order. They are moved
@@ -941,26 +908,15 @@ class MacroAssemblerMIPS : public Assembler
     void passABIArg(const FloatRegister &reg);
 
   private:
-  	  //NOTE*:this is new in ff24
     void callWithABIPre(uint32_t *stackAdjust);
-      //NOTE*:this is new in ff24
     void callWithABIPost(uint32_t stackAdjust, Result result);
-    
-     public:
+
+  public:
     // Emits a call to a C/C++ function, resolving all argument moves.
     void callWithABI(void *fun, Result result = GENERAL);
-    
-    //NOTE*:this is new in ff24
     void callWithABI(const Address &fun, Result result = GENERAL);
-    // Used from within an Exit frame to handle a pending exception.
 
-    //this funtion is deleted in ff24;
-    /*  
-    void handleException();
-    */
-    
-    //NOTE*:this is new in ff24
-        // Used from within an Exit frame to handle a pending exception.
+    // Used from within an Exit frame to handle a pending exception.
     void handleFailureWithHandler(void *handler);
 
     void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
@@ -969,26 +925,39 @@ class MacroAssemblerMIPS : public Assembler
     }
 
     // Save an exit frame (which must be aligned to the stack pointer) to
-    // ThreadData::ionTop.
+    // ThreadData::ionTop of the main thread.
     void linkExitFrame() {
         JSCompartment *compartment = GetIonContext()->compartment;
-          //NOTE*:this is new in ff24
-     //   movl(StackPointer, Operand(&compartment->rt->ionTop));
-       movl(StackPointer, Operand(&compartment->rt->mainThread.ionTop));
+        movl(StackPointer, Operand(&compartment->rt->mainThread.ionTop));
     }
 
-     //NOTE*:this is new in ff24
+    void callWithExitFrame(IonCode *target, Register dynStack) {
+        addPtr(Imm32(framePushed()), dynStack);
+        makeFrameDescriptor(dynStack, IonFrame_OptimizedJS);
+        Push(dynStack);
+        call(target);
+    }
+
     // Save an exit frame to the thread data of the current thread, given a
     // register that holds a PerThreadData *.
     void linkParallelExitFrame(const Register &pt) {
         movl(StackPointer, Operand(pt, offsetof(PerThreadData, ionTop)));
     }
-    
-    void callWithExitFrame(IonCode *target, Register dynStack);
 
-    void enterOsr(Register calleeToken, Register code);
-       //NOTE*:this is new in ff24
-        // See CodeGeneratorX86 calls to noteAsmJSGlobalAccess.
+    //It is different with x86!
+    void enterOsr(Register calleeToken, Register code) {
+        push(Imm32(0)); // num actual args.
+        push(calleeToken);
+        push(Imm32(MakeFrameDescriptor(0, IonFrame_Osr)));
+//ok    //arm : ma_callIonHalfPush
+//ok    call(code);
+        ma_callIonHalfPush(code);
+        #if ! defined (JS_CPU_MIPS)
+        addl(Imm32(sizeof(uintptr_t) * 2), sp);
+        #endif
+    }
+
+    // See CodeGeneratorX86 calls to noteAsmJSGlobalAccess.
     void patchAsmJSGlobalAccess(unsigned offset, uint8_t *code, unsigned codeBytes,
                                 unsigned globalDataOffset)
     {
@@ -1020,28 +989,10 @@ class MacroAssemblerMIPS : public Assembler
         else
             ucomisd(lhs, rhs);
     }
+    //It is different with x86!
     void branchDouble(DoubleCondition cond, const FloatRegister &lhs,
                       const FloatRegister &rhs, Label *label)
     {
-
-//  old code, removed by weizhenwei, 2013.10.29
-//        compareDouble(cond, lhs, rhs);
-//
-//        if (cond == DoubleEqual) {
-//            Label unordered;
-//            j(Parity, &unordered);
-//            j(Equal, label);
-//            bind(&unordered);
-//            return;
-//        }
-//        if (cond == DoubleNotEqualOrUnordered) {
-//            j(NotEqual, label);
-//            j(Parity, label);
-//            return;
-//        }
-//
-//        JS_ASSERT(!(cond & DoubleConditionBitSpecial));
-//        j(ConditionFromDoubleCondition(cond), label);
 
         //by weizhenwei, 2013.10.29
         JmpSrc j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond), lhs.code(), rhs.code()).getJmpSrc();
@@ -1063,11 +1014,9 @@ class MacroAssemblerMIPS : public Assembler
         else
             movl(imm, dest);
     }
-           //NOTE*:this is new in ff24
     void move32(const Imm32 &imm, const Operand &dest) {
         movl(imm, dest);
     }
-    
     void and32(const Imm32 &imm, const Register &dest) {
         andl(imm, dest);
     }
@@ -1089,7 +1038,6 @@ class MacroAssemblerMIPS : public Assembler
     void test32(const Register &lhs, const Register &rhs) {
         testl(lhs, rhs);
     }
-      //NOTE*:this is new in ff24
     void test32(const Address &addr, Imm32 imm) {
         testl(Operand(addr), imm);
     }
@@ -1102,34 +1050,29 @@ class MacroAssemblerMIPS : public Assembler
     void cmp32(const Operand &lhs, const Register &rhs) {
         cmpl(lhs, rhs);
     }
+    void add32(Register src, Register dest) {
+        addl(src, dest);
+    }
     void add32(Imm32 imm, Register dest) {
         addl(imm, dest);
     }
     void add32(Imm32 imm, const Address &dest) {
         addl(imm, Operand(dest));
     }
-          //NOTE*:this is new in ff24
-    void add32(Register src, Register dest) {
-        addl(src, dest);
-    }
     void sub32(Imm32 imm, Register dest) {
         subl(imm, dest);
     }
-        //NOTE*:this is new in ff24
     void sub32(Register src, Register dest) {
         subl(src, dest);
     }
-       //NOTE*:this is new in ff24
     void xor32(Imm32 imm, Register dest) {
         xorl(imm, dest);
     }
 
-    //NOTE*:this is new in ff24
     void branch32(Condition cond, const Operand &lhs, const Register &rhs, Label *label) {
         cmpl(lhs, rhs);
         j(cond, label);
     }
-    //NOTE*:this is new in ff24
     void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
         cmpl(lhs, rhs);
         j(cond, label);
@@ -1150,18 +1093,6 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(lhs, rhs);
         j(cond, label);
     }
-    
-    //NOTE*:this is new in ff24
-    void branch32(Condition cond, const AbsoluteAddress &lhs, Imm32 rhs, Label *label) {
-        cmpl(Operand(lhs), rhs);
-        j(cond, label);
-    }
-    //NOTE*:this is new in ff24
-    void branch32(Condition cond, const AbsoluteAddress &lhs, Register rhs, Label *label) {
-        cmpl(Operand(lhs), rhs);
-        j(cond, label);
-    }
-    
     void branchTest32(Condition cond, const Register &lhs, const Register &rhs, Label *label) {
         testl(lhs, rhs);
         j(cond, label);
@@ -1214,44 +1145,28 @@ class MacroAssemblerMIPS : public Assembler
     void jump(Register reg) {
         jmp(Operand(reg));
     }
-    //update in ff24
-    /*   void convertInt32ToDouble(const Register &src, const FloatRegister &dest) {
-        cvtsi2sd(Operand(src), dest);
-    }
-    */
-          //NOTE*:this is new in ff24
+
     void convertInt32ToDouble(const Register &src, const FloatRegister &dest) {
         cvtsi2sd(src, dest);
     }
-          //NOTE*:this is new in ff24
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
         cvtsi2sd(Operand(src), dest);
-    } 
-    
-    
-    
+    }
     Condition testDoubleTruthy(bool truthy, const FloatRegister &reg) {
         xorpd(ScratchFloatReg, ScratchFloatReg);
         ucomisd(ScratchFloatReg, reg);
-        //return truthy ? Assembler::DoubleNotEqual : Assembler::DoubleEqual;
         return truthy ? NonZero : Zero;
-    }
-    void branchTruncateDouble(const FloatRegister &src, const Register &dest, Label *fail) {
-        JS_STATIC_ASSERT(INT_MIN == int(0x80000000));
-        cvttsd2si(src, dest);
-        cmpl(dest, Imm32(INT_MIN));
-        j(Assembler::Equal, fail);
     }
     void load8ZeroExtend(const Address &src, const Register &dest) {
         movzbl(Operand(src), dest);
     }
-    void load8ZeroExtend(const BaseIndex &src, const Register &dest) {//TBD BaseIndex special treat
+    void load8ZeroExtend(const BaseIndex &src, const Register &dest) {
         movzbl(Operand(src), dest);
     }
     void load8SignExtend(const Address &src, const Register &dest) {
         movxbl(Operand(src), dest);
     }
-    void load8SignExtend(const BaseIndex &src, const Register &dest) {//TBD BaseIndex special treat
+    void load8SignExtend(const BaseIndex &src, const Register &dest) {
         movxbl(Operand(src), dest);
     }
     template <typename S, typename T>
@@ -1261,7 +1176,7 @@ class MacroAssemblerMIPS : public Assembler
     void load16ZeroExtend(const Address &src, const Register &dest) {
         movzwl(Operand(src), dest);
     }
-    void load16ZeroExtend(const BaseIndex &src, const Register &dest) {//TBD BaseIndex special treat
+    void load16ZeroExtend(const BaseIndex &src, const Register &dest) {
         movzwl(Operand(src), dest);
     }
     template <typename S, typename T>
@@ -1271,17 +1186,16 @@ class MacroAssemblerMIPS : public Assembler
     void load16SignExtend(const Address &src, const Register &dest) {
         movxwl(Operand(src), dest);
     }
-    void load16SignExtend(const BaseIndex &src, const Register &dest) {//TBD BaseIndex special treat
+    void load16SignExtend(const BaseIndex &src, const Register &dest) {
         movxwl(Operand(src), dest);
     }
     void load32(const Address &address, Register dest) {
         movl(Operand(address), dest);
     }
-    void load32(const BaseIndex &src, Register dest) {//TBD BaseIndex special treat
+    void load32(const BaseIndex &src, Register dest) {
         movl(Operand(src), dest);
     }
-    //NOTE*:this is new in ff24
-        void load32(const Operand &src, Register dest) {
+    void load32(const Operand &src, Register dest) {
         movl(src, dest);
     }
     template <typename S, typename T>
@@ -1291,54 +1205,39 @@ class MacroAssemblerMIPS : public Assembler
     void loadDouble(const Address &src, FloatRegister dest) {
         movsd(Operand(src), dest);
     }
-    void loadDouble(const BaseIndex &src, FloatRegister dest) {//TBD BaseIndex special treat
+    void loadDouble(const BaseIndex &src, FloatRegister dest) {
         movsd(Operand(src), dest);
     }
-    //NOTE*:this is new in ff24 
     void loadDouble(const Operand &src, FloatRegister dest) {
-      movsd(src, dest);
+        movsd(src, dest);
     }
     void storeDouble(FloatRegister src, const Address &dest) {
         movsd(src, Operand(dest));
     }
-    void storeDouble(FloatRegister src, const BaseIndex &dest) {//TBD BaseIndex special treat
+    void storeDouble(FloatRegister src, const BaseIndex &dest) {
         movsd(src, Operand(dest));
     }
-    //NOTE*:this is new in ff24 
-        void storeDouble(FloatRegister src, const Operand &dest) {
+    void storeDouble(FloatRegister src, const Operand &dest) {
         movsd(src, dest);
     }
+    //It is different with x86!
     void zeroDouble(FloatRegister reg) {
         zerod(reg);
     }
-  //rename in ff24;
-    /*  void negDouble(FloatRegister src, FloatRegister dest) {
-        negd(src, dest);
-    }*/
-        //NOTE*:this is new in ff24
-        //xsb:fixme 
+    //It is different with x86!
+    //xsb:fixme 
     void negateDouble(FloatRegister reg) {
-  /*      // From MacroAssemblerX86Shared::maybeInlineDouble
-        pcmpeqw(ScratchFloatReg, ScratchFloatReg);
-        psllq(Imm32(63), ScratchFloatReg);
-
-        // XOR the float in a float register with -0.0.
-        xorpd(ScratchFloatReg, reg); // s ^ 0x80000000000000*/
        ASSERT(0); 
-       //  negd(reg, reg);
     }
     void addDouble(FloatRegister src, FloatRegister dest) {
         addsd(src, dest);
     }
-    //NOTE*:this is new in ff24 
     void subDouble(FloatRegister src, FloatRegister dest) {
         subsd(src, dest);
     }
-        //NOTE*:this is new in ff24 
     void mulDouble(FloatRegister src, FloatRegister dest) {
         mulsd(src, dest);
     }
-        //NOTE*:this is new in ff24 
     void divDouble(FloatRegister src, FloatRegister dest) {
         divsd(src, dest);
     }
@@ -1353,11 +1252,10 @@ class MacroAssemblerMIPS : public Assembler
         movss(Operand(src), dest);
         cvtss2sd(dest, dest);
     }
-    void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {//TBD BaseIndex special treat
+    void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
         movss(Operand(src), dest);
         cvtss2sd(dest, dest);
     }
-       //NOTE*:this is new in ff24 
     void loadFloatAsDouble(const Operand &src, FloatRegister dest) {
         movss(src, dest);
         cvtss2sd(dest, dest);
@@ -1365,10 +1263,10 @@ class MacroAssemblerMIPS : public Assembler
     void storeFloat(FloatRegister src, const Address &dest) {
         movss(src, Operand(dest));
     }
-    void storeFloat(FloatRegister src, const BaseIndex &dest) {//TBD BaseIndex special treat
+    void storeFloat(FloatRegister src, const BaseIndex &dest) {
         movss(src, Operand(dest));
     }
-     //NOTE*:this is new in ff24 ; it's a  copy of x86;
+
     // Checks whether a double is representable as a 32-bit integer. If so, the
     // integer is written to the output register. Otherwise, a bailout is taken to
     // the given snapshot. This function overwrites the scratch float register.
@@ -1387,10 +1285,6 @@ class MacroAssemblerMIPS : public Assembler
             testl(dest, dest);
             j(Assembler::NonZero, &notZero);
 
-         //   if (Assembler::HasSSE41()) {
-      //          ptest(src, src);
-     //           j(Assembler::NonZero, fail);
-      //      } else {
                 // bit 0 = sign of low double
                 // bit 1 = sign of high double
                 movmskpd(src, dest);
@@ -1398,7 +1292,6 @@ class MacroAssemblerMIPS : public Assembler
                 //add by QuQiuwen
                 cmpl(dest,zero);
                 j(Assembler::NonZero, fail);
-   //         }
 
             bind(&notZero);
         }
@@ -1425,52 +1318,36 @@ class MacroAssemblerMIPS : public Assembler
             movl(src, dest);
         bind(&done);
     }
-    //this function is updete in ff24; it keeps the same as old one;
+
     bool maybeInlineDouble(uint64_t u, const FloatRegister &dest) {
-        // This implements parts of "13.4 Generating constants" of 
-        // "2. Optimizing subroutines in assembly language" by Agner Fog.
-        switch (u) {
-          case 0x0000000000000000ULL: // 0.0
+        // This implements parts of "13.4 Generating constants" of
+        // "2. Optimizing subroutines in assembly language" by Agner Fog,
+        // generalized to handle any case that can use a pcmpeqw and
+        // up to two shifts.
+
+        if (u == 0) {
             xorpd(dest, dest);
-            break;
-          case 0x8000000000000000ULL: // -0.0
-            pcmpeqw(dest, dest);
-            psllq(Imm32(63), dest);
-            break;
-          case 0x3fe0000000000000ULL: // 0.5
-            pcmpeqw(dest, dest);
-            psllq(Imm32(55), dest);
-            psrlq(Imm32(2), dest);
-            break;
-          case 0x3ff0000000000000ULL: // 1.0
-            pcmpeqw(dest, dest);
-            psllq(Imm32(54), dest);
-            psrlq(Imm32(2), dest);
-            break;
-          case 0x3ff8000000000000ULL: // 1.5
-            pcmpeqw(dest, dest);
-            psllq(Imm32(53), dest);
-            psrlq(Imm32(2), dest);
-            break;
-          case 0x4000000000000000ULL: // 2.0
-            pcmpeqw(dest, dest);
-            psllq(Imm32(63), dest);
-            psrlq(Imm32(1), dest);
-            break;
-          case 0xc000000000000000ULL: // -2.0
-            pcmpeqw(dest, dest);
-            psllq(Imm32(62), dest);
-            break;
-          default:
-            return false;
+            return true;
         }
-        return true;
+
+        int tz = js_bitscan_ctz64(u);
+        int lz = js_bitscan_clz64(u);
+        if (u == (~uint64_t(0) << (lz + tz) >> lz)) {
+            pcmpeqw(dest, dest);
+            if (tz != 0)
+                psllq(Imm32(lz + tz), dest);
+            if (lz != 0)
+                psrlq(Imm32(lz), dest);
+            return true;
+        }
+
+        return false;
     }
-    
-    //NOTE*:this is new in ff24 , it's a  copy of x86;
+
+    //It is different with x86!
     void emitSet(Assembler::Condition cond, const Register &dest,
-              Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond) {
-             if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
+                 Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond) {
+        if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
             // If the register we're defining is a single byte register,
             // take advantage of the setCC instruction
             setCC(cond, dest);
@@ -1506,7 +1383,6 @@ class MacroAssemblerMIPS : public Assembler
         }
     }
 
-
     // Emit a JMP that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
     CodeOffsetLabel toggledJump(Label *label) {
         CodeOffsetLabel offset(size());
@@ -1519,28 +1395,10 @@ class MacroAssemblerMIPS : public Assembler
         lea(Operand(address), dest);
     }
 
-    //NOTE*:this is update in ff24; it's a  copy of x86;
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
     bool buildFakeExitFrame(const Register &scratch, uint32_t *offset) {
-     /*   mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
-
-        CodeLabel *cl = new CodeLabel();
-        if (!addCodeLabel(cl))
-            return false;
-        mov(cl->dest(), scratch);
-
-        uint32 descriptor = MakeFrameDescriptor(framePushed(), IonFrame_OptimizedJS);
-        Push(Imm32(descriptor));
-        Push(scratch);
-
-        bind(cl->src());
-        *offset = currentOffset();
-
-        JS_ASSERT(framePushed() == initialDepth + IonExitFrameLayout::Size());
-        return true;*/
-        
-         mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
+        mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
 
         CodeLabel cl;
         mov(cl.dest(), scratch);
@@ -1553,7 +1411,7 @@ class MacroAssemblerMIPS : public Assembler
         *offset = currentOffset();
 
         JS_ASSERT(framePushed() == initialDepth + IonExitFrameLayout::Size());
-        return addCodeLabel(cl); 
+        return addCodeLabel(cl);
     }
 
     bool buildOOLFakeExitFrame(void *fakeReturnAddr) {
@@ -1563,9 +1421,15 @@ class MacroAssemblerMIPS : public Assembler
         return true;
     }
 
-    void callWithExitFrame(IonCode *target);
-
-    void callIon(const Register &callee);
+    void callWithExitFrame(IonCode *target) {
+        uint32_t descriptor = MakeFrameDescriptor(framePushed(), IonFrame_OptimizedJS);
+        Push(Imm32(descriptor));
+        call(target);
+    }
+    //It is different with x86!
+    void callIon(const Register &callee){
+         ma_callIonHalfPush(callee);
+    }
 
     void checkStackAlignment() {
         // Exists for ARM compatibility.
@@ -1574,11 +1438,10 @@ class MacroAssemblerMIPS : public Assembler
     CodeOffsetLabel labelForPatch() {
         return CodeOffsetLabel(size());
     }
-    //NOTE*:this is update in ff24;
-        void abiret() {
+    
+    void abiret() {
         ret();
     }
-    
 };
 
 typedef MacroAssemblerMIPS MacroAssemblerSpecific;

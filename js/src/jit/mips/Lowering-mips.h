@@ -14,12 +14,12 @@ namespace jit {
 	
 class LIRGeneratorMIPS : public LIRGeneratorShared
 {
-  protected:
+  public:
     LIRGeneratorMIPS(MIRGenerator *gen, MIRGraph &graph, LIRGraph &lirGraph)
       : LIRGeneratorShared(gen, graph, lirGraph)
     {}
 
- protected:
+  protected:
     // Adds a box input to an instruction, setting operand |n| to the type and
     // |n+1| to the payload.
     bool useBox(LInstruction *lir, size_t n, MDefinition *mir,

@@ -14,14 +14,14 @@
     _(Box)                      \
     _(BoxDouble)                \
     _(DivI)                     \
+    _(DivPowTwoI)               \
     _(ModI)                     \
     _(ModPowTwoI)               \
     _(PowHalfD)                 \
     _(UInt32ToDouble)           \
     _(AsmJSLoadFuncPtr)         \
-    _(AsmJSDivOrMod)		\
-   _(DivPowTwoI) 
-
+    _(AsmJSDivOrMod)
 #endif // jit_mips_opcodes_mips_h__
+
 
 
