@@ -2592,8 +2592,8 @@ class Assembler
     void movmskpd(const FloatRegister &src, const Register &dest) {
      //   JS_ASSERT(HasSSE2());
     //    masm.movmskpd_rr(src.code(), dest.code());
-        // by wangqing. =======
-        dmfc1(mRegisterID(src.code()), mFPRegisterID(dest.code()));
+        // by wangqing. fix me
+        dmfc1(dest, src);
         dsrl32(dest, dest, 31);
     }
 // NOT OK! This is about double compare. --QuQiuwen 
@@ -3365,12 +3365,6 @@ class Assembler
     void dmfc1(const Register &rt, const FloatRegister &fs)
     {
         masm.dmfc1(rt.code(), fs.code());
-    }
-
-    // by wangqing, overloaded dmfc1
-    void dmfc1(const mRegisterID rt, const mFPRegisterID fs)
-    {
-        masm.dmfc1(rt, fs);
     }
 
     void mfc1(const Register &rt, const FloatRegister &fs)
