@@ -143,6 +143,7 @@ MacroAssemblerMIPS::passABIArg(const FloatRegister &reg)
 void
 MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
 {
+<<<<<<< HEAD
     JS_ASSERT(inCall_);
     JS_ASSERT(args_ == passedArgs_);
 
@@ -198,7 +199,7 @@ MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
     inCall_ = false;
 }
 
-    //This is different with x86! 
+//This is different with x86! 
 void
 MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {

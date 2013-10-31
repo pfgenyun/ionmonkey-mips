@@ -842,7 +842,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             GeneralRegisterSet enterMonRegs(GeneralRegisterSet::All());
             enterMonRegs.take(R0);
             enterMonRegs.take(BaselineStubReg);
-            enterMonRegs.take(BaselineFrameReg);
+            //enterMonRegs.take(BaselineFrameReg);  //hwj 1031 fixme
             enterMonRegs.takeUnchecked(BaselineTailCallReg);
             Register jitcodeReg = enterMonRegs.takeAny();
 
@@ -884,7 +884,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             GeneralRegisterSet enterRegs(GeneralRegisterSet::All());
             enterRegs.take(R0);
             enterRegs.take(R1);
-            enterRegs.take(BaselineFrameReg);
+            //enterRegs.take(BaselineFrameReg); //hwj 1031 fixme
             Register jitcodeReg = enterRegs.takeAny();
 
             pop(jitcodeReg);

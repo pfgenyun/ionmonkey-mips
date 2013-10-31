@@ -950,6 +950,7 @@ class Assembler
     void call(IonCode *target) {
         int to = (int)(target->raw());
         CodeLabel cl;
+
         mov(cl.dest(),t9);
         push(t9);
         
@@ -962,12 +963,14 @@ class Assembler
         jalr(t9);
         nop();
         bind(cl.src());
+        addCodeLabel(cl);//1031
     }
 
     //hwj
     void call(ImmWord target) {
         int to = (int)(target.value);
         CodeLabel cl;
+
         mov(cl.dest(),t9);
         push(t9);
 
@@ -977,6 +980,7 @@ class Assembler
         jalr(t9);
         nop();
         bind(cl.src());
+        addCodeLabel(cl);//1031
     }
 
    //NOTE*:This is new in ff24.
@@ -989,6 +993,7 @@ class Assembler
         int to = (int)(target->raw());
         Register regZero = zero;
         CodeLabel cl;
+
         mov(cl.dest(),t9);
         if(enabled){
             push(t9);
@@ -1004,6 +1009,9 @@ class Assembler
         
         jalr(t9);
         nop();
+        
+        bind(cl.src());
+        addCodeLabel(cl);//1031
         
         JS_ASSERT((size() - offset.offset()) == ToggledCallSize());
         return offset;
