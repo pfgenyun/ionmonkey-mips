@@ -8,15 +8,14 @@
 #define jit_mips_CodeGenerator_mips_h
 
 #include "Assembler-mips.h"
-//#include "jit/shared/CodeGenerator-x86-shared.h"
 #include "jit/shared/CodeGenerator-shared.h"
 namespace js {
 namespace jit {
 
 class OutOfLineBailout;
-class OutOfLineTableSwitch;
 class OutOfLineUndoALUOperation;
 class MulNegativeZeroCheck;
+class OutOfLineTableSwitch;
 class OutOfLineLoadTypedArrayOutOfBounds;
 class OutOfLineTruncate;
 

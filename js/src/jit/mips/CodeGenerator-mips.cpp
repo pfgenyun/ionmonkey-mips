@@ -506,13 +506,6 @@ CodeGeneratorMIPS::visitAddI(LAddI *ins)
         }
     }
     return true;
- if (ins->rhs()->isConstant())
-  masm.addl(Imm32(ToInt32(ins->rhs())), ToOperand(ins->lhs()));
-    else
-  masm.addl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
-  if (ins->snapshot() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
-        return false;
-    return true;
 }
 
 bool
@@ -646,11 +639,11 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
         if (mul->canOverflow() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
             return false;
 
-       if (mul->canBeNegativeZero()) {
+        if (mul->canBeNegativeZero()) {
             // Jump to an OOL path if the result is 0.
-           MulNegativeZeroCheck *ool = new MulNegativeZeroCheck(ins);
-           if (!addOutOfLineCode(ool))
-               return false;
+            MulNegativeZeroCheck *ool = new MulNegativeZeroCheck(ins);
+            if (!addOutOfLineCode(ool))
+                return false;
 
             masm.testl(ToRegister(lhs), ToRegister(lhs));
             masm.j(Assembler::Zero, ool->entry());
@@ -1218,20 +1211,6 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
     FloatRegister scratch = ScratchFloatReg;
     Register output = ToRegister(lir->output());
 
-   /* if (AssemblerX86Shared::HasSSE41()) {
-        // Bail on negative-zero.
-        Assembler::Condition bailCond = masm.testNegativeZero(input, output);
-        if (!bailoutIf(bailCond, lir->snapshot()))
-            return false;
-
-        // Round toward -Infinity.
-        masm.roundsd(input, scratch, JSC::X86Assembler::RoundDown);
-
-        masm.cvttsd2si(scratch, output);
-        masm.cmp32(output, Imm32(INT_MIN));
-        if (!bailoutIf(Assembler::Equal, lir->snapshot()))
-            return false;
-    } else*/ {
         Label negative, end;
 
         // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
@@ -1274,7 +1253,6 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         }
 
         masm.bind(&end);
-    }
     return true;
 }
 
@@ -1317,25 +1295,6 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     // Input is negative, but isn't -0.
     masm.bind(&negative);
 
-   /* if (AssemblerX86Shared::HasSSE41()) {
-        // Add 0.5 and round toward -Infinity. The result is stored in the temp
-        // register (currently contains 0.5).
-        masm.addsd(input, temp);
-        masm.roundsd(temp, scratch, JSC::X86Assembler::RoundDown);
-
-        // Truncate.
-        masm.cvttsd2si(scratch, output);
-        masm.cmp32(output, Imm32(INT_MIN));
-        if (!bailoutIf(Assembler::Equal, lir->snapshot()))
-            return false;
-
-        // If the result is positive zero, then the actual result is -0. Bail.
-        // Otherwise, the truncation will have produced the correct negative integer.
-        masm.testl(output, output);
-        if (!bailoutIf(Assembler::Zero, lir->snapshot()))
-            return false;
-
-    } else*/ {
         masm.addsd(input, temp);
 
         // Round toward -Infinity without the benefit of ROUNDSD.
@@ -1363,7 +1322,6 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
         masm.bind(&testZero);
         if (!bailoutIf(Assembler::Zero, lir->snapshot()))
             return false;
-    }
 
     masm.bind(&end);
     return true;
@@ -2095,6 +2053,7 @@ CodeGeneratorMIPS::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 void
 CodeGeneratorMIPS::postAsmJSCall(LAsmJSCall *lir)
 {
+    ASSERT(0);
 //NOTE:this part is about ASM.JS in ff24,so deleted for temp
     /*MAsmJSCall *mir = lir->mir();
     if (mir->type() != MIRType_Double || mir->callee().which() != MAsmJSCall::Callee::Builtin)
@@ -2163,34 +2122,6 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
 
     Label fail;
 
-/*    if (Assembler::HasSSE3()) {
-        // Push double.
-        masm.subl(Imm32(sizeof(double)), esp);
-        masm.movsd(input, Operand(esp, 0));
-
-        static const uint32_t EXPONENT_MASK = 0x7ff00000;
-        static const uint32_t EXPONENT_SHIFT = DoubleExponentShift - 32;
-        static const uint32_t TOO_BIG_EXPONENT = (DoubleExponentBias + 63) << EXPONENT_SHIFT;
-
-        // Check exponent to avoid fp exceptions.
-        Label failPopDouble;
-        masm.movl(Operand(esp, 4), output);
-        masm.and32(Imm32(EXPONENT_MASK), output);
-        masm.branch32(Assembler::GreaterThanOrEqual, output, Imm32(TOO_BIG_EXPONENT), &failPopDouble);
-
-        // Load double, perform 64-bit truncation.
-        masm.fld(Operand(esp, 0));
-        masm.fisttp(Operand(esp, 0));
-
-        // Load low word, pop double and jump back.
-        masm.movl(Operand(esp, 0), output);
-        masm.addl(Imm32(sizeof(double)), esp);
-        masm.jump(ool->rejoin());
-
-        masm.bind(&failPopDouble);
-        masm.addl(Imm32(sizeof(double)), esp);
-        masm.jump(&fail);
-    } else*/ {
         FloatRegister temp = ToFloatRegister(ins->tempFloat());
 
         // Try to convert doubles representing integers within 2^32 of a signed
@@ -2223,7 +2154,6 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
         masm.ucomisd(temp, ScratchFloatReg);
         masm.j(Assembler::Parity, &fail);
         masm.j(Assembler::Equal, ool->rejoin());
-    }
 
     masm.bind(&fail);
     {

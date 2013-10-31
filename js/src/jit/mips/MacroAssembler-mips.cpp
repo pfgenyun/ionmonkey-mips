@@ -14,7 +14,6 @@
 using namespace js;
 using namespace js::jit;
 
-//NOTE*:this function is a copy of x86 !
 void
 MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
 {
@@ -42,16 +41,12 @@ MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
         if (!enoughMemory_)
             return;
     }
-    Double &dbl = doubles_[doubleIndex]; 
- //  masm.movsd_mr(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
+    Double &dbl = doubles_[doubleIndex];
+    //This is different with x86! 
     mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
- 
     dbl.uses.setPrev(masm.size());
 }
 
-
-
-//NOTE*:this function is a copy of x86 !
 void
 MacroAssemblerMIPS::finish()
 {
@@ -76,6 +71,7 @@ MacroAssemblerMIPS::setupABICall(uint32_t args)
 
     args_ = args;
     passedArgs_ = 0;
+    //This is different with x86! 
     stackForCall_ = 16;
 //    subl(Imm32(16), sp);
 }
@@ -98,6 +94,7 @@ MacroAssemblerMIPS::setupUnalignedABICall(uint32_t args, const Register &scratch
     push(scratch);
 }
 
+    //This is different with x86! 
 void
 MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
 {
@@ -144,6 +141,65 @@ MacroAssemblerMIPS::passABIArg(const FloatRegister &reg)
 }
 
 void
+MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
+{
+    JS_ASSERT(inCall_);
+    JS_ASSERT(args_ == passedArgs_);
+
+    if (dynamicAlignment_) {
+        *stackAdjust = stackForCall_
+                     + ComputeByteAlignment(stackForCall_ + STACK_SLOT_SIZE,
+                                            StackAlignment);
+    } else {
+        *stackAdjust = stackForCall_
+                     + ComputeByteAlignment(stackForCall_ + framePushed_,
+                                            StackAlignment);
+    }
+
+    reserveStack(*stackAdjust);
+
+    // Position all arguments.
+    {
+        enoughMemory_ &= moveResolver_.resolve();
+        if (!enoughMemory_)
+            return;
+
+        MoveEmitter emitter(*this);
+        emitter.emit(moveResolver_);
+        emitter.finish();
+    }
+
+#ifdef DEBUG
+    {
+        // Check call alignment.
+        Label good;
+        /* by wangqing esp-->sp */
+        testl(sp, Imm32(StackAlignment - 1));
+        j(Equal, &good);
+        breakpoint();
+        bind(&good);
+    }
+#endif
+}
+void
+MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
+{
+    freeStack(stackAdjust);
+    if (result == DOUBLE) {
+        reserveStack(sizeof(double));
+        fstp(Operand(sp, 0));
+        movsd(Operand(sp, 0), ReturnFloatReg);
+        freeStack(sizeof(double));
+    }
+    if (dynamicAlignment_)
+        pop(sp);
+
+    JS_ASSERT(inCall_);
+    inCall_ = false;
+}
+
+    //This is different with x86! 
+void
 MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {
     JS_ASSERT(inCall_);
@@ -151,13 +207,7 @@ MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 
     uint32_t stackAdjust = ((passedArgs_ > 4) ? passedArgs_ : 4) * STACK_SLOT_SIZE;
     if (dynamicAlignment_) {
-#if 0
-        stackAdjust = stackForCall_
-                    + ComputeByteAlignment(stackForCall_,
-                                           StackAlignment);
-#else
         stackAdjust += ComputeByteAlignment(stackAdjust + STACK_SLOT_SIZE, StackAlignment);
-#endif
     } else {
         stackAdjust +=
             ComputeByteAlignment(framePushed_ + stackAdjust, StackAlignment);
@@ -207,7 +257,6 @@ MacroAssemblerMIPS::callWithABI(void *fun, Result result)
     JS_ASSERT(inCall_);
     inCall_ = false;
 }
-  //NOTE*:this is new in ff24
 void
 MacroAssemblerMIPS::callWithABI(const Address &fun, Result result)
 {
@@ -217,85 +266,6 @@ MacroAssemblerMIPS::callWithABI(const Address &fun, Result result)
     callWithABIPost(stackAdjust, result);
 }
 
-  //NOTE*:this is new in ff24
-void
-MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
-{
-    JS_ASSERT(inCall_);
-    JS_ASSERT(args_ == passedArgs_);
-
-    if (dynamicAlignment_) {
-        *stackAdjust = stackForCall_
-                     + ComputeByteAlignment(stackForCall_ + STACK_SLOT_SIZE,
-                                            StackAlignment);
-    } else {
-        *stackAdjust = stackForCall_
-                     + ComputeByteAlignment(stackForCall_ + framePushed_,
-                                            StackAlignment);
-    }
-
-    reserveStack(*stackAdjust);
-
-    // Position all arguments.
-    {
-        enoughMemory_ &= moveResolver_.resolve();
-        if (!enoughMemory_)
-            return;
-
-        MoveEmitter emitter(*this);
-        emitter.emit(moveResolver_);
-        emitter.finish();
-    }
-
-#ifdef DEBUG
-    {
-        // Check call alignment.
-        Label good;
-        /* by wangqing esp-->sp */
-        testl(sp, Imm32(StackAlignment - 1));
-        j(Equal, &good);
-        breakpoint();
-        bind(&good);
-    }
-#endif
-}
-  //NOTE*:this is new in ff24
-void
-MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
-{
-    freeStack(stackAdjust);
-    if (result == DOUBLE) {
-        reserveStack(sizeof(double));
-        fstp(Operand(sp, 0));
-        movsd(Operand(sp, 0), ReturnFloatReg);
-        freeStack(sizeof(double));
-    }
-    if (dynamicAlignment_)
-        pop(sp);
-
-    JS_ASSERT(inCall_);
-    inCall_ = false;
-}
-/*
-void
-MacroAssemblerMIPS::handleException()
-{
-    // Reserve space for exception information.
-    subl(Imm32(sizeof(ResumeFromException)), sp);
-    movl(sp, a0);
-
-    // Ask for an exception handler.
-    setupUnalignedABICall(1, v0);
-    passABIArg(a0);
-    callWithABI(JS_FUNC_TO_DATA_PTR(void *, ion::HandleException));
-    
-    // Load the error value, load the new stack pointer, and return.
-    moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
-    movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
-    ret();
-}
-*/
-  //NOTE*:this is new in ff24, this  is copy of function handleException(), need to review;
 void
 MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
 {
@@ -359,9 +329,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     movl(fp, sp);
     pop(fp);
     ret();
-    
 }
-
 
 void
 MacroAssemblerMIPS::branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label)
@@ -409,61 +377,4 @@ MacroAssemblerMIPS::testNegativeZero(const FloatRegister &reg, const Register &s
 
     bind(&nonZero);
     return Zero;
-}
-
-void 
-MacroAssemblerMIPS::callWithExitFrame(IonCode *target, Register dynStack) {
-    addPtr(Imm32(framePushed()), dynStack);
-    makeFrameDescriptor(dynStack, IonFrame_OptimizedJS);
-    Push(dynStack);//
-//ok    //arm : ma_callIonHalfPush
-    call(target);
-}
-
-void 
-MacroAssemblerMIPS::callWithExitFrame(IonCode *target) {
-    uint32_t descriptor = MakeFrameDescriptor(framePushed(), IonFrame_OptimizedJS);
-//cause failure when descriptor==0x4e0
-    Push(Imm32(descriptor));
-//ok    //arm : ma_callIonHalfPush
-    call(target);
-}
-
-void 
-MacroAssemblerMIPS::callIon(const Register &callee) {
-/*arm :
-    JS_ASSERT((framePushed() & 3) == 0);
-    if ((framePushed() & 7) == 4) {
-        ma_callIonHalfPush(callee);
-    } else {
-        adjustFrame(sizeof(void*));
-        ma_callIon(callee);
-    }
-*/
-//ok    call(callee);
-    ma_callIonHalfPush(callee);//ok   
-#if 0 //try above line
-    JS_ASSERT((framePushed() & 3) == 0);
-    if ((framePushed() & 7) == 4) {
-        ma_callIonHalfPush(callee);//ok
-    } else {
-        //adjustFrame(sizeof(void*));
-        setFramePushed(framePushed_ + sizeof(void*));
-        ma_callIon(callee);//ok
-    }
-#endif
-}
-
-
-void 
-MacroAssemblerMIPS::enterOsr(Register calleeToken, Register code) {
-    push(Imm32(0)); // num actual args.
-    push(calleeToken);
-    push(Imm32(MakeFrameDescriptor(0, IonFrame_Osr)));
-//ok    //arm : ma_callIonHalfPush
-//ok    call(code);
-    ma_callIonHalfPush(code);
-#if ! defined (JS_CPU_MIPS)
-    addl(Imm32(sizeof(uintptr_t) * 2), sp);
-#endif
 }
