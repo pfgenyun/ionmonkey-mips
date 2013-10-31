@@ -113,7 +113,7 @@ static const MOZ_CONSTEXPR Register JSReturnReg_Type = t7;
 static const MOZ_CONSTEXPR Register JSReturnReg_Data = t8;
 //static const MOZ_CONSTEXPR Register StackPointer = sp;
 static const MOZ_CONSTEXPR Register StackPointer = sp;
-static const MOZ_CONSTEXPR Register FramePointer=InvalidReg;
+static const MOZ_CONSTEXPR Register FramePointer = fp;//xsb
 //static const MOZ_CONSTEXPR Register FramePointer=InvalidReg;
 static const MOZ_CONSTEXPR Register ReturnReg = v0;
 static const MOZ_CONSTEXPR FloatRegister ReturnFloatReg = {JSC::MIPSRegisters::f0};
@@ -2017,8 +2017,8 @@ class Assembler
                 //hwj   //wangqing
                 //intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
                 //raw+codeLabel.dest()->offset  <--->raw+codeLabel.src()-->offset
-                int* ptrLuiIns = (int*)(raw+src-2);
-                int* ptrOriIns = (int*)(raw+src-1);
+                int* ptrLuiIns = (int*)(raw+src-8);//hwj date:1030
+                int* ptrOriIns = (int*)(raw+src-4);//hwj date:1030
                 
                 int luiIns = *ptrLuiIns;
                 int oriIns = *ptrOriIns;

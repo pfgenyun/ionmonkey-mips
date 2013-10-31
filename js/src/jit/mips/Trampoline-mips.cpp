@@ -161,8 +161,8 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         GeneralRegisterSet regs(GeneralRegisterSet::All());
         regs.take(JSReturnOperand);
         regs.takeUnchecked(OsrFrameReg);
-        regs.take(fp);
-        regs.take(ReturnReg);
+        //regs.take(fp);        //hwj date:1030
+        //regs.take(ReturnReg); //hwj date:1030
 
         Register scratch = regs.takeAny();
 
