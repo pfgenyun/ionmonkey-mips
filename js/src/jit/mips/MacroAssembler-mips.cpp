@@ -146,74 +146,20 @@ MacroAssemblerMIPS::passABIArg(const FloatRegister &reg)
 void
 MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {
-    JS_ASSERT(inCall_);
-    JS_ASSERT(args_ == passedArgs_);
-
-    uint32_t stackAdjust = ((passedArgs_ > 4) ? passedArgs_ : 4) * STACK_SLOT_SIZE;
-    if (dynamicAlignment_) {
-#if 0
-        stackAdjust = stackForCall_
-                    + ComputeByteAlignment(stackForCall_,
-                                           StackAlignment);
-#else
-        stackAdjust += ComputeByteAlignment(stackAdjust + STACK_SLOT_SIZE, StackAlignment);
-#endif
-    } else {
-        stackAdjust +=
-            ComputeByteAlignment(framePushed_ + stackAdjust, StackAlignment);
-    }
-
-    reserveStack(stackAdjust);
-//    subl(Imm32(16), StackPointer);
-
-    // Position all arguments.
-    {
-        enoughMemory_ &= moveResolver_.resolve();
-        if (!enoughMemory_)
-            return;
-
-        MoveEmitter emitter(*this);
-        emitter.emit(moveResolver_);
-        emitter.finish();
-    }
-
-#ifdef DEBUG
-    {
-        // Check call alignment.
-        Label good;
-        movl(sp, t0);
-        testl(t0, Imm32(StackAlignment - 1));
-        j(Equal, &good);
-        breakpoint();
-        bind(&good);
-    }
-#endif
-
-//ok    //ma_call
+    uint32_t stackAdjust;
+    callWithABIPre(&stackAdjust);
     call(ImmWord(fun));
-
-//    addl(Imm32(16), StackPointer);
-    freeStack(stackAdjust);
-    if (result == DOUBLE) {
-        reserveStack(sizeof(double));
-        fstp(Operand(sp, 0));
-        movsd(Operand(sp, 0), ReturnFloatReg);
-        freeStack(sizeof(double));
-    }
-    if (dynamicAlignment_)
-        //pop(sp);
-        movl(Operand(sp, 0), sp);
-
-    JS_ASSERT(inCall_);
-    inCall_ = false;
+    pop(ra);
+    callWithABIPost(stackAdjust, result);
 }
-  //NOTE*:this is new in ff24
+
 void
 MacroAssemblerMIPS::callWithABI(const Address &fun, Result result)
 {
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     call(Operand(fun));
+    pop(ra);
     callWithABIPost(stackAdjust, result);
 }
 
