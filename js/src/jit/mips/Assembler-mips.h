@@ -967,23 +967,6 @@ class Assembler
         addCodeLabel(cl);//1031
     }
 
-    //hwj
-    void call(ImmWord target) {
-        int to = (int)(target.value);
-        CodeLabel cl;
-
-        mov(cl.dest(),t9);
-        push(t9);
-
-        lui(t9,to>>16);
-        ori(t9,t9,to&0x0000ffff);
-        
-        jalr(t9);
-        nop();
-        bind(cl.src());
-        addCodeLabel(cl);//1031
-    }
-
    //NOTE*:This is new in ff24.
        // Emit a CALL or CMP (nop) instruction. ToggleCall can be used to patch
     // this instruction. 
@@ -2034,9 +2017,11 @@ class Assembler
     void call(Label *label);
     void call(const Register &reg);
     void call(const Operand &op);
-
-   // void call(IonCode *target);
-//    void call(ImmWord target);
+    void call(ImmWord target);
+    
+    void ma_call(const Register &reg);//for js->c++
+    void ma_call(const Operand &op);//for js->c++
+    void ma_call(ImmWord target);//for js->c++
 
    // calls an Ion function, assumes that the stack is untouched (8 byte alinged)
     JmpSrc ma_callIon(const Register reg);

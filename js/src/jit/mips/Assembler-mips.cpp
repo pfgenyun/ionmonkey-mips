@@ -259,6 +259,55 @@ Assembler::call(const Operand &op) {
         JS_NOT_REACHED("unexpected operand kind");
     }
 }
+
+//hwj
+void 
+Assembler::call(ImmWord target) {
+    int to = (int)(target.value);
+    CodeLabel cl;
+
+    mov(cl.dest(),t9);
+    push(t9);
+
+    lui(t9,to>>16);
+    ori(t9,t9,to&0x0000ffff);
+
+    jalr(t9);
+    nop();
+    bind(cl.src());
+    addCodeLabel(cl);//1031
+}
+
+//hwj:1031
+void 
+Assembler::ma_call(const Register &reg) {
+    masm.jalr(reg.code());
+    masm.nop();
+}
+//hwj:1031
+void 
+Assembler::ma_call(const Operand &op) {
+    switch (op.kind()) {
+      case Operand::REG:
+        ma_call(Register::FromCode((int)(op.reg())));//op.reg()<->Registers::Code
+        break;
+      case Operand::REG_DISP:            	
+        mcss.load32(mAddress(op.base(), op.disp()), v1.code());
+        ma_call(v1);
+        break;
+      default:
+        JS_NOT_REACHED("unexpected operand kind");
+    }
+}
+//hwj:1031
+void
+Assembler::ma_call(ImmWord target) {
+    int to = (int)(target.value);
+    lui(t9,to>>16);
+    ori(t9,t9,to&0x0000ffff);
+    ma_call(t9);
+}
+
 Assembler::JmpSrc
 Assembler::ma_callIon(const Register r)
 {
