@@ -90,8 +90,7 @@ class MacroAssemblerMIPS : public Assembler
             return Operand(Register::FromCode(base.base()), base.disp() + sizeof(void *));
 
           case Operand::SCALE:
-            return Operand(Register::FromCode(base.base()), Register::FromCode(base.index()),
-                           base.scale(), base.disp() + sizeof(void *));
+            return Operand(Register::FromCode(base.base()), Register::FromCode(base.index()), base.scale(), base.disp() + sizeof(void *));
 
           default:
             JS_NOT_REACHED("unexpected operand kind");

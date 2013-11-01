@@ -183,9 +183,10 @@ class Operand
     };
 
     Kind kind_ : 4;
-    int32_t index_ : 5;// TangZL set it 6
+//    int32_t index_ : 5;// TangZL set it 6
+    int32_t index_ : 6;  // fixme: by wangqing
     Scale scale_ : 3;
-    int32_t base_;
+    int32_t base_; 
     int32_t disp_;
 
   public:
