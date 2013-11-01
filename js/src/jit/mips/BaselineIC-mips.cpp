@@ -164,7 +164,15 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_MUL:
         masm.movl(R0.payloadReg(), scratchReg);
         masm.imull(R1.payloadReg(), scratchReg);
-        masm.j(Assembler::Overflow, &failure);
+
+        //original overflow check, removed by weizhenwei, 2013.11.01
+        //masm.j(Assembler::Overflow, &failure);
+
+        //test whether signed multiply overflow. by weizhenwei, 2013.11.01
+        masm.mfhi(cmpTempRegister);
+        masm.mflo(cmpTemp2Register);
+        masm.sarl(Imm32(0x1f), cmpTemp2Register);
+        masm.j(Assembler::NotEqual, &failure);
 
         masm.testl(scratchReg, scratchReg);
         masm.j(Assembler::Zero, &maybeNegZero);
