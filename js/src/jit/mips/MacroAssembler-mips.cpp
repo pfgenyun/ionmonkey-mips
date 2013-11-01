@@ -204,10 +204,7 @@ MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
-    call(ImmWord(fun));
-
-    pop(ra);//fixme 1031 hwj should delete
-
+    ma_call(ImmWord(fun));//1031
     callWithABIPost(stackAdjust, result);
 }
 void
@@ -215,8 +212,7 @@ MacroAssemblerMIPS::callWithABI(const Address &fun, Result result)
 {
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
-    call(Operand(fun));
-    pop(ra);
+    ma_call(Operand(fun));//1031
     callWithABIPost(stackAdjust, result);
 }
 
