@@ -660,14 +660,14 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     Label failure;
     switch (f.failType()) {
       case Type_Object:
-        masm.branchTestPtr(Assembler::Zero, t6, t6, &failure);
+        masm.branchTestPtr(Assembler::Zero, v0, v0, &failure);
         break;
       case Type_Bool:
-        masm.testb(t6, t6);
+        masm.testb(v0, v0);
         masm.j(Assembler::Zero, &failure);
         break;
       case Type_ParallelResult:
-        masm.branchPtr(Assembler::NotEqual, t6, Imm32(TP_SUCCESS), &failure);
+        masm.branchPtr(Assembler::NotEqual, v0, Imm32(TP_SUCCESS), &failure);
         break;
       default:
         JS_NOT_REACHED("unknown failure kind");
