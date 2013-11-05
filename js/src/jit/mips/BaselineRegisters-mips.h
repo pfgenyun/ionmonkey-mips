@@ -24,6 +24,10 @@ static const Register BaselineStackReg = sp;
 static const ValueOperand R0(t7, t8);
 static const ValueOperand R1(s1, s0);
 static const ValueOperand R2(s3, s4);
+/*
+static const ValueOperand R1(s3, s4);
+static const ValueOperand R2(s0, s1);
+*/
 
 // BaselineTailCallReg and BaselineStubReg reuse
 // registers from R2.

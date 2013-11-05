@@ -364,7 +364,7 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
     // ArgumentsRectifierReg contains the |nargs| pushed onto the current frame.
     // Including |this|, there are (|nargs| + 1) arguments to copy.
-    JS_ASSERT(ArgumentsRectifierReg == s0);
+    JS_ASSERT(ArgumentsRectifierReg == s5);//s0
 
     // Load the number of |undefined|s to push into %ecx.
     masm.movl(Operand(sp, IonRectifierFrameLayout::offsetOfCalleeToken()), t6);

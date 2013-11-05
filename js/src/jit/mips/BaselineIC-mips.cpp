@@ -151,26 +151,16 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // Prevent negative 0 and -2147483648 / -1.
         masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
 
-        // For idiv we need eax.
-//        JS_ASSERT(R1.typeReg() == eax);
-//        masm.movl(R0.payloadReg(), eax);
-        // by weizhenwei, 2013.10.28, in mips, eax = t6 
-        // see jit/mips/CodeGenerator-mips.cpp:visitDivI();
-        JS_ASSERT(R1.typeReg() == s1);
-        masm.movl(R0.payloadReg(), t6);
-
         // Preserve R0.payloadReg()/edx, eax is JSVAL_TYPE_INT32.
-        masm.movl(R0.payloadReg(), scratchReg);
-        // Sign extend eax into edx to make (edx:eax), since idiv is 64-bit.
-        masm.cdq();
-        masm.idiv(R1.payloadReg());
+        
+		masm.div(R0.payloadReg(), R1.payloadReg());
 
         // A remainder implies a double result.
         //masm.branchTest32(Assembler::NonZero, edx, edx, &revertRegister);
         //by weizhenwei, 2013.11.02
         masm.mfhi(cmpTempRegister);
         masm.movl(zero, cmpTemp2Register);
-        masm.j(Assembler::NotEqual, &revertRegister);
+        masm.j(Assembler::NotEqual, &failure);
 
         //masm.movl(eax, R0.payloadReg());
         //by weizhenwei, 2013.11.05
@@ -185,19 +175,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // Prevent negative 0 and -2147483648 % -1.
         masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
 
-        // For idiv we need eax.
-//        JS_ASSERT(R1.typeReg() == eax);
-//        masm.movl(R0.payloadReg(), eax);
-        // by weizhenwei, 2013.10.25, in mips, eax = t6, edx = t7, ecx = t8;
-        // see jit/mips/CodeGenerator-mips.cpp:visitDivI();
-        JS_ASSERT(R1.typeReg() == s1);
-        masm.movl(R0.payloadReg(), t6);
-
-        // Preserve R0.payloadReg()/edx, eax is JSVAL_TYPE_INT32.
-        masm.movl(R0.payloadReg(), scratchReg);
-        // Sign extend eax into edx to make (edx:eax), since idiv is 64-bit.
-        masm.cdq();
-        masm.idiv(R1.payloadReg());
+		masm.div(R0.payloadReg(), R1.payloadReg());
 
         // Fail when we would need a negative remainder.
         Label done;
@@ -206,17 +184,11 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.movl(zero, cmpTemp2Register);
         masm.j(Assembler::NotEqual, &done);
 
-        masm.branchTest32(Assembler::Signed, scratchReg, scratchReg, &revertRegister);
-        masm.branchTest32(Assembler::Signed, R1.payloadReg(), R1.payloadReg(), &revertRegister);
+        masm.branchTest32(Assembler::Signed, R0.payloadReg(), R0.payloadReg(), &failure);
+        masm.branchTest32(Assembler::Signed, R1.payloadReg(), R1.payloadReg(), &failure);
 
 
         masm.bind(&done);
-        // Result is in edx, tag in ecx remains untouched.
-//        JS_ASSERT(R0.payloadReg() == edx);
-//        JS_ASSERT(R0.typeReg() == ecx);
-//        by weizhenwei, 201..10.25
-        JS_ASSERT(R0.typeReg() == t7);
-        JS_ASSERT(R0.payloadReg() == t8);
 
         //move reminder to R0.payloadReg, by weizhenwei, 2013.11.05
         masm.mfhi(R0.payloadReg());
@@ -307,12 +279,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // Result is +0.
         masm.xorl(R0.payloadReg(), R0.payloadReg());
         EmitReturnFromIC(masm);
-        break;
-      case JSOP_DIV:
-      case JSOP_MOD:
-        masm.bind(&revertRegister);
-        masm.movl(scratchReg, R0.payloadReg());
-        masm.movl(ImmType(JSVAL_TYPE_INT32), R1.typeReg());
         break;
       case JSOP_URSH:
         // Revert the content of R0 in the fallible >>> case.
