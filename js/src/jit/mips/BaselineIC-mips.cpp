@@ -162,9 +162,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.movl(zero, cmpTemp2Register);
         masm.j(Assembler::NotEqual, &failure);
 
-        //masm.movl(eax, R0.payloadReg());
         //by weizhenwei, 2013.11.05
-        //masm.movl(t6, R0.payloadReg());
         masm.mflo(R0.payloadReg());
         break;
       case JSOP_MOD:
@@ -210,7 +208,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 //        JS_ASSERT(R0.typeReg() == ecx);
 //        masm.movl(R1.payloadReg(), ecx);
 //        by weizhenwei, 2013.10.25, in mips, ecx = t8
-        JS_ASSERT(R0.typeReg() == t8);
+        JS_ASSERT(R0.typeReg() == t7);
         masm.movl(R0.typeReg(), scratchReg); //by weizhenwei, 2013.11.05
         masm.movl(R1.payloadReg(), t8);
         masm.shll_cl(R0.payloadReg());
@@ -221,7 +219,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_RSH:
 //        masm.movl(R1.payloadReg(), ecx);
 //        by weizhenwei, 2013.10.25, in mips, ecx = t8
-        JS_ASSERT(R0.typeReg() == t8);
+        JS_ASSERT(R0.typeReg() == t7);
         masm.movl(R0.typeReg(), scratchReg); //by weizhenwei, 2013.11.05
         masm.movl(R1.payloadReg(), t8);
         masm.sarl_cl(R0.payloadReg());
@@ -234,7 +232,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
 //        masm.movl(R1.payloadReg(), ecx);
 //        by weizhenwei, 2013.10.25, in mips, ecx = t8
-        JS_ASSERT(R0.typeReg() == t8);
+        JS_ASSERT(R0.typeReg() == t7);
         masm.movl(R0.typeReg(), scratchReg); //by weizhenwei, 2013.11.05
         masm.movl(R1.payloadReg(), t8);
         masm.shrl_cl(R0.payloadReg());

@@ -479,6 +479,29 @@ class Assembler
         return static_cast<Condition>(cond & ~DoubleConditionBits);
     }
 
+	//by weizhenwei, 2013.11.05
+    static inline DoubleCondition DoubleConditionFromCondition(Condition cond) {
+		if ((cond == Equal) || (cond == Zero)) {
+				return DoubleEqual;
+		} else if ((cond == NotEqual) || (cond == NonZero)) {
+				return DoubleNotEqual;
+		} else if ((cond == Above) || (cond == GreaterThan)) {
+				return DoubleGreaterThan;
+		} else if ((cond == AboveOrEqual) || (cond == GreaterThanOrEqual)) {
+				return DoubleGreaterThanOrEqual;
+		} else if ((cond == Below) || (cond == LessThan)) {
+				return DoubleLessThan;
+		} else if ((cond == BelowOrEqual) || (cond == LessThanOrEqual)) {
+				return DoubleLessThanOrEqual;
+		} else if (cond == Parity) {
+				return DoubleUnordered;
+		} else if (cond == NoParity) {
+				return DoubleOrdered;
+		} else {
+				JS_ASSERT(0);
+		}
+    }
+
     static void TraceDataRelocations(JSTracer *trc, IonCode *code, CompactBufferReader &reader);
 
     // MacroAssemblers hold onto gcthings, so they are traced by the GC.
@@ -2586,7 +2609,7 @@ class Assembler
     void ucomisd(const FloatRegister &lhs, const FloatRegister &rhs) {
      //   JS_ASSERT(HasSSE2());
    //     masm.ucomisd_rr(rhs.code(), lhs.code());
-   ASSERT(0);
+   	 ASSERT(0);
      mcss.moveDouble(lhs.code(), fpTempRegister.code());
      mcss.moveDouble(rhs.code(), fpTemp2Register.code());
     }
@@ -2683,7 +2706,7 @@ class Assembler
     void absd(const FloatRegister &src);
     void negd(const FloatRegister &src, const FloatRegister &dest);
     void xorpd(const FloatRegister &src, const FloatRegister &dest) {
-          ASSERT(0);
+//          ASSERT(0);
    //     JS_ASSERT(HasSSE2());
   //      masm.xorpd_rr(src.code(), dest.code());
      ASSERT(src.code() == dest.code());

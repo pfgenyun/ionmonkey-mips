@@ -983,6 +983,7 @@ class MacroAssemblerMIPS : public Assembler
     }
 
     void compareDouble(DoubleCondition cond, const FloatRegister &lhs, const FloatRegister &rhs) {
+		ASSERT(0);//by weizhenwei, 2013.11.05
         if (cond & DoubleConditionBitInvert)
             ucomisd(rhs, lhs);
         else
@@ -1152,8 +1153,9 @@ class MacroAssemblerMIPS : public Assembler
         cvtsi2sd(Operand(src), dest);
     }
     Condition testDoubleTruthy(bool truthy, const FloatRegister &reg) {
-        xorpd(ScratchFloatReg, ScratchFloatReg);
-        ucomisd(ScratchFloatReg, reg);
+//        xorpd(ScratchFloatReg, ScratchFloatReg);
+//        ucomisd(ScratchFloatReg, reg);
+		  zerod(ScratchFloatReg);
         return truthy ? NonZero : Zero;
     }
     void load8ZeroExtend(const Address &src, const Register &dest) {
@@ -1274,9 +1276,12 @@ class MacroAssemblerMIPS : public Assembler
     {
         cvttsd2si(src, dest);
         cvtsi2sd(dest, ScratchFloatReg);
-        ucomisd(src, ScratchFloatReg);
-        j(Assembler::Parity, fail);
-        j(Assembler::NotEqual, fail);
+		//by weizhenwei, 2013.11.05
+//        ucomisd(src, ScratchFloatReg);
+//        j(Assembler::Parity, fail);
+//        j(Assembler::NotEqual, fail);
+		branchDouble(DoubleConditionFromCondition(Assembler::Parity), src, ScratchFloatReg, fail);
+		branchDouble(DoubleConditionFromCondition(Assembler::NotEqual), src, ScratchFloatReg, fail);
 
         // Check for -0
         if (negativeZeroCheck) {

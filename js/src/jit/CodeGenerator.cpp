@@ -429,7 +429,15 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
     // If we reach here the value is a double.
     masm.unboxDouble(value, fr);
     cond = masm.testDoubleTruthy(false, fr);
+
+	//by weizhenwei, 2013.11.05
+#if defined(JS_CPU_MIPS)
+	masm.branchDouble(masm.DoubleConditionFromCondition(cond),
+		ScratchFloatReg, fr, ifFalsy);
+#else
     masm.j(cond, ifFalsy);
+#endif
+
     masm.jump(ifTruthy);
 }
 
