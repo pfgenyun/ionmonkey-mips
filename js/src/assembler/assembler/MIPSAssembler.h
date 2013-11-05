@@ -892,8 +892,6 @@ public:
 
     static void *getPointer(void* where);
 
-    static void **getPointerRef(void* where);
-
     static void setPointer(void* where, const void* value);
 
 //private:
