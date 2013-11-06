@@ -1506,7 +1506,6 @@ class Assembler
     //hwj
     //NOTE*:this function is new in ff24
     void writeCodePointer(AbsoluteLabel *label) {
-      	ASSERT(0);
         JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
@@ -1518,10 +1517,8 @@ class Assembler
     }
     //NOTE*:this function is new in ff24
     void writeDoubleConstant(double d, Label *label) {
-  		 ASSERT(0);
-    /*    label->bind(masm.size());
+        label->bind(masm.size());
         masm.doubleConstant(d);
-    */
     }
 //wangce
     void movl(const Imm32 &imm32, const Register &dest) {

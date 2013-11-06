@@ -866,6 +866,17 @@ public:
     //hwj
     void clearOffsetForLabel(const JmpSrc& from);
 
+    void doubleConstant(double d)
+    {
+            m_buffer.ensureSpace(sizeof(double));
+            union {
+                uint64_t u64;
+                double d;
+            } u;
+            u.d = d;
+            m_buffer.putInt64Unchecked(u.u64);
+    }
+
     void linkJump(JmpSrc from, JmpDst to);
 
     static void linkJump(void* code, JmpSrc from, void* to);
