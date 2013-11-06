@@ -204,39 +204,29 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.andl(R1.payloadReg(), R0.payloadReg());
         break;
       case JSOP_LSH:
-        // RHS needs to be in ecx for shift operations.
-//        JS_ASSERT(R0.typeReg() == ecx);
-//        masm.movl(R1.payloadReg(), ecx);
-//        by weizhenwei, 2013.10.25, in mips, ecx = t8
-        JS_ASSERT(R0.typeReg() == t7);
-        masm.movl(R0.typeReg(), scratchReg); //by weizhenwei, 2013.11.05
-        masm.movl(R1.payloadReg(), t8);
-        masm.shll_cl(R0.payloadReg());
-        masm.movl(scratchReg, R0.typeReg()); //by weizhenwei, 2013.11.05
+        //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
+        //rewrite by weizhenwei, 2013.11.06
+        masm.shll_cl(R1.payloadReg(), R0.payloadReg());
+
         // We need to tag again, because we overwrote it.
         masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
         break;
       case JSOP_RSH:
-//        masm.movl(R1.payloadReg(), ecx);
-//        by weizhenwei, 2013.10.25, in mips, ecx = t8
-        JS_ASSERT(R0.typeReg() == t7);
-        masm.movl(R0.typeReg(), scratchReg); //by weizhenwei, 2013.11.05
-        masm.movl(R1.payloadReg(), t8);
-        masm.sarl_cl(R0.payloadReg());
-        masm.movl(scratchReg, R0.typeReg()); //by weizhenwei, 2013.11.05
+        //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
+        //rewrite by weizhenwei, 2013.11.06
+        masm.sarl_cl(R1.payloadReg(), R0.payloadReg());
+
+        // We need to tag again, because we overwrote it.
         masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
         break;
       case JSOP_URSH:
         if (!allowDouble_)
             masm.movl(R0.payloadReg(), scratchReg);
 
-//        masm.movl(R1.payloadReg(), ecx);
-//        by weizhenwei, 2013.10.25, in mips, ecx = t8
-        JS_ASSERT(R0.typeReg() == t7);
-        masm.movl(R0.typeReg(), scratchReg); //by weizhenwei, 2013.11.05
-        masm.movl(R1.payloadReg(), t8);
-        masm.shrl_cl(R0.payloadReg());
-        masm.movl(scratchReg, R0.typeReg()); //by weizhenwei, 2013.11.05
+        //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
+        //rewrite by weizhenwei, 2013.11.06
+        masm.shrl_cl(R1.payloadReg(), R0.payloadReg());
+
         masm.testl(R0.payloadReg(), R0.payloadReg());
         if (allowDouble_) {
             Label toUint;

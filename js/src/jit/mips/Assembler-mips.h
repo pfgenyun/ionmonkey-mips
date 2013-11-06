@@ -2365,24 +2365,36 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     //NOTE* :this is new in ff24;
+    //rewrite by weizhenwei, 2013.11.06
     void notl(const Register &reg) {
-      //  masm.notl_r(reg.code());
-      //  ok by weizhenwei, 2013.10.20
-      mcss.not32(reg.code());
+//      mcss.not32(reg.code());
+        masm.nor(reg.code(), reg.code(), zero.code());
     }
+
+    //rewrite by weizhenwei, 2013.11.06
     void shrl(const Imm32 imm, const Register &dest) {
 //ok        masm.shrl_i8r(imm.value, dest.code());
-        mcss.urshift32(mTrustedImm32(imm.value), dest.code());
+//        mcss.urshift32(mTrustedImm32(imm.value).m_value, dest.code());
+        masm.srl(dest.code(), dest.code(), imm.value);
     }
+
+    //rewrite by weizhenwei, 2013.11.06
     void shll(const Imm32 imm, const Register &dest) {
 //ok        masm.shll_i8r(imm.value, dest.code());
-        mcss.lshift32(mTrustedImm32(imm.value), dest.code());
+//        mcss.lshift32(mTrustedImm32(imm.value), dest.code());
+        masm.sll(dest.code(), dest.code(), imm.value);
     }
+
+    //rewrite by weizhenwei, 2013.11.06
     void sarl(const Imm32 imm, const Register &dest) {
 //ok        masm.sarl_i8r(imm.value, dest.code());
-        mcss.rshift32(mTrustedImm32(imm.value), dest.code());
+//        mcss.rshift32(mTrustedImm32(imm.value), dest.code());
+        masm.sra(dest.code(), dest.code(), imm.value);
     }
+
+
     void shrl_cl(const Register &dest) {
      //  masm.shrl_CLr(dest.code());
      //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
@@ -2397,6 +2409,19 @@ class Assembler
      // masm.sarl_CLr(dest.code());
      //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
       mcss.rshift32(mRegisterID(t8.code()), dest.code());
+    }
+
+    //new by weizhenwei, 2013.11.06
+    void shrl_cl(const Register &shiftAmount, const Register &dest) {
+        masm.srlv(dest.code(), dest.code(), shiftAmount.code());
+    }
+    //new by weizhenwei, 2013.11.06
+    void shll_cl(const Register &shiftAmount, const Register &dest) {
+        masm.sllv(dest.code(), dest.code(), shiftAmount.code());
+    }
+    //new by weizhenwei, 2013.11.06
+    void sarl_cl(const Register &shiftAmount, const Register &dest) {
+       masm.srav(dest.code(), dest.code(), shiftAmount.code());
     }
 
     void push(const Imm32 imm) {
@@ -2507,6 +2532,7 @@ class Assembler
       //  ok, by weizhenwei, 2013.10.21
       div(t6, divisor);
       mflo(divisor);
+//      mfhi(t7);
     }
     //NOTE*:this is new in ff24; Need to update!
     void udiv(Register divisor) {
@@ -2519,6 +2545,7 @@ class Assembler
       //  so we directly invoke div here.
       divu(t6, divisor);
       mflo(divisor);
+      //mfhi(t7);
     }
 
     void unpcklps(const FloatRegister &src, const FloatRegister &dest) {
