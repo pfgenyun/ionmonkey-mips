@@ -2714,7 +2714,6 @@ class Assembler
     }
     void zerod(const FloatRegister &src);
     void absd(const FloatRegister &src);
-    void negd(const FloatRegister &src, const FloatRegister &dest);
     void xorpd(const FloatRegister &src, const FloatRegister &dest) {
 //          ASSERT(0);
    //     JS_ASSERT(HasSSE2());
@@ -3305,12 +3304,12 @@ class Assembler
     {
         masm.divd(fd.code(), fs.code(), ft.code());
     }
-/*
+
     void negd(const FloatRegister &fd, const FloatRegister &fs)
     {
         masm.negd(fd.code(), fs.code());
     }
-*/
+
     void absd(const FloatRegister &fd, const FloatRegister &fs)
     {
         masm.absd(fd.code(), fs.code());

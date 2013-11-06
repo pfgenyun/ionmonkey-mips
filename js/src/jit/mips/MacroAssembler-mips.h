@@ -1227,8 +1227,9 @@ class MacroAssemblerMIPS : public Assembler
     }
     //It is different with x86!
     //xsb:fixme 
+	// by wangqing ,2013-11-06 make the FLoatRegister negated.
     void negateDouble(FloatRegister reg) {
-       ASSERT(0); 
+	    negd(reg, reg); 
     }
     void addDouble(FloatRegister src, FloatRegister dest) {
         addsd(src, dest);
