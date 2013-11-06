@@ -22,8 +22,6 @@ MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
         double d;
     } dpun;
     dpun.d = d;
-    if (maybeInlineDouble(dpun.u, dest))
-        return;
 
     if (!doubleMap_.initialized()) {
         enoughMemory_ &= doubleMap_.init();
