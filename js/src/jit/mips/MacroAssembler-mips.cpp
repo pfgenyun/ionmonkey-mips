@@ -43,8 +43,11 @@ MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
     }
     Double &dbl = doubles_[doubleIndex];
     //This is different with x86! 
-    mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
-    dbl.uses.setPrev(masm.size());
+    //mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
+    //dbl.uses.setPrev(masm.size());
+	//hwj date:1106
+	mov(&(dbl.uses), addrTempRegister);
+	ldc1(dest,addrTempRegister,ImmWord((void*)0));
 }
 
 void
@@ -171,6 +174,7 @@ MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
 
 #ifdef DEBUG
     {
+       // breakpoint();//hwj
         // Check call alignment.
         Label good;
         /* by wangqing esp-->sp */
@@ -234,7 +238,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     Label catch_;
     Label finally;
     Label return_;
-
+	//breakpoint();//hwj
     loadPtr(Address(sp, offsetof(ResumeFromException, kind)), t6);
     branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
     branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
@@ -252,7 +256,8 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
 
     // If we found a catch handler, this must be a baseline frame. Restore state
     // and jump to the catch block.
-    bind(&catch_);
+	//breakpoint();//hwj
+	bind(&catch_);
     movl(Operand(sp, offsetof(ResumeFromException, target)), t6);
     movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
