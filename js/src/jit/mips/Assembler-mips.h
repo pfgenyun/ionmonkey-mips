@@ -2407,20 +2407,6 @@ class Assembler
      //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
       mcss.rshift32(mRegisterID(t8.code()), dest.code());
     }
-
-    //new by weizhenwei, 2013.11.06
-    void shrl_cl(const Register &shiftAmount, const Register &dest) {
-        masm.srlv(dest.code(), dest.code(), shiftAmount.code());
-    }
-    //new by weizhenwei, 2013.11.06
-    void shll_cl(const Register &shiftAmount, const Register &dest) {
-        masm.sllv(dest.code(), dest.code(), shiftAmount.code());
-    }
-    //new by weizhenwei, 2013.11.06
-    void sarl_cl(const Register &shiftAmount, const Register &dest) {
-       masm.srav(dest.code(), dest.code(), shiftAmount.code());
-    }
-
     void push(const Imm32 imm) {
 //ok??        masm.push_i32(imm.value);
 //ok by weizhenwei, 2013.10.20, according MacroAssemblerMIPS.h:1515,void push(TrustImm32)
@@ -3088,9 +3074,9 @@ class Assembler
         masm.sll(rd.code(), rt.code(), shamt);
     }
 
-    void sllv(const Register &rd, const Register &rt, ImmWord rs)
+    void sllv(const Register &rd, const Register &rt, const Register &rs)
     {
-        masm.sllv(rd.code(), rt.code(), rs.value);
+        masm.sllv(rd.code(), rt.code(), rs.code());
     }
 
     void sra(const Register &rd, const Register &rt, ImmWord shamt)

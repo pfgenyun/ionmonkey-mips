@@ -206,7 +206,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_LSH:
         //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
         //rewrite by weizhenwei, 2013.11.06
-        masm.shll_cl(R1.payloadReg(), R0.payloadReg());
+        masm.sllv(R0.payloadReg(), R0.payloadReg(), R1.payloadReg());
 
         // We need to tag again, because we overwrote it.
         masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
@@ -214,7 +214,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_RSH:
         //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
         //rewrite by weizhenwei, 2013.11.06
-        masm.sarl_cl(R1.payloadReg(), R0.payloadReg());
+        masm.srav(R0.payloadReg(), R0.payloadReg(), R1.payloadReg());
 
         // We need to tag again, because we overwrote it.
         masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
@@ -225,7 +225,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
         //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
         //rewrite by weizhenwei, 2013.11.06
-        masm.shrl_cl(R1.payloadReg(), R0.payloadReg());
+        masm.srlv(R0.payloadReg(), R0.payloadReg(), R1.payloadReg());
 
         masm.testl(R0.payloadReg(), R0.payloadReg());
         if (allowDouble_) {
