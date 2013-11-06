@@ -190,11 +190,10 @@ MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
 {
     freeStack(stackAdjust);
     if (result == DOUBLE) {
-        reserveStack(sizeof(double));
-        fstp(Operand(sp, 0));
-        movsd(Operand(sp, 0), ReturnFloatReg);
-        freeStack(sizeof(double));
-    }
+    //xsb:the result has been in f0,due to O32 ABI
+	//and we set ReturnFloatReg=f0
+	//so we don't need to move result from f0 to ReturnFloatReg
+	}
     if (dynamicAlignment_)
         pop(sp);
 
