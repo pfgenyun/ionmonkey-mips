@@ -370,7 +370,7 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     masm.movl(Operand(sp, IonRectifierFrameLayout::offsetOfCalleeToken()), t6);
     masm.clearCalleeTag(t6, mode);
     masm.movzwl(Operand(t6, offsetof(JSFunction, nargs)), t8);
-    masm.subl(s0, t8);
+    masm.subl(s5, t8);
 
     // Copy the number of actual arguments.
     masm.movl(Operand(sp, IonRectifierFrameLayout::offsetOfNumActualArgs()), t7);
@@ -399,7 +399,7 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
     // Get the topmost argument. We did a push of %ebp earlier, so be sure to
     // account for this in the offset
-    BaseIndex b = BaseIndex(FramePointer, s0, TimesEight,
+    BaseIndex b = BaseIndex(FramePointer, s5, TimesEight,
                             sizeof(IonRectifierFrameLayout) + sizeof(void*));
     masm.lea(Operand(b), t8);
 
@@ -411,13 +411,13 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
         masm.bind(&copyLoopTop);
         masm.subl(Imm32(sizeof(Value)), t8);
-        masm.subl(Imm32(1), s0);
+        masm.subl(Imm32(1), s5);
         masm.bind(&initialSkip);
 
         masm.push(Operand(t8, sizeof(Value)/2));
         masm.push(Operand(t8, 0x0));
 
-        masm.testl(s0, s0);
+        masm.testl(s5, s5);
         masm.j(Assembler::NonZero, &copyLoopTop);
     }
 
