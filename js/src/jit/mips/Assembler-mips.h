@@ -2745,18 +2745,6 @@ class Assembler
     //    masm.roundsd_rr(src.code(), dest.code(), mode);
      mcss.floorDouble(src.code(), dest.code());
     }
-      //NOTE* :this is new in ff24;
-    void fisttp(const Operand &dest) {
-    	    ASSERT(0);
-    /*    JS_ASSERT(HasSSE3());
-        switch (dest.kind()) {
-          case Operand::REG_DISP:
-            masm.fisttp_m(dest.disp(), dest.base());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }*/
-    }
        //NOTE* :this is new in ff24;
     void fld(const Operand &dest) {
     	    ASSERT(0);
