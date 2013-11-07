@@ -345,7 +345,7 @@ IonRuntime::generateInvalidator(JSContext *cx)
     //NOTE: This is different in ff24
     //hwj: position difference
     //masm.generateBailoutTail(edx, ecx); //x86
-    masm.generateBailoutTail(t8,t7);
+    masm.generateBailoutTail(t7,t8);
 
     Linker linker(masm);
     IonCode *code = linker.newCode(cx, JSC::OTHER_CODE);
