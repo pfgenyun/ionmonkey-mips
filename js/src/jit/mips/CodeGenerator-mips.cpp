@@ -2092,16 +2092,10 @@ void
 CodeGeneratorMIPS::postAsmJSCall(LAsmJSCall *lir)
 {
     ASSERT(0);
-//NOTE:this part is about ASM.JS in ff24,so deleted for temp
-    /*MAsmJSCall *mir = lir->mir();
-    if (mir->type() != MIRType_Double || mir->callee().which() != MAsmJSCall::Callee::Builtin)
-        return;
-
-    masm.reserveStack(sizeof(double));
-    masm.fstp(Operand(esp, 0));
-    masm.movsd(Operand(esp, 0), ReturnFloatReg);
-    masm.freeStack(sizeof(double));
-*/
+	return;
+	//no need to move double return value
+	//to ReturnFloatReg=f0,
+	//since it has been in f0,due to ABI
 }
 
 

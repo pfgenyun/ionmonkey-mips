@@ -2768,16 +2768,6 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }*/
     }
-    void fstp(const Operand &src) {
-        ASSERT(0);
-     /*   switch (src.kind()) {
-          case Operand::REG_DISP:
-            masm.fstp_m(src.disp(), src.base());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }*/
-    }
 
     // Defined for compatibility with ARM's assembler
     uint32_t actualOffset(uint32_t x) {
