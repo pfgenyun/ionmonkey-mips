@@ -99,23 +99,107 @@ CodeGeneratorMIPS::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue,
 }
 
 //by weizhenwei, 2013.11.05
-void CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond, const FloatRegister &lhs,
-				const FloatRegister &rhs, MBasicBlock *mirTrue, MBasicBlock *mirFalse)
+//void CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond, const FloatRegister &lhs,
+//				const FloatRegister &rhs, MBasicBlock *mirTrue, MBasicBlock *mirFalse)
+//{
+//    LBlock *ifTrue = mirTrue->lir();
+//    LBlock *ifFalse = mirFalse->lir();
+//
+//    if (isNextBlock(ifFalse)) {
+//        //masm.j(cond, ifTrue->label());
+//        masm.branchDouble(cond, lhs, rhs, ifTrue->label());
+//    } else {
+//        masm.j(Assembler::InvertCondition(masm.ConditionFromDoubleCondition(cond)), ifFalse->label());
+//        //masm.j(Assembler::InvertCondition(cond), ifFalse->label());
+////        masm.branchDouble(Assembler::InvertCondition(cond), lhs, rhs, ifFalse->label());
+//        if (!isNextBlock(ifTrue))
+//            masm.jmp(ifTrue->label());
+//    }
+//
+//}
+
+//by weizhenwei, 2013.11.07
+void
+CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
+        const FloatRegister &lhs, const FloatRegister &rhs,
+        MBasicBlock *mirTrue, MBasicBlock *mirFalse, Assembler::NaNCond ifNaN)
 {
     LBlock *ifTrue = mirTrue->lir();
     LBlock *ifFalse = mirFalse->lir();
+
+    if (ifNaN == Assembler::NaN_IsFalse) {
+        //masm.j(Assembler::Parity, ifFalse->label());
+        masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
+                lhs, rhs, ifFalse->label());
+    } else if (ifNaN == Assembler::NaN_IsTrue) {
+        //masm.j(Assembler::Parity, ifTrue->label());
+        masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
+                lhs, rhs, ifTrue->label());
+    }
 
     if (isNextBlock(ifFalse)) {
         //masm.j(cond, ifTrue->label());
         masm.branchDouble(cond, lhs, rhs, ifTrue->label());
     } else {
-        masm.j(Assembler::InvertCondition(masm.ConditionFromDoubleCondition(cond)), ifFalse->label());
         //masm.j(Assembler::InvertCondition(cond), ifFalse->label());
-//        masm.branchDouble(Assembler::InvertCondition(cond), lhs, rhs, ifFalse->label());
+        masm.j(Assembler::InvertCondition(masm.ConditionFromDoubleCondition(cond)),
+                ifFalse->label());
         if (!isNextBlock(ifTrue))
             masm.jmp(ifTrue->label());
     }
+}
 
+//by weizhenwei, 2013.11.07
+void
+CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister &lhs,
+        const FloatRegister &rhs, const Register &dest, Assembler::NaNCond ifNaN) {
+
+
+    if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
+        // If the register we're defining is a single byte register,
+        // take advantage of the setCC instruction
+//        setCC(cond, dest);
+//        movzxbl(dest, dest);
+        Label setDest;
+        masm.branchDouble(cond, lhs, rhs, &setDest);
+        masm.xorl(dest, dest);
+        masm.bind(&setDest);
+        masm.movl(Imm32(1), dest);
+
+        if (ifNaN != Assembler::NaN_HandledByCond) {
+            Label noNaN;
+           //j(Assembler::NoParity, &noNaN);
+           masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::NoParity),
+                   lhs, rhs, &noNaN);
+            if (ifNaN == Assembler::NaN_IsTrue)
+                masm.movl(Imm32(1), dest);
+            else
+                masm.xorl(dest, dest);
+            masm.bind(&noNaN);
+        }
+    } else {
+        Label end;
+        Label ifFalse;
+
+        if (ifNaN == Assembler::NaN_IsFalse) {
+            //j(Assembler::Parity, &ifFalse);
+            masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
+                   lhs, rhs, &ifFalse);
+        }
+        masm.movl(Imm32(1), dest);
+        //j(cond, &end);
+        masm.branchDouble(cond, lhs, rhs, &end);
+        if (ifNaN == Assembler::NaN_IsTrue) {
+           //j(Assembler::Parity, &end);
+            masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
+                   lhs, rhs, &end);
+        }
+          
+        masm.bind(&ifFalse);
+        masm.xorl(dest, dest);
+
+        masm.bind(&end);
+    }
 }
 
 bool
@@ -205,8 +289,11 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
     FloatRegister rhs = ToFloatRegister(comp->right());
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
-    masm.compareDouble(cond, lhs, rhs);
-    masm.emitSet(Assembler::ConditionFromDoubleCondition(cond), ToRegister(comp->output()),
+//    masm.compareDouble(cond, lhs, rhs);
+//    masm.emitSet(Assembler::ConditionFromDoubleCondition(cond), ToRegister(comp->output()),
+//            Assembler::NaNCondFromDoubleCondition(cond));
+    //by weizhenwei, 2013.11.07
+    emitSet(cond, lhs, rhs, ToRegister(comp->output()),
             Assembler::NaNCondFromDoubleCondition(cond));
     return true;
 }
@@ -224,9 +311,13 @@ CodeGeneratorMIPS::visitNotD(LNotD *ins)
 {
     FloatRegister opd = ToFloatRegister(ins->input());
 
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-    masm.compareDouble(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg);
-    masm.emitSet(Assembler::Equal, ToRegister(ins->output()), Assembler::NaN_IsTrue);
+//    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+//    masm.compareDouble(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg);
+//    masm.emitSet(Assembler::Equal, ToRegister(ins->output()), Assembler::NaN_IsTrue);
+    //by weizhenwei, 2013.11.07
+    masm.zerod(ScratchFloatReg);
+    emitSet(masm.DoubleConditionFromCondition(Assembler::Equal), opd, ScratchFloatReg,
+            ToRegister(ins->output()), Assembler::NaN_IsTrue);
     return true;
 }
 
@@ -237,9 +328,14 @@ CodeGeneratorMIPS::visitCompareDAndBranch(LCompareDAndBranch *comp)
     FloatRegister rhs = ToFloatRegister(comp->right());
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
-    masm.compareDouble(cond, lhs, rhs);
-    emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse(),
-               Assembler::NaNCondFromDoubleCondition(cond));
+//    masm.compareDouble(cond, lhs, rhs);
+//    emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse(),
+//               Assembler::NaNCondFromDoubleCondition(cond));
+//  by weizhenwei, 2013.11.07
+    emitBranch(cond, lhs, rhs, comp->ifTrue(), comp->ifFalse(),
+            Assembler::NaNCondFromDoubleCondition(cond));
+        
+      
     return true;
 }
 

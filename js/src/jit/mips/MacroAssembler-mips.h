@@ -995,7 +995,15 @@ class MacroAssemblerMIPS : public Assembler
     {
 
         //by weizhenwei, 2013.10.29
-        JmpSrc j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond), lhs.code(), rhs.code()).getJmpSrc();
+        JmpSrc j;
+        if (cond & DoubleConditionBitInvert) {
+            j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond),
+                    rhs.code(), lhs.code()).getJmpSrc();
+        } else {
+            j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond),
+                    lhs.code(), rhs.code()).getJmpSrc();
+        }
+
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
             masm.linkJump(j, JmpDst(label->offset()));
