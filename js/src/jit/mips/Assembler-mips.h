@@ -2505,7 +2505,8 @@ class Assembler
       //  eax = t6, edx = t7
       //  so mov(t6, t7), sar(32, 0x1F); signal extend.
 //        Imm32 imm = Imm32(0x1F);
-//        mcss.mov(mRegisterID(t6.code()), mRegisterID(t7.code()));
+//        //mcss.mov(mRegisterID(t6.code()), mRegisterID(t7.code()));
+//        movl(t6, t7);
 //        mcss.rshift32(mTrustedImm32(imm.value), mRegisterID(t7.code()));
     }
     void idiv(Register divisor) {
@@ -2514,8 +2515,8 @@ class Assembler
       //  mcss.mflo(divisor.code());
       //  ok, by weizhenwei, 2013.10.21
       div(t6, divisor);
-      mflo(divisor);
-//      mfhi(t7);
+      mfhi(t7);
+      mflo(t6);
     }
     //NOTE*:this is new in ff24; Need to update!
     void udiv(Register divisor) {
@@ -2527,8 +2528,8 @@ class Assembler
       //  masm.xorl(t7/*edx*/,t7/* edx*/);
       //  so we directly invoke div here.
       divu(t6, divisor);
-      mflo(divisor);
-      //mfhi(t7);
+      mfhi(t7);
+      mflo(t6);
     }
 
     void unpcklps(const FloatRegister &src, const FloatRegister &dest) {
