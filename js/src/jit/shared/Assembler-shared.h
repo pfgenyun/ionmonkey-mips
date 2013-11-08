@@ -337,7 +337,7 @@ struct AbsoluteLabel : public LabelBase
     }
     AbsoluteLabel(const AbsoluteLabel &label) : LabelBase(label)
     { 
-        type = 0;
+		type = label.type;//hwj :1108
     }
     int32_t prev() const {
         JS_ASSERT(!bound());

@@ -2003,8 +2003,10 @@ class Assembler
         if (label->used()&&(label->getType())) {//1 jump table
             intptr_t src = label->offset();
             do {
-                intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
-                JSC::MIPSAssembler::setPointer(raw + src, address);
+                //intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
+                //JSC::MIPSAssembler::setPointer(raw + src, address);
+				intptr_t next =*((intptr_t*)(raw + src-4));//date:1108
+				*((int*)(raw + src-4)) = (int)address;
                 src = next;
             } while (src != AbsoluteLabel::INVALID_OFFSET);
         } else if (label->used()&&(!label->getType())) {
