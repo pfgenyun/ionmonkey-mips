@@ -1290,8 +1290,8 @@ class MacroAssemblerMIPS : public Assembler
 //        ucomisd(src, ScratchFloatReg);
 //        j(Assembler::Parity, fail);
 //        j(Assembler::NotEqual, fail);
-		branchDouble(DoubleConditionFromCondition(Assembler::Parity), src, ScratchFloatReg, fail);
-		branchDouble(DoubleConditionFromCondition(Assembler::NotEqual), src, ScratchFloatReg, fail);
+		branchDouble(Assembler::DoubleUnordered, src, ScratchFloatReg, fail);
+		branchDouble(Assembler::DoubleNotEqual, src, ScratchFloatReg, fail);
 
         // Check for -0
         if (negativeZeroCheck) {

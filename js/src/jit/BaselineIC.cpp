@@ -2291,10 +2291,15 @@ ICToBool_Double::Compiler::generateStubCode(MacroAssembler &masm)
     masm.unboxDouble(R0, FloatReg0);
     Assembler::Condition cond = masm.testDoubleTruthy(true, FloatReg0);
 
-	//by weizhenwei, 2013.11.05, add MIPS associated.
+	//by weizhenwei, 2013.11.08, add MIPS associated.
 #if defined(JS_CPU_MIPS)
-	masm.branchDouble(masm.DoubleConditionFromCondition(cond),
+    if (cond == Assembler::NonZero) {
+	masm.branchDouble(Assembler::DoubleNotEqual,
 		ScratchFloatReg, FloatReg0, &ifTrue);
+    } else if (cond == Assembler::Zero) {
+	masm.branchDouble(Assembler::DoubleEqual,
+		ScratchFloatReg, FloatReg0, &ifTrue);
+    }
 #else
     masm.j(cond, &ifTrue);
 #endif
