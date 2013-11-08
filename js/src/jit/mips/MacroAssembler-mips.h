@@ -1255,20 +1255,21 @@ class MacroAssemblerMIPS : public Assembler
         cvtsd2ss(src, dest);
     }
     void loadFloatAsDouble(const Register &src, FloatRegister dest) {
-        movd(src, dest);
-        cvtss2sd(dest, dest);
+//        movd(src, dest);
+		movss(src, dest);  // by wangqing, 2013-11-08
+//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const Address &src, FloatRegister dest) {
         movss(Operand(src), dest);
-        cvtss2sd(dest, dest);
+//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
         movss(Operand(src), dest);
-        cvtss2sd(dest, dest);
+//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const Operand &src, FloatRegister dest) {
         movss(src, dest);
-        cvtss2sd(dest, dest);
+//        cvtss2sd(dest, dest);
     }
     void storeFloat(FloatRegister src, const Address &dest) {
         movss(src, Operand(dest));

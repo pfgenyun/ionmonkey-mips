@@ -1659,6 +1659,12 @@ class Assembler
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
+	// by wangqing ,2013-11-08
+    void movss(const Register &src, const FloatRegister &dest){
+		mtc1(src, dest);
+		cvtds(dest, dest);
+	}
 //wangce
     void movss(const FloatRegister &src, const Operand &dest) {
         switch (dest.kind()) {
