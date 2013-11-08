@@ -430,10 +430,15 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
     masm.unboxDouble(value, fr);
     cond = masm.testDoubleTruthy(false, fr);
 
-	//by weizhenwei, 2013.11.05
+    //by weizhenwei, 2013.11.08
 #if defined(JS_CPU_MIPS)
-	masm.branchDouble(masm.DoubleConditionFromCondition(cond),
+    if (cond == Assembler::NonZero) {
+	masm.branchDouble(Assembler::DoubleNotEqual,
 		ScratchFloatReg, fr, ifFalsy);
+    } else if (cond == Assembler::Zero) {
+	masm.branchDouble(Assembler::DoubleEqual,
+		ScratchFloatReg, fr, ifFalsy);
+    }
 #else
     masm.j(cond, ifFalsy);
 #endif

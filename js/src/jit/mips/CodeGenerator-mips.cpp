@@ -98,26 +98,6 @@ CodeGeneratorMIPS::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue,
     }
 }
 
-//by weizhenwei, 2013.11.05
-//void CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond, const FloatRegister &lhs,
-//				const FloatRegister &rhs, MBasicBlock *mirTrue, MBasicBlock *mirFalse)
-//{
-//    LBlock *ifTrue = mirTrue->lir();
-//    LBlock *ifFalse = mirFalse->lir();
-//
-//    if (isNextBlock(ifFalse)) {
-//        //masm.j(cond, ifTrue->label());
-//        masm.branchDouble(cond, lhs, rhs, ifTrue->label());
-//    } else {
-//        masm.j(Assembler::InvertCondition(masm.ConditionFromDoubleCondition(cond)), ifFalse->label());
-//        //masm.j(Assembler::InvertCondition(cond), ifFalse->label());
-////        masm.branchDouble(Assembler::InvertCondition(cond), lhs, rhs, ifFalse->label());
-//        if (!isNextBlock(ifTrue))
-//            masm.jmp(ifTrue->label());
-//    }
-//
-//}
-
 //by weizhenwei, 2013.11.07
 void
 CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
@@ -129,12 +109,10 @@ CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
 
     if (ifNaN == Assembler::NaN_IsFalse) {
         //masm.j(Assembler::Parity, ifFalse->label());
-        masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-                lhs, rhs, ifFalse->label());
+        masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifFalse->label());
     } else if (ifNaN == Assembler::NaN_IsTrue) {
         //masm.j(Assembler::Parity, ifTrue->label());
-        masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-                lhs, rhs, ifTrue->label());
+        masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifTrue->label());
     }
 
     if (isNextBlock(ifFalse)) {
@@ -158,8 +136,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
     if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
         // If the register we're defining is a single byte register,
         // take advantage of the setCC instruction
-//        setCC(cond, dest);
-//        movzxbl(dest, dest);
+        //setCC(cond, dest);
+        //movzxbl(dest, dest);
         Label setDest;
         masm.branchDouble(cond, lhs, rhs, &setDest);
         masm.xorl(dest, dest);
@@ -169,8 +147,7 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         if (ifNaN != Assembler::NaN_HandledByCond) {
             Label noNaN;
            //j(Assembler::NoParity, &noNaN);
-           masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::NoParity),
-                   lhs, rhs, &noNaN);
+           masm.branchDouble(Assembler::DoubleOrdered, lhs, rhs, &noNaN);
             if (ifNaN == Assembler::NaN_IsTrue)
                 masm.movl(Imm32(1), dest);
             else
@@ -183,16 +160,14 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
 
         if (ifNaN == Assembler::NaN_IsFalse) {
             //j(Assembler::Parity, &ifFalse);
-            masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-                   lhs, rhs, &ifFalse);
+            masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, &ifFalse);
         }
         masm.movl(Imm32(1), dest);
         //j(cond, &end);
         masm.branchDouble(cond, lhs, rhs, &end);
         if (ifNaN == Assembler::NaN_IsTrue) {
            //j(Assembler::Parity, &end);
-            masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-                   lhs, rhs, &end);
+            masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, &end);
         }
           
         masm.bind(&ifFalse);
@@ -241,14 +216,15 @@ CodeGeneratorMIPS::visitTestDAndBranch(LTestDAndBranch *test)
 	masm.zerod(ScratchFloatReg);
     //masm.ucomisd(ToFloatRegister(opd), ScratchFloatReg);
 //    emitBranch(Assembler::NotEqual, test->ifTrue(), test->ifFalse());
-    emitBranch(masm.DoubleConditionFromCondition(Assembler::NotEqual), 
-		ToFloatRegister(opd), ScratchFloatReg,	test->ifTrue(), test->ifFalse());
+    emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
+            ScratchFloatReg, test->ifTrue(), test->ifFalse());
 
     return true;
 }
 
 void
-CodeGeneratorMIPS::emitCompare(MCompare::CompareType type, const LAllocation *left, const LAllocation *right)
+CodeGeneratorMIPS::emitCompare(MCompare::CompareType type,
+        const LAllocation *left, const LAllocation *right)
 {
 #ifdef JS_CPU_X64
     if (type == MCompare::Compare_Object) {
@@ -316,7 +292,7 @@ CodeGeneratorMIPS::visitNotD(LNotD *ins)
 //    masm.emitSet(Assembler::Equal, ToRegister(ins->output()), Assembler::NaN_IsTrue);
     //by weizhenwei, 2013.11.07
     masm.zerod(ScratchFloatReg);
-    emitSet(masm.DoubleConditionFromCondition(Assembler::Equal), opd, ScratchFloatReg,
+    emitSet(Assembler::DoubleEqual, opd, ScratchFloatReg,
             ToRegister(ins->output()), Assembler::NaN_IsTrue);
     return true;
 }
@@ -509,14 +485,20 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
    // masm.j(Assembler::Parity, &nan); // first or second is NaN, result is NaN.
    // masm.j(Assembler::Equal, &equal); // make sure we handle -0 and 0 right.
    //by weizhenwei, 2013.11.05
-    masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-					second, first, &nan); // first or second is NaN, result is NaN.
-    masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Equal), 
-					second, first, &equal); // make sure we handle -0 and 0 right.
+    masm.branchDouble(Assembler::DoubleUnordered,
+            second, first, &nan); // first or second is NaN, result is NaN.
+    masm.branchDouble(Assembler::DoubleEqual,
+            second, first, &equal); // make sure we handle -0 and 0 right.
 
     //masm.j(cond, &returnSecond);
-    masm.branchDouble(masm.DoubleConditionFromCondition(cond),
-					second, first, &returnSecond);
+    if (cond == Assembler::Above) {
+        masm.branchDouble(Assembler::DoubleGreaterThan, second, first, &returnSecond);
+    } else if (cond == Assembler::Below) {
+        masm.branchDouble(Assembler::DoubleLessThan, second, first, &returnSecond);
+
+    }
+
+
     masm.jmp(&done);
 
     // Check for zero.
@@ -526,8 +508,8 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
 	//by weizenwei, 2013.11.05
 //    masm.ucomisd(first, ScratchFloatReg);
 //    masm.j(Assembler::NotEqual, &done); // first wasn't 0 or -0, so just return it.
-    masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::NotEqual),
-					first, ScratchFloatReg, &done); // first wasn't 0 or -0, so just return it.
+    masm.branchDouble(Assembler::DoubleNotEqual,
+            first, ScratchFloatReg, &done); // first wasn't 0 or -0, so just return it.
 
     // So now both operands are either -0 or 0.
     if (ins->mir()->isMax())
@@ -2259,10 +2241,10 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
 //        masm.xorpd(ScratchFloatReg, ScratchFloatReg);
 //        masm.ucomisd(input, ScratchFloatReg);
 //        masm.j(Assembler::Parity, &fail);
-//by weizhenwei, 2013.11.05
-	  masm.zerod(ScratchFloatReg);
-      masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-					  input, ScratchFloatReg, &fail);
+
+      //by weizhenwei, 2013.11.05
+      masm.zerod(ScratchFloatReg);
+      masm.branchDouble(Assembler::DoubleUnordered, input, ScratchFloatReg, &fail);
 
         {
             Label positive;
@@ -2283,14 +2265,12 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
         masm.cvttsd2si(temp, output);
         masm.cvtsi2sd(output, ScratchFloatReg);
 
-//        masm.ucomisd(temp, ScratchFloatReg);
+       // masm.ucomisd(temp, ScratchFloatReg);
        // masm.j(Assembler::Parity, &fail);
        // masm.j(Assembler::Equal, ool->rejoin());
-	   //by weizhenwei, 2013.11.05
-		masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Parity),
-						temp, ScratchFloatReg, &fail);
-		masm.branchDouble(masm.DoubleConditionFromCondition(Assembler::Equal),
-						temp, ScratchFloatReg, ool->rejoin());
+	//by weizhenwei, 2013.11.05
+        masm.branchDouble(Assembler::DoubleUnordered, temp, ScratchFloatReg, &fail);
+        masm.branchDouble(Assembler::DoubleEqual, temp, ScratchFloatReg, ool->rejoin());
 
     masm.bind(&fail);
     {
