@@ -800,7 +800,6 @@ class MacroAssemblerMIPS : public Assembler
     void loadInt32OrDouble(const Operand &operand, const FloatRegister &dest) {
         Label notInt32, end;
         branchTestInt32(Assembler::NotEqual, operand, &notInt32);
-		breakpoint();
         cvtsi2sd(ToPayload(operand), dest);
         jump(&end);
         bind(&notInt32);
