@@ -842,7 +842,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             GeneralRegisterSet enterMonRegs(GeneralRegisterSet::All());
             enterMonRegs.take(R0);
             enterMonRegs.take(BaselineStubReg);
-            enterMonRegs.take(BaselineFrameReg);
+            //enterMonRegs.take(BaselineFrameReg);  //hwj 1031 fixme
             enterMonRegs.takeUnchecked(BaselineTailCallReg);
             Register jitcodeReg = enterMonRegs.takeAny();
 
@@ -855,7 +855,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), StackPointer);
 
             loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), jitcodeReg);
-#if defined(JS_CPU_X86) || defined(JS_CPU_X64)
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64) || defined(JS_CPU_MIPS)
             push(BaselineTailCallReg);
 #endif
             jump(jitcodeReg);
@@ -884,7 +884,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             GeneralRegisterSet enterRegs(GeneralRegisterSet::All());
             enterRegs.take(R0);
             enterRegs.take(R1);
-            enterRegs.take(BaselineFrameReg);
+            //enterRegs.take(BaselineFrameReg); //hwj 1031 fixme
             Register jitcodeReg = enterRegs.takeAny();
 
             pop(jitcodeReg);

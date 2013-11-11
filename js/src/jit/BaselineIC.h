@@ -1028,7 +1028,7 @@ class ICStubCompiler
 #ifdef JS_CPU_ARM
         JS_ASSERT(!regs.has(BaselineTailCallReg));
 #endif
-        regs.take(BaselineFrameReg);
+        //regs.take(BaselineFrameReg); //fixme 1031 hwj
         regs.take(BaselineStubReg);
 #ifdef JS_CPU_X64
         regs.take(ExtractTemp0);

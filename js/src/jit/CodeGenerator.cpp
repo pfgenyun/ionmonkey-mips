@@ -429,7 +429,20 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
     // If we reach here the value is a double.
     masm.unboxDouble(value, fr);
     cond = masm.testDoubleTruthy(false, fr);
+
+    //by weizhenwei, 2013.11.08
+#if defined(JS_CPU_MIPS)
+    if (cond == Assembler::NonZero) {
+	masm.branchDouble(Assembler::DoubleNotEqual,
+		ScratchFloatReg, fr, ifFalsy);
+    } else if (cond == Assembler::Zero) {
+	masm.branchDouble(Assembler::DoubleEqual,
+		ScratchFloatReg, fr, ifFalsy);
+    }
+#else
     masm.j(cond, ifFalsy);
+#endif
+
     masm.jump(ifTruthy);
 }
 
@@ -3954,6 +3967,8 @@ CopyStringChars(MacroAssembler &masm, Register to, Register from, Register len, 
     masm.addPtr(Imm32(2), from);
     masm.addPtr(Imm32(2), to);
     masm.sub32(Imm32(1), len);
+    //edit by QuQiuwen
+    masm.cmpl(len,zero);
     masm.j(Assembler::NonZero, &start);
 }
 

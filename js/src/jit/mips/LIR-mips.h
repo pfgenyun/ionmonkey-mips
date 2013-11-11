@@ -67,18 +67,6 @@ class LUnboxDouble : public LInstructionHelper<1, 2, 0>
     }
 };
 
-// Constant double.
-/*class LDouble : public LInstructionHelper<1, 1, 0>
-{
-  public:
-    LIR_HEADER(Double);
-
-    LDouble(const LConstantIndex &cindex) {
-        setOperand(0, cindex);
-    }
-};
-*/
-
 // Convert a 32-bit unsigned integer to a double.
 class LUInt32ToDouble : public LInstructionHelper<1, 1, 1>
 {
@@ -120,7 +108,7 @@ class LDivI : public LBinaryMath<1>
         setOperand(1, rhs);
         setTemp(0, temp);
     }
-//NOTE : This is new in ff24
+
     const char *extraName() const {
         if (mir()->isTruncated()) {
             if (mir()->canBeNegativeZero()) {
@@ -176,26 +164,25 @@ class LModI : public LBinaryMath<1>
 {
   public:
     LIR_HEADER(ModI)
-//NOTE: this is update in ff24
+
     LModI(const LAllocation &lhs, const LAllocation &rhs, const LDefinition &temp) {
         setOperand(0, lhs);
         setOperand(1, rhs);
         setTemp(0, temp);
     }
-    
-    //NOTE:this is new in ff24
-   const char *extraName() const {
+
+    const char *extraName() const {
         return mir()->isTruncated() ? "Truncated" : NULL;
     }
+
     const LDefinition *remainder() {
         return getDef(0);
     }
-  // NOTE:this is new in ff24
-        MMod *mir() const {
+    MMod *mir() const {
         return mir_->toMod();
     }
 };
-    //NOTE:this is new in ff24
+
 // This class performs a simple x86 'div', yielding either a quotient or remainder depending on
 // whether this instruction is defined to output eax (quotient) or edx (remainder).
 class LAsmJSDivOrMod : public LBinaryMath<1>
@@ -214,10 +201,9 @@ class LAsmJSDivOrMod : public LBinaryMath<1>
     }
 };
 
-
 class LModPowTwoI : public LInstructionHelper<1,1,0>
 {
-    const int32_t  shift_;
+    const int32_t shift_;
 
   public:
     LIR_HEADER(ModPowTwoI)
@@ -234,8 +220,7 @@ class LModPowTwoI : public LInstructionHelper<1,1,0>
     const LDefinition *remainder() {
         return getDef(0);
     }
-        //NOTE:this is new in ff24
-        MMod *mir() const {
+    MMod *mir() const {
         return mir_->toMod();
     }
 };
@@ -337,18 +322,6 @@ class LGuardShape : public LInstructionHelper<0, 1, 0>
     }
 };
 
-//this function is deleted
-/*class LRecompileCheck : public LInstructionHelper<0, 0, 0>
-{
-  public:
-    LIR_HEADER(RecompileCheck);
-
-    const MRecompileCheck *mir() const {
-        return mir_->toRecompileCheck();
-    }
-};
-*/
-      //NOTE:this is new in ff24
 class LGuardObjectType : public LInstructionHelper<0, 1, 0>
 {
   public:
@@ -361,8 +334,7 @@ class LGuardObjectType : public LInstructionHelper<0, 1, 0>
         return mir_->toGuardObjectType();
     }
 };
-      
-      
+
 class LInterruptCheck : public LInstructionHelper<0, 0, 0>
 {
   public:
@@ -379,14 +351,14 @@ class LMulI : public LBinaryMath<0, 1>
         setOperand(1, rhs);
         setOperand(2, lhsCopy);
     }
-//NOTE: this is new in ff24
+
     const char *extraName() const {
         return (mir()->mode() == MMul::Integer)
                ? "Integer"
                : (mir()->canBeNegativeZero() ? "CanBeNegativeZero" : NULL);
     }
 
-    MMul *mir() const{
+    MMul *mir() const {
         return mir_->toMul();
     }
     const LAllocation *lhsCopy() {

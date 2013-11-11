@@ -73,6 +73,7 @@
 # include "jswin.h"
 # define PATH_MAX (MAX_PATH > _MAX_DIR ? MAX_PATH : _MAX_DIR)
 #else
+# define PATH_MAX 1024
 # include <libgen.h>
 #endif
 

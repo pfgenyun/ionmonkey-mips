@@ -409,7 +409,8 @@ public:
                  | ((shamt & 0x1f) << OP_SH_SHAMT));
     }
 
-    void sllv(RegisterID rd, RegisterID rt, int rs)
+	// by wangqing, 2013-11-06, modify rs from int to RegisterID
+    void sllv(RegisterID rd, RegisterID rt, RegisterID rs)
     {
         emitInst(0x00000004 | (rd << OP_SH_RD) | (rt << OP_SH_RT)
                  | (rs << OP_SH_RS));
@@ -713,6 +714,13 @@ public:
         copDelayNop();
     }
 
+	//by weizhenwei, 2013.10.29
+    void cseqd(FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003a | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+
     void cngtd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x4620003f | (fs << OP_SH_FS) | (ft << OP_SH_FT));
@@ -859,6 +867,17 @@ public:
     //hwj
     void clearOffsetForLabel(const JmpSrc& from);
 
+    void doubleConstant(double d)
+    {
+            m_buffer.ensureSpace(sizeof(double));
+            union {
+                uint64_t u64;
+                double d;
+            } u;
+            u.d = d;
+            m_buffer.putInt64Unchecked(u.u64);
+    }
+
     void linkJump(JmpSrc from, JmpDst to);
 
     static void linkJump(void* code, JmpSrc from, void* to);
@@ -885,8 +904,6 @@ public:
 
     static void *getPointer(void* where);
 
-    static void **getPointerRef(void* where);
-
     static void setPointer(void* where, const void* value);
 
 //private:
@@ -899,6 +916,8 @@ public:
     void relocateJumps(void* oldBase, void* newBase);
 
     static int linkWithOffset(MIPSWord* insn, void* to);
+
+    void preLink(JmpSrc jump, void* target);
 
     static int linkCallInternal(void* from, void* to);
 

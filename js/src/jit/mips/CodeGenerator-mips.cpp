@@ -98,6 +98,85 @@ CodeGeneratorMIPS::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue,
     }
 }
 
+//by weizhenwei, 2013.11.07
+void
+CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
+        const FloatRegister &lhs, const FloatRegister &rhs,
+        MBasicBlock *mirTrue, MBasicBlock *mirFalse, Assembler::NaNCond ifNaN)
+{
+    LBlock *ifTrue = mirTrue->lir();
+    LBlock *ifFalse = mirFalse->lir();
+
+    if (ifNaN == Assembler::NaN_IsFalse) {
+        //masm.j(Assembler::Parity, ifFalse->label());
+        masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifFalse->label());
+    } else if (ifNaN == Assembler::NaN_IsTrue) {
+        //masm.j(Assembler::Parity, ifTrue->label());
+        masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifTrue->label());
+    }
+
+    if (isNextBlock(ifFalse)) {
+        //masm.j(cond, ifTrue->label());
+        masm.branchDouble(cond, lhs, rhs, ifTrue->label());
+    } else {
+        //masm.j(Assembler::InvertCondition(cond), ifFalse->label());
+        masm.j(Assembler::InvertCondition(masm.ConditionFromDoubleCondition(cond)),
+                ifFalse->label());
+        if (!isNextBlock(ifTrue))
+            masm.jmp(ifTrue->label());
+    }
+}
+
+//by weizhenwei, 2013.11.07
+void
+CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister &lhs,
+        const FloatRegister &rhs, const Register &dest, Assembler::NaNCond ifNaN) {
+
+
+    if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
+        // If the register we're defining is a single byte register,
+        // take advantage of the setCC instruction
+        //setCC(cond, dest);
+        //movzxbl(dest, dest);
+        Label setDest;
+        masm.branchDouble(cond, lhs, rhs, &setDest);
+        masm.xorl(dest, dest);
+        masm.bind(&setDest);
+        masm.movl(Imm32(1), dest);
+
+        if (ifNaN != Assembler::NaN_HandledByCond) {
+            Label noNaN;
+           //j(Assembler::NoParity, &noNaN);
+           masm.branchDouble(Assembler::DoubleOrdered, lhs, rhs, &noNaN);
+            if (ifNaN == Assembler::NaN_IsTrue)
+                masm.movl(Imm32(1), dest);
+            else
+                masm.xorl(dest, dest);
+            masm.bind(&noNaN);
+        }
+    } else {
+        Label end;
+        Label ifFalse;
+
+        if (ifNaN == Assembler::NaN_IsFalse) {
+            //j(Assembler::Parity, &ifFalse);
+            masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, &ifFalse);
+        }
+        masm.movl(Imm32(1), dest);
+        //j(cond, &end);
+        masm.branchDouble(cond, lhs, rhs, &end);
+        if (ifNaN == Assembler::NaN_IsTrue) {
+           //j(Assembler::Parity, &end);
+            masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, &end);
+        }
+          
+        masm.bind(&ifFalse);
+        masm.xorl(dest, dest);
+
+        masm.bind(&end);
+    }
+}
+
 bool
 CodeGeneratorMIPS::visitDouble(LDouble *ins)
 {
@@ -132,14 +211,20 @@ CodeGeneratorMIPS::visitTestDAndBranch(LTestDAndBranch *test)
     //
     // NaN is falsey, so comparing against 0 and then using the Z flag is
     // enough to determine which branch to take.
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-    masm.ucomisd(ToFloatRegister(opd), ScratchFloatReg);
-    emitBranch(Assembler::NotEqual, test->ifTrue(), test->ifFalse());
+	//by weizhenwei, 2013.11.05
+	//masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+	masm.zerod(ScratchFloatReg);
+    //masm.ucomisd(ToFloatRegister(opd), ScratchFloatReg);
+//    emitBranch(Assembler::NotEqual, test->ifTrue(), test->ifFalse());
+    emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
+            ScratchFloatReg, test->ifTrue(), test->ifFalse());
+
     return true;
 }
 
 void
-CodeGeneratorMIPS::emitCompare(MCompare::CompareType type, const LAllocation *left, const LAllocation *right)
+CodeGeneratorMIPS::emitCompare(MCompare::CompareType type,
+        const LAllocation *left, const LAllocation *right)
 {
 #ifdef JS_CPU_X64
     if (type == MCompare::Compare_Object) {
@@ -180,8 +265,11 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
     FloatRegister rhs = ToFloatRegister(comp->right());
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
-    masm.compareDouble(cond, lhs, rhs);
-    masm.emitSet(Assembler::ConditionFromDoubleCondition(cond), ToRegister(comp->output()),
+//    masm.compareDouble(cond, lhs, rhs);
+//    masm.emitSet(Assembler::ConditionFromDoubleCondition(cond), ToRegister(comp->output()),
+//            Assembler::NaNCondFromDoubleCondition(cond));
+    //by weizhenwei, 2013.11.07
+    emitSet(cond, lhs, rhs, ToRegister(comp->output()),
             Assembler::NaNCondFromDoubleCondition(cond));
     return true;
 }
@@ -199,9 +287,13 @@ CodeGeneratorMIPS::visitNotD(LNotD *ins)
 {
     FloatRegister opd = ToFloatRegister(ins->input());
 
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-    masm.compareDouble(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg);
-    masm.emitSet(Assembler::Equal, ToRegister(ins->output()), Assembler::NaN_IsTrue);
+//    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+//    masm.compareDouble(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg);
+//    masm.emitSet(Assembler::Equal, ToRegister(ins->output()), Assembler::NaN_IsTrue);
+    //by weizhenwei, 2013.11.07
+    masm.zerod(ScratchFloatReg);
+    emitSet(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg,
+            ToRegister(ins->output()), Assembler::NaN_IsTrue);
     return true;
 }
 
@@ -212,9 +304,14 @@ CodeGeneratorMIPS::visitCompareDAndBranch(LCompareDAndBranch *comp)
     FloatRegister rhs = ToFloatRegister(comp->right());
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
-    masm.compareDouble(cond, lhs, rhs);
-    emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse(),
-               Assembler::NaNCondFromDoubleCondition(cond));
+//    masm.compareDouble(cond, lhs, rhs);
+//    emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse(),
+//               Assembler::NaNCondFromDoubleCondition(cond));
+//  by weizhenwei, 2013.11.07
+    emitBranch(cond, lhs, rhs, comp->ifTrue(), comp->ifFalse(),
+            Assembler::NaNCondFromDoubleCondition(cond));
+        
+      
     return true;
 }
 
@@ -384,21 +481,42 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
                                : Assembler::Below;
     Label nan, equal, returnSecond, done;
 
-    masm.ucomisd(second, first);
-    masm.j(Assembler::Parity, &nan); // first or second is NaN, result is NaN.
-    masm.j(Assembler::Equal, &equal); // make sure we handle -0 and 0 right.
-    masm.j(cond, &returnSecond);
+//    masm.ucomisd(second, first);
+   // masm.j(Assembler::Parity, &nan); // first or second is NaN, result is NaN.
+   // masm.j(Assembler::Equal, &equal); // make sure we handle -0 and 0 right.
+   //by weizhenwei, 2013.11.05
+    masm.branchDouble(Assembler::DoubleUnordered,
+            second, first, &nan); // first or second is NaN, result is NaN.
+    masm.branchDouble(Assembler::DoubleEqual,
+            second, first, &equal); // make sure we handle -0 and 0 right.
+
+    //masm.j(cond, &returnSecond);
+    //by weizhenwei, 2013.11.07
+    if (cond == Assembler::Above) {
+        masm.branchDouble(Assembler::DoubleGreaterThan, second, first, &returnSecond);
+    } else if (cond == Assembler::Below) {
+        masm.branchDouble(Assembler::DoubleLessThan, second, first, &returnSecond);
+
+    }
+
+
     masm.jmp(&done);
 
     // Check for zero.
     masm.bind(&equal);
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-    masm.ucomisd(first, ScratchFloatReg);
-    masm.j(Assembler::NotEqual, &done); // first wasn't 0 or -0, so just return it.
+//    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+	masm.zerod(ScratchFloatReg);
+	//by weizenwei, 2013.11.05
+//    masm.ucomisd(first, ScratchFloatReg);
+//    masm.j(Assembler::NotEqual, &done); // first wasn't 0 or -0, so just return it.
+    masm.branchDouble(Assembler::DoubleNotEqual,
+            first, ScratchFloatReg, &done); // first wasn't 0 or -0, so just return it.
+
     // So now both operands are either -0 or 0.
     if (ins->mir()->isMax())
         masm.addsd(second, first); // -0 + -0 = -0 and -0 + 0 = 0.
     else
+        //TODO:maybe problems here, weizhenwei
         masm.orpd(second, first); // This just ors the sign bit.
     masm.jmp(&done);
 
@@ -418,7 +536,9 @@ CodeGeneratorMIPS::visitAbsD(LAbsD *ins)
 {
     FloatRegister input = ToFloatRegister(ins->input());
     JS_ASSERT(input == ToFloatRegister(ins->output()));
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(ScratchFloatReg);
     masm.subsd(input, ScratchFloatReg); // negate the sign bit.
     masm.andpd(ScratchFloatReg, input); // s & ~s
     return true;
@@ -449,13 +569,17 @@ CodeGeneratorMIPS::visitPowHalfD(LPowHalfD *ins)
     masm.branchDouble(Assembler::DoubleNotEqualOrUnordered, input, ScratchFloatReg, &sqrt);
 
     // Math.pow(-Infinity, 0.5) == Infinity.
-    masm.xorpd(input, input);
+    //masm.xorpd(input, input);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(input);
     masm.subsd(ScratchFloatReg, input);
     masm.jump(&done);
 
     // Math.pow(-0, 0.5) == 0 == Math.pow(0, 0.5). Adding 0 converts any -0 to 0.
     masm.bind(&sqrt);
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(ScratchFloatReg);
     masm.addsd(ScratchFloatReg, input);
     masm.sqrtsd(input, input);
 
@@ -482,11 +606,17 @@ class OutOfLineUndoALUOperation : public OutOfLineCodeBase<CodeGeneratorMIPS>
 bool
 CodeGeneratorMIPS::visitAddI(LAddI *ins)
 {
-
-    if (ins->rhs()->isConstant())
+    //edit by QuQiuwen
+    if (ins->rhs()->isConstant()){
+        masm.cmpl(ToOperand(ins->lhs()), Imm32(ToInt32(ins->rhs())));
+        masm.negl(cmpTemp2Register);
         masm.addl(Imm32(ToInt32(ins->rhs())), ToOperand(ins->lhs()));
-    else
+    }
+    else{
+        masm.cmpl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
+        masm.negl(cmpTemp2Register);
         masm.addl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
+    }
 
     if (ins->snapshot()) {
         if (ins->recoversInput()) {
@@ -500,22 +630,20 @@ CodeGeneratorMIPS::visitAddI(LAddI *ins)
         }
     }
     return true;
- if (ins->rhs()->isConstant())
-  masm.addl(Imm32(ToInt32(ins->rhs())), ToOperand(ins->lhs()));
-    else
-  masm.addl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
-  if (ins->snapshot() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
-        return false;
-    return true;
 }
 
 bool
 CodeGeneratorMIPS::visitSubI(LSubI *ins)
 {
-   if (ins->rhs()->isConstant())
+    //add cmpl ,edit by QuQiuwen,
+   if (ins->rhs()->isConstant()){
+        masm.cmpl(ToOperand(ins->lhs()),Imm32(ToInt32(ins->rhs())));
         masm.subl(Imm32(ToInt32(ins->rhs())), ToOperand(ins->lhs()));
-    else
+     }
+    else{
+        masm.cmpl(ToRegister(ins->lhs()),ToOperand(ins->rhs()));
         masm.subl(ToOperand(ins->rhs()), ToRegister(ins->lhs()));
+    }
 
     if (ins->snapshot()) {
         if (ins->recoversInput()) {
@@ -635,11 +763,11 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
         if (mul->canOverflow() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
             return false;
 
-       if (mul->canBeNegativeZero()) {
+        if (mul->canBeNegativeZero()) {
             // Jump to an OOL path if the result is 0.
-           MulNegativeZeroCheck *ool = new MulNegativeZeroCheck(ins);
-           if (!addOutOfLineCode(ool))
-               return false;
+            MulNegativeZeroCheck *ool = new MulNegativeZeroCheck(ins);
+            if (!addOutOfLineCode(ool))
+                return false;
 
             masm.testl(ToRegister(lhs), ToRegister(lhs));
             masm.j(Assembler::Zero, ool->entry());
@@ -1207,24 +1335,12 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
     FloatRegister scratch = ScratchFloatReg;
     Register output = ToRegister(lir->output());
 
-   /* if (AssemblerX86Shared::HasSSE41()) {
-        // Bail on negative-zero.
-        Assembler::Condition bailCond = masm.testNegativeZero(input, output);
-        if (!bailoutIf(bailCond, lir->snapshot()))
-            return false;
-
-        // Round toward -Infinity.
-        masm.roundsd(input, scratch, JSC::X86Assembler::RoundDown);
-
-        masm.cvttsd2si(scratch, output);
-        masm.cmp32(output, Imm32(INT_MIN));
-        if (!bailoutIf(Assembler::Equal, lir->snapshot()))
-            return false;
-    } else*/ {
         Label negative, end;
 
         // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-        masm.xorpd(scratch, scratch);
+        //masm.xorpd(scratch, scratch);
+        //by weizhenwei, 2013.11.08
+        masm.zerod(scratch);
         masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &negative);
 
         // Bail on negative-zero.
@@ -1263,7 +1379,6 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         }
 
         masm.bind(&end);
-    }
     return true;
 }
 
@@ -1282,7 +1397,9 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     masm.loadStaticDouble(&PointFive, temp);
 
     // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-    masm.xorpd(scratch, scratch);
+    //masm.xorpd(scratch, scratch);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(scratch);
     masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &negative);
 
     // Bail on negative-zero.
@@ -1306,25 +1423,6 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     // Input is negative, but isn't -0.
     masm.bind(&negative);
 
-   /* if (AssemblerX86Shared::HasSSE41()) {
-        // Add 0.5 and round toward -Infinity. The result is stored in the temp
-        // register (currently contains 0.5).
-        masm.addsd(input, temp);
-        masm.roundsd(temp, scratch, JSC::X86Assembler::RoundDown);
-
-        // Truncate.
-        masm.cvttsd2si(scratch, output);
-        masm.cmp32(output, Imm32(INT_MIN));
-        if (!bailoutIf(Assembler::Equal, lir->snapshot()))
-            return false;
-
-        // If the result is positive zero, then the actual result is -0. Bail.
-        // Otherwise, the truncation will have produced the correct negative integer.
-        masm.testl(output, output);
-        if (!bailoutIf(Assembler::Zero, lir->snapshot()))
-            return false;
-
-    } else*/ {
         masm.addsd(input, temp);
 
         // Round toward -Infinity without the benefit of ROUNDSD.
@@ -1352,7 +1450,6 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
         masm.bind(&testZero);
         if (!bailoutIf(Assembler::Zero, lir->snapshot()))
             return false;
-    }
 
     masm.bind(&end);
     return true;
@@ -2084,16 +2181,11 @@ CodeGeneratorMIPS::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 void
 CodeGeneratorMIPS::postAsmJSCall(LAsmJSCall *lir)
 {
-//NOTE:this part is about ASM.JS in ff24,so deleted for temp
-    /*MAsmJSCall *mir = lir->mir();
-    if (mir->type() != MIRType_Double || mir->callee().which() != MAsmJSCall::Callee::Builtin)
-        return;
-
-    masm.reserveStack(sizeof(double));
-    masm.fstp(Operand(esp, 0));
-    masm.movsd(Operand(esp, 0), ReturnFloatReg);
-    masm.freeStack(sizeof(double));
-*/
+    ASSERT(0);
+	return;
+	//no need to move double return value
+	//to ReturnFloatReg=f0,
+	//since it has been in f0,due to ABI
 }
 
 
@@ -2152,43 +2244,19 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
 
     Label fail;
 
-/*    if (Assembler::HasSSE3()) {
-        // Push double.
-        masm.subl(Imm32(sizeof(double)), esp);
-        masm.movsd(input, Operand(esp, 0));
-
-        static const uint32_t EXPONENT_MASK = 0x7ff00000;
-        static const uint32_t EXPONENT_SHIFT = DoubleExponentShift - 32;
-        static const uint32_t TOO_BIG_EXPONENT = (DoubleExponentBias + 63) << EXPONENT_SHIFT;
-
-        // Check exponent to avoid fp exceptions.
-        Label failPopDouble;
-        masm.movl(Operand(esp, 4), output);
-        masm.and32(Imm32(EXPONENT_MASK), output);
-        masm.branch32(Assembler::GreaterThanOrEqual, output, Imm32(TOO_BIG_EXPONENT), &failPopDouble);
-
-        // Load double, perform 64-bit truncation.
-        masm.fld(Operand(esp, 0));
-        masm.fisttp(Operand(esp, 0));
-
-        // Load low word, pop double and jump back.
-        masm.movl(Operand(esp, 0), output);
-        masm.addl(Imm32(sizeof(double)), esp);
-        masm.jump(ool->rejoin());
-
-        masm.bind(&failPopDouble);
-        masm.addl(Imm32(sizeof(double)), esp);
-        masm.jump(&fail);
-    } else*/ {
         FloatRegister temp = ToFloatRegister(ins->tempFloat());
 
         // Try to convert doubles representing integers within 2^32 of a signed
         // integer, by adding/subtracting 2^32 and then trying to convert to int32.
         // This has to be an exact conversion, as otherwise the truncation works
         // incorrectly on the modified value.
-        masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-        masm.ucomisd(input, ScratchFloatReg);
-        masm.j(Assembler::Parity, &fail);
+//        masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+//        masm.ucomisd(input, ScratchFloatReg);
+//        masm.j(Assembler::Parity, &fail);
+
+      //by weizhenwei, 2013.11.05
+      masm.zerod(ScratchFloatReg);
+      masm.branchDouble(Assembler::DoubleUnordered, input, ScratchFloatReg, &fail);
 
         {
             Label positive;
@@ -2209,10 +2277,12 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
         masm.cvttsd2si(temp, output);
         masm.cvtsi2sd(output, ScratchFloatReg);
 
-        masm.ucomisd(temp, ScratchFloatReg);
-        masm.j(Assembler::Parity, &fail);
-        masm.j(Assembler::Equal, ool->rejoin());
-    }
+       // masm.ucomisd(temp, ScratchFloatReg);
+       // masm.j(Assembler::Parity, &fail);
+       // masm.j(Assembler::Equal, ool->rejoin());
+	//by weizhenwei, 2013.11.05
+        masm.branchDouble(Assembler::DoubleUnordered, temp, ScratchFloatReg, &fail);
+        masm.branchDouble(Assembler::DoubleEqual, temp, ScratchFloatReg, ool->rejoin());
 
     masm.bind(&fail);
     {

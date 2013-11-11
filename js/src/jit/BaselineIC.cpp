@@ -2290,7 +2290,19 @@ ICToBool_Double::Compiler::generateStubCode(MacroAssembler &masm)
     masm.branchTestDouble(Assembler::NotEqual, R0, &failure);
     masm.unboxDouble(R0, FloatReg0);
     Assembler::Condition cond = masm.testDoubleTruthy(true, FloatReg0);
+
+	//by weizhenwei, 2013.11.08, add MIPS associated.
+#if defined(JS_CPU_MIPS)
+    if (cond == Assembler::NonZero) {
+	masm.branchDouble(Assembler::DoubleNotEqual,
+		ScratchFloatReg, FloatReg0, &ifTrue);
+    } else if (cond == Assembler::Zero) {
+	masm.branchDouble(Assembler::DoubleEqual,
+		ScratchFloatReg, FloatReg0, &ifTrue);
+    }
+#else
     masm.j(cond, &ifTrue);
+#endif
 
     masm.moveValue(BooleanValue(false), R0);
     EmitReturnFromIC(masm);
@@ -2822,6 +2834,11 @@ ICBinaryArith_BooleanWithInt32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_ADD: {
         Label fixOverflow;
 
+    // edit by QuQiuwen
+#ifdef defined(JS_CPU_MIPS)
+        cmpl(rhsReg,lhsReg);
+        negl(cmpTemp2Register);       
+#endif
         masm.add32(rhsReg, lhsReg);
         masm.j(Assembler::Overflow, &fixOverflow);
         masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
@@ -2835,6 +2852,10 @@ ICBinaryArith_BooleanWithInt32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_SUB: {
         Label fixOverflow;
 
+    // edit by QuQiuwen
+#ifdef defined(JS_CPU_MIPS)
+        cmpl(lhsReg,rhsReg);
+#endif
         masm.sub32(rhsReg, lhsReg);
         masm.j(Assembler::Overflow, &fixOverflow);
         masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);

@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jsion_architecture_mips_h__
-#define jsion_architecture_mips_h__
+#ifndef jit_mips_Architecture_mips_h
+#define jit_mips_Architecture_mips_h
 
 #include "assembler/assembler/MacroAssembler.h"
 
@@ -89,7 +89,17 @@ public:
         (1 << JSC::MIPSRegisters::s6) |
         (1 << JSC::MIPSRegisters::s7);
 
-    static const uint32 WrapperMask = VolatileMask;
+    //static const uint32 WrapperMask = VolatileMask;
+    static const uint32 WrapperMask =
+        VolatileMask |         // = arguments
+        (1 << JSC::MIPSRegisters::v0) | // = outReg
+        (1 << JSC::MIPSRegisters::v1);  // = argBase
+    /*
+    static const uint32 WrapperMask =
+        VolatileMask |         // = arguments
+        (1 << JSC::MIPSRegisters::a2) | // = outReg
+        (1 << JSC::MIPSRegisters::a3);  // = argBase
+    */
 #if 0
     static const uint32 WrapperMask =
         VolatileMask |         // = arguments
@@ -212,7 +222,7 @@ class FloatRegisters
     static const uint32 AllocatableMask = AllMask & ~NonAllocatableMask;
 };
 
-} // namespace ion
+} // namespace jit
 } // namespace js
 
-#endif // jsion_architecture_arm_h__
+#endif // jit_mips_architecture_mips_h_

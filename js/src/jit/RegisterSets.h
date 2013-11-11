@@ -450,7 +450,10 @@ class TypedRegisterSet
         uint32_t sum4  = (sum2  & 0x33333333) + ((sum2  & 0xcccccccc) >> 2);
         uint32_t sum8  = (sum4  & 0x0f0f0f0f) + ((sum4  & 0xf0f0f0f0) >> 4);
         uint32_t sum16 = (sum8  & 0x00ff00ff) + ((sum8  & 0xff00ff00) >> 8);
-        return sum16;
+        //xsb:fix me
+        uint32_t sum32 = (sum16 & 0x0000ffff) + ((sum16 & 0xffff0000) >> 16);
+        //return sum16;
+        return sum32;
     }
     bool operator ==(const TypedRegisterSet<T> &other) const {
         return other.bits_ == bits_;

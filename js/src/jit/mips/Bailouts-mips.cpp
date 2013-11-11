@@ -24,14 +24,14 @@ namespace jit {
 class BailoutStack
 {
     uintptr_t frameClassId_;
-  //  uintptr_t padding;  //NOTE:this is deleted in ff24
+    uintptr_t padding;  //NOTE:this is deleted in ff24
     double    fpregs_[FloatRegisters::Total];
     uintptr_t regs_[Registers::Total];
     union {
         uintptr_t frameSize_;
         uintptr_t tableOffset_;
     };
-    uintptr_t snapshotOffset_;//maybe unaligned
+    uintptr_t snapshotOffset_;
 
   public:
     FrameSizeClass frameClass() const {
@@ -53,7 +53,7 @@ class BailoutStack
         JS_ASSERT(frameClass() == FrameSizeClass::None());
         return snapshotOffset_;
     }
-    uint8_t  *parentStackPointer() const {
+    uint8_t *parentStackPointer() const {
         if (frameClass() == FrameSizeClass::None())
             return (uint8_t *)this + sizeof(BailoutStack);
         return (uint8_t *)this + offsetof(BailoutStack, snapshotOffset_);
@@ -72,23 +72,20 @@ IonBailoutIterator::IonBailoutIterator(const JitActivationIterator &activations,
   : IonFrameIterator(activations),
     machine_(bailout->machine())
 {
-    uint8_t *sp = bailout->parentStackPointer();//off of snapshotOffset_
+    uint8_t *sp = bailout->parentStackPointer();
     uint8_t *fp = sp + bailout->frameSize();
 
     current_ = fp;
     type_ = IonFrame_OptimizedJS;
     topFrameSize_ = current_ - sp;
-   // NOTE: This is update in ff24
-  //  topIonScript_ = script()->ion;
-	topIonScript_ = script()->ionScript();
-	
+    topIonScript_ = script()->ionScript();
+
     if (bailout->frameClass() == FrameSizeClass::None()) {
         snapshotOffset_ = bailout->snapshotOffset();
         return;
     }
 
     // Compute the snapshot offset from the bailout ID.
-    //Activation *activation = activations.activation();// NOTE: This is update in ff24
     JitActivation *activation = activations.activation()->asJit();
     JSCompartment *jsCompartment = activation->compartment();
     IonCompartment *ionCompartment = jsCompartment->ionCompartment();
@@ -120,4 +117,3 @@ IonBailoutIterator::IonBailoutIterator(const JitActivationIterator &activations,
     topFrameSize_ = current_ - bailout->sp();
     snapshotOffset_ = osiIndex->snapshotOffset();
 }
-

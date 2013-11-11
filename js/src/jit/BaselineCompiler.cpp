@@ -288,7 +288,7 @@ BaselineCompiler::emitOutOfLinePostBarrierSlot()
     Register objReg = R2.scratchReg();
     GeneralRegisterSet regs(GeneralRegisterSet::All());
     regs.take(objReg);
-    regs.take(BaselineFrameReg);
+    //regs.take(BaselineFrameReg); //fixme hwj 1031
     Register scratch = regs.takeAny();
 #if defined(JS_CPU_ARM)
     // On ARM, save the link register before calling.  It contains the return

@@ -8,15 +8,14 @@
 #define jit_mips_CodeGenerator_mips_h
 
 #include "Assembler-mips.h"
-//#include "jit/shared/CodeGenerator-x86-shared.h"
 #include "jit/shared/CodeGenerator-shared.h"
 namespace js {
 namespace jit {
 
 class OutOfLineBailout;
-class OutOfLineTableSwitch;
 class OutOfLineUndoALUOperation;
 class MulNegativeZeroCheck;
+class OutOfLineTableSwitch;
 class OutOfLineLoadTypedArrayOutOfBounds;
 class OutOfLineTruncate;
 
@@ -71,6 +70,16 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     void emitBranch(Assembler::Condition cond, MBasicBlock *ifTrue, MBasicBlock *ifFalse,
                     Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond);
     void emitBranch(Assembler::DoubleCondition cond, MBasicBlock *ifTrue, MBasicBlock *ifFalse);
+
+	//by weizhenwei, 2013.11.05
+    void emitBranch(Assembler::DoubleCondition cond, const FloatRegister &lhs,
+		const FloatRegister &rhs, MBasicBlock *ifTrue, MBasicBlock *ifFalse,
+                Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond);
+
+    //by weizhenwei, 2013.11.07
+    void emitSet(Assembler::DoubleCondition cond, const FloatRegister &lhs,
+        const FloatRegister &rhs, const Register &dest,
+        Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond);
 
     bool emitTableSwitchDispatch(MTableSwitch *mir, const Register &index, const Register &base);
 

@@ -41,7 +41,7 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
 {
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
-        void **ptr = JSC::MIPSAssembler::getPointerRef(buffer + offset);
+        void *ptr = JSC::MIPSAssembler::getPointer(buffer + offset);
 
 /*#ifdef JS_PUNBOX64
         // All pointers on x64 will have the top bits cleared. If those bits
@@ -58,7 +58,7 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
 #endif
 */
         // No barrier needed since these are constants.
-        gc::MarkGCThingUnbarriered(trc, reinterpret_cast<void **>(ptr), "ion-masm-ptr");
+        gc::MarkGCThingUnbarriered(trc, reinterpret_cast<void **>(&ptr), "ion-masm-ptr");
     }
 }	
 
@@ -77,11 +77,6 @@ void
 Assembler::zerod(const FloatRegister &src) {
     //ok, by weizhenwei, 2013.10.20
     mcss.zeroDouble(mFPRegisterID(src.code()));
-}
-void
-Assembler::negd(const FloatRegister &src, const FloatRegister &dest) {
-    //ok, by weizhenwei, 2013.10.20
-    mcss.negDouble(mFPRegisterID(src.code()), mFPRegisterID(dest.code()));
 }
 Assembler::Condition
 Assembler::InvertCondition(Condition cond)
@@ -117,6 +112,8 @@ void Assembler::setCC(Condition cond,const Register &r)
 {
     mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),cmpTempRegister.code(),cmpTemp2Register.code(),r.code());
 }
+
+//hwj 1028
 void
 Assembler::trace(JSTracer *trc)
 {
@@ -186,10 +183,17 @@ class RelocationIterator
         return offset_;
     }
 };
+
+//hwj 1028
 static inline IonCode *
 CodeFromJump(uint8_t *jump)
 {
-    uint8_t *target = (uint8_t *)JSC::MIPSAssembler::getRel32Target(jump);
+    int luiIns = *((int*)(jump-8));
+    int oriIns = *((int*)(jump-4));
+    int temp = (luiIns & 0x0000ffff) << 16;
+    temp = temp | (oriIns&0x0000ffff);
+    uint8_t *target = (uint8_t*)temp;
+
     return IonCode::FromExecutable(target);
 }
 void
@@ -202,17 +206,14 @@ Assembler::TraceJumpRelocations(JSTracer *trc, IonCode *code, CompactBufferReade
         JS_ASSERT(child == CodeFromJump(code->raw() + iter.offset()));
     }
 }
-//hwj
+
+//hwj 1028
 void
 Assembler::executableCopy(uint8_t *buffer)
 {
     masm.executableCopy(buffer);
-
-    for (size_t i = 0; i < jumps_.length(); i++) {
-        RelativePatch &rp = jumps_[i];
-        mcss.linkPointer(buffer, JmpDst(rp.offset), (void*)(rp.target));
-    }
 }
+
 void
 Assembler::retn(Imm32 n) {
     // Remove the size of the return address which is included in the frame.
@@ -233,10 +234,21 @@ Assembler::call(Label *label) {
 void 
 Assembler::call(const Register &reg) {
 //ok    mcss.call(reg.code());
-    mcss.offsetFromPCToV0(sizeof(int*)*5);//1insns^M
-    mcss.push(mRegisterID(v0.code()));//2insns^M
-    masm.jalr(reg.code());//1insns^M
-    masm.nop();//1insns^M
+	if(reg != t9)
+	{
+	    move(t9,reg);
+	}
+	CodeLabel cl;
+
+    mov(cl.dest(),ra);
+    push(ra);
+
+
+    jalr(t9);
+    nop();
+    bind(cl.src());
+    addCodeLabel(cl);//1031
+
 }
 //hwj
 void 
@@ -246,13 +258,66 @@ Assembler::call(const Operand &op) {
         call(Register::FromCode((int)(op.reg())));//op.reg()<->Registers::Code
         break;
       case Operand::REG_DISP:            	
-        mcss.load32(mAddress(op.base(), op.disp()), v1.code());
-        call(v1);
+        mcss.load32(mAddress(op.base(), op.disp()), t9.code());
+        call(t9);
         break;
       default:
         JS_NOT_REACHED("unexpected operand kind");
     }
 }
+
+//hwj
+void 
+Assembler::call(ImmWord target) {
+    int to = (int)(target.value);
+    CodeLabel cl;
+
+    mov(cl.dest(),v0);
+    push(v0);
+
+    lui(t9,to>>16);
+    ori(t9,t9,to&0x0000ffff);
+
+    jalr(t9);
+    nop();
+    bind(cl.src());
+    addCodeLabel(cl);//1031
+}
+
+//hwj:1031
+void 
+Assembler::ma_call(const Register &reg) {
+	if(reg != t9)
+	{
+	    move(t9,reg);
+	}
+	jalr(t9);
+    nop();
+}
+//hwj:1031
+void 
+Assembler::ma_call(const Operand &op) {
+    switch (op.kind()) {
+      case Operand::REG:
+        ma_call(Register::FromCode((int)(op.reg())));//op.reg()<->Registers::Code
+        break;
+      case Operand::REG_DISP:            	
+        mcss.load32(mAddress(op.base(), op.disp()), t9.code());
+        ma_call(t9);
+        break;
+      default:
+        JS_NOT_REACHED("unexpected operand kind");
+    }
+}
+//hwj:1031
+void
+Assembler::ma_call(ImmWord target) {
+    int to = (int)(target.value);
+    lui(t9,to>>16);
+    ori(t9,t9,to&0x0000ffff);
+    ma_call(t9);
+}
+
 Assembler::JmpSrc
 Assembler::ma_callIon(const Register r)
 {
