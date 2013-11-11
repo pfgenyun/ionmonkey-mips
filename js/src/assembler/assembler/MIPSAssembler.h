@@ -687,9 +687,21 @@ public:
         emitInst(0x46800021 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
     }
 
+	// by wangqing, 2013-11-11
+    void cvtdl(FPRegisterID fd, FPRegisterID fs)
+    {
+        emitInst(0x46a00021 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
+    }
+
     void cvtds(FPRegisterID fd, FPRegisterID fs)
     {
         emitInst(0x46000021 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
+    }
+
+    // by wangqing, 2013-11-11
+    void cvtls(FPRegisterID fd, FPRegisterID fs)
+    {
+        emitInst(0x46000025 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
     }
 
     void cvtsd(FPRegisterID fd, FPRegisterID fs)
@@ -697,9 +709,21 @@ public:
         emitInst(0x46200020 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
     }
 
+    // by wangqing, 2013-11-11
+    void cvtsl(FPRegisterID fd, FPRegisterID fs)
+    {
+        emitInst(0x46a00020 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
+    }
+
     void cvtwd(FPRegisterID fd, FPRegisterID fs)
     {
         emitInst(0x46200024 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
+    }
+
+    // by wangqing, 2013-11-11
+    void cvtld(FPRegisterID fd, FPRegisterID fs)
+    {
+        emitInst(0x46200025 | (fd << OP_SH_FD) | (fs << OP_SH_FS));
     }
 
     void cud(FPRegisterID fs, FPRegisterID ft)

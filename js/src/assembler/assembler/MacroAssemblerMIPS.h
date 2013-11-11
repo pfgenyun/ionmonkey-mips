@@ -2780,7 +2780,8 @@ public:
     //ion helper
     void truncateDoubleToInt32(FPRegisterID src, RegisterID dest)
     {
-        m_assembler.truncwd(fpTempRegister, src);
+//        m_assembler.truncwd(fpTempRegister, src);
+        m_assembler.cvtld(fpTempRegister, src);
         m_assembler.mfc1(dest, fpTempRegister);
     }
     

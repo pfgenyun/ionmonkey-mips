@@ -2609,7 +2609,9 @@ class Assembler
     }
     void cvttsd2si(const FloatRegister &src, const Register &dest) {
 //ok        masm.cvttsd2si_rr(src.code(), dest.code());
-        mcss.truncateDoubleToInt32(src.code(), dest.code());
+//        mcss.truncateDoubleToInt32(src.code(), dest.code());
+		cvtld(fpTempRegister, src);
+		mfc1(dest, fpTempRegister);
     }
     void cvtsi2sd(const Register &src, const FloatRegister &dest) {
 //ok        masm.cvtsi2sd_rr(src.code(), dest.code());
@@ -3384,9 +3386,21 @@ class Assembler
         masm.cvtdw(fd.code(), fs.code());
     }
 
+ 	// by wangqing, 2013-11-11
+    void cvtdl(const FloatRegister &fd, const FloatRegister &fs)
+    {
+        masm.cvtdl(fd.code(), fs.code());
+    }
+
     void cvtds(const FloatRegister &fd, const FloatRegister &fs)
     {
         masm.cvtds(fd.code(), fs.code());
+    }
+
+ 	// by wangqing, 2013-11-11
+    void cvtls(const FloatRegister &fd, const FloatRegister &fs)
+    {
+        masm.cvtls(fd.code(), fs.code());
     }
 
     void cvtsd(const FloatRegister &fd, const FloatRegister &fs)
@@ -3394,9 +3408,21 @@ class Assembler
         masm.cvtsd(fd.code(), fs.code());
     }
 
+ 	// by wangqing, 2013-11-11
+    void cvtsl(const FloatRegister &fd, const FloatRegister &fs)
+    {
+        masm.cvtsl(fd.code(), fs.code());
+    }
+
     void cvtwd(const FloatRegister &fd, const FloatRegister &fs)
     {
         masm.cvtwd(fd.code(), fs.code());
+    }
+
+ 	// by wangqing, 2013-11-11
+    void cvtld(const FloatRegister &fd, const FloatRegister &fs)
+    {
+        masm.cvtld(fd.code(), fs.code());
     }
 
     void cud(const FloatRegister &fs, const FloatRegister &ft)
