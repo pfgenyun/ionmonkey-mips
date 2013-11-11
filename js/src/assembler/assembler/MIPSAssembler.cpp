@@ -355,7 +355,7 @@ namespace JSC {
     void MIPSAssembler::preLink(JmpSrc jump, void* target)
     {
         ASSERT(m_jumps.size() > 0);
-        MIPSWord* insn = (MIPSWord*)(m_buffer.size()+jump.offset()-6);//head
+        MIPSWord* insn = (MIPSWord*)(m_buffer.data()+jump.offset()-6*4);//head
         Jumps tmp;
 
         for (Jumps::Iterator iter = m_jumps.begin(); iter != m_jumps.end(); ++iter){
