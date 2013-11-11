@@ -29,6 +29,8 @@ class MacroAssemblerMIPS : public Assembler
     bool inCall_;
     uint32_t args_;
     uint32_t passedArgs_;
+    uint32_t passedArgsfake_;   //by weizhenwei
+    uint32_t passedArgsBits_[4];//bitmap, 1 is double, 2 is int, by weizhenwei, 2013.11.08
     uint32_t stackForCall_;
     bool dynamicAlignment_;
     bool enoughMemory_;

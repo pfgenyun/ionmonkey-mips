@@ -292,7 +292,7 @@ CodeGeneratorMIPS::visitNotD(LNotD *ins)
 //    masm.emitSet(Assembler::Equal, ToRegister(ins->output()), Assembler::NaN_IsTrue);
     //by weizhenwei, 2013.11.07
     masm.zerod(ScratchFloatReg);
-    emitSet(Assembler::DoubleEqual, opd, ScratchFloatReg,
+    emitSet(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg,
             ToRegister(ins->output()), Assembler::NaN_IsTrue);
     return true;
 }
@@ -359,11 +359,11 @@ class BailoutJump {
   public:
     BailoutJump(Assembler::Condition cond) : cond_(cond)
     { }
-#ifdef JS_CPU_X86
+//#ifdef JS_CPU_X86
     void operator()(MacroAssembler &masm, uint8_t *code) const {
         masm.j(cond_, code, Relocation::HARDCODED);
     }
-#endif
+//#endif
     void operator()(MacroAssembler &masm, Label *label) const {
         masm.j(cond_, label);
     }
@@ -375,11 +375,11 @@ class BailoutLabel {
   public:
     BailoutLabel(Label *label) : label_(label)
     { }
-#ifdef JS_CPU_X86
+//#ifdef JS_CPU_X86
     void operator()(MacroAssembler &masm, uint8_t *code) const {
         masm.retarget(label_, code, Relocation::HARDCODED);
     }
-#endif
+//#endif
     void operator()(MacroAssembler &masm, Label *label) const {
         masm.retarget(label_, label);
     }
@@ -413,7 +413,7 @@ CodeGeneratorMIPS::bailout(const T &binder, LSnapshot *snapshot)
     JS_ASSERT_IF(frameClass_ != FrameSizeClass::None() && deoptTable_,
                  frameClass_.frameSize() == masm.framePushed());
 
-#ifdef JS_CPU_X86
+//#ifdef JS_CPU_X86
     // On x64, bailout tables are pointless, because 16 extra bytes are
     // reserved per external jump, whereas it takes only 10 bytes to encode a
     // a non-table based bailout.
@@ -421,7 +421,7 @@ CodeGeneratorMIPS::bailout(const T &binder, LSnapshot *snapshot)
         binder(masm, deoptTable_->raw() + snapshot->bailoutId() * BAILOUT_TABLE_ENTRY_SIZE);
         return true;
     }
-#endif
+//#endif
 
     // We could not use a jump table, either because all bailout IDs were
     // reserved, or a jump table is not optimal for this frame size or
@@ -491,6 +491,7 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
             second, first, &equal); // make sure we handle -0 and 0 right.
 
     //masm.j(cond, &returnSecond);
+    //by weizhenwei, 2013.11.07
     if (cond == Assembler::Above) {
         masm.branchDouble(Assembler::DoubleGreaterThan, second, first, &returnSecond);
     } else if (cond == Assembler::Below) {
@@ -515,6 +516,7 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
     if (ins->mir()->isMax())
         masm.addsd(second, first); // -0 + -0 = -0 and -0 + 0 = 0.
     else
+        //TODO:maybe problems here, weizhenwei
         masm.orpd(second, first); // This just ors the sign bit.
     masm.jmp(&done);
 
@@ -534,7 +536,9 @@ CodeGeneratorMIPS::visitAbsD(LAbsD *ins)
 {
     FloatRegister input = ToFloatRegister(ins->input());
     JS_ASSERT(input == ToFloatRegister(ins->output()));
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(ScratchFloatReg);
     masm.subsd(input, ScratchFloatReg); // negate the sign bit.
     masm.andpd(ScratchFloatReg, input); // s & ~s
     return true;
@@ -565,13 +569,17 @@ CodeGeneratorMIPS::visitPowHalfD(LPowHalfD *ins)
     masm.branchDouble(Assembler::DoubleNotEqualOrUnordered, input, ScratchFloatReg, &sqrt);
 
     // Math.pow(-Infinity, 0.5) == Infinity.
-    masm.xorpd(input, input);
+    //masm.xorpd(input, input);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(input);
     masm.subsd(ScratchFloatReg, input);
     masm.jump(&done);
 
     // Math.pow(-0, 0.5) == 0 == Math.pow(0, 0.5). Adding 0 converts any -0 to 0.
     masm.bind(&sqrt);
-    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(ScratchFloatReg);
     masm.addsd(ScratchFloatReg, input);
     masm.sqrtsd(input, input);
 
@@ -1330,7 +1338,9 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         Label negative, end;
 
         // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-        masm.xorpd(scratch, scratch);
+        //masm.xorpd(scratch, scratch);
+        //by weizhenwei, 2013.11.08
+        masm.zerod(scratch);
         masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &negative);
 
         // Bail on negative-zero.
@@ -1387,7 +1397,9 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     masm.loadStaticDouble(&PointFive, temp);
 
     // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-    masm.xorpd(scratch, scratch);
+    //masm.xorpd(scratch, scratch);
+    //by weizhenwei, 2013.11.08
+    masm.zerod(scratch);
     masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &negative);
 
     // Bail on negative-zero.
