@@ -2744,7 +2744,8 @@ public:
     // (specifically, in this case, INT_MAX 0x7fffffff).
     Jump branchTruncateDoubleToInt32(FPRegisterID src, RegisterID dest)
     {
-        m_assembler.truncwd(fpTempRegister, src);
+//        m_assembler.cvtwd(fpTempRegister, src);
+		m_assembler.cvtld(fpTempRegister, src);
         m_assembler.mfc1(dest, fpTempRegister);
         return branch32(Equal, dest, Imm32(0x7fffffff));
     }
@@ -2755,7 +2756,8 @@ public:
     // (specifically, in this case, 0).
     void branchConvertDoubleToInt32(FPRegisterID src, RegisterID dest, JumpList& failureCases, FPRegisterID fpTemp)
     {
-        m_assembler.cvtwd(fpTempRegister, src);
+//        m_assembler.cvtwd(fpTempRegister, src);
+		m_assembler.cvtld(fpTempRegister, src);
         m_assembler.mfc1(dest, fpTempRegister);
 
         // If the result is zero, it might have been -0.0, and the double comparison won't catch this!
