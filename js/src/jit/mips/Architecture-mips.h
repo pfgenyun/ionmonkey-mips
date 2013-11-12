@@ -41,13 +41,11 @@ static const int32 NUNBOX32_PAYLOAD_OFFSET      = 0;
 // These offsets are related to bailouts.
 ////
 
-// Size of each bailout table entry. On arm, this is presently
-// a single call (which is wrong!). the call clobbers lr.
-// For now, I've dealt with this by ensuring that we never allocate to lr.
-// it should probably be 8 bytes, a mov of an immediate into r12 (not
-// allocated presently, or ever) followed by a branch to the apropriate code.
-//ok static const uint32 BAILOUT_TABLE_ENTRY_SIZE    = 4;
-static const uint32 BAILOUT_TABLE_ENTRY_SIZE    = 4*11; //see to Trampoline-mips.cpp:generateBailoutTable
+// by wangqing, 2013-11-12.
+// size of each bailout table entry.
+// On mips, we use call (13 instructions)
+// see to Trampoline-mips.cpp:generateBailoutTable
+static const uint32 BAILOUT_TABLE_ENTRY_SIZE    = 4*13; 
 
 class Registers
 {
