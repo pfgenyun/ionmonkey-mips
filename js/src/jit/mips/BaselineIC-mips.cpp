@@ -19,32 +19,26 @@ namespace jit {
 bool
 ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 {
-    Label failure, notNaN;
+    Label failure, notNaN, isTrue;
     masm.ensureDouble(R0, FloatReg0, &failure);
     masm.ensureDouble(R1, FloatReg1, &failure);
 
     Register dest = R0.scratchReg();
 
-    Label done;
-    //first check NaN
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
+    masm.addiu(dest, zero, 1);
+    masm.branchDouble(cond, FloatReg0, FloatReg1, &isTrue);
+    masm.xorl(dest, dest);
+    masm.bind(&isTrue);
+
+
+    // Check for NaN, if needed.
     Assembler::NaNCond nanCond = Assembler::NaNCondFromDoubleCondition(cond);
     if (nanCond != Assembler::NaN_HandledByCond) {
+      masm.branchDouble(Assembler::DoubleOrdered, FloatReg0, FloatReg1, &notNaN);
       masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
-      masm.branchDouble(Assembler::DoubleUnordered, FloatReg0, FloatReg1, &done);
+      masm.bind(&notNaN);
     }
-
-    //then check True or False
-    /*
-     * dest store result, default set it to true
-     * weizhenwei, 2013.11.04
-     */
-    masm.addiu(dest, zero, 1);
-    masm.branchDouble(cond, FloatReg0, FloatReg1, &done);
-    //else false, then set dest to 0;
-    masm.xorl(dest, dest);
-
-    masm.bind(&done);
 
     masm.tagValue(JSVAL_TYPE_BOOLEAN, dest, R0);
     EmitReturnFromIC(masm);
@@ -223,7 +217,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         if (!allowDouble_)
             masm.movl(R0.payloadReg(), scratchReg);
 
-        //R0.payloadReg() is result, R1.payloadReg90 is shiftAmount.
+        //R0.payloadReg() is result, R1.payloadReg() is shiftAmount.
         //rewrite by weizhenwei, 2013.11.06
         masm.srlv(R0.payloadReg(), R0.payloadReg(), R1.payloadReg());
 
