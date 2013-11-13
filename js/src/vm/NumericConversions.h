@@ -254,6 +254,7 @@ ToInt32(double d)
         );
     return i;
 #else
+    int tmp = detail::ToIntWidth<int32_t>(d);
     return detail::ToIntWidth<int32_t>(d);
 #endif
 }

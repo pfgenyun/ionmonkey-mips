@@ -2256,12 +2256,14 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
 //        masm.j(Assembler::Parity, &fail);
 
       //by weizhenwei, 2013.11.05
-      masm.zerod(ScratchFloatReg);
-      masm.branchDouble(Assembler::DoubleUnordered, input, ScratchFloatReg, &fail);
+        //masm.breakpoint();//by hwj
+        masm.zerod(ScratchFloatReg);
+        masm.branchDouble(Assembler::DoubleUnordered, input, ScratchFloatReg, &fail);
 
         {
             Label positive;
-            masm.j(Assembler::Above, &positive);
+            //masm.j(Assembler::Above, &positive);
+            masm.branchDouble(Assembler::DoubleGreaterThan, input, ScratchFloatReg, &positive);
 
             static const double shiftNeg = 4294967296.0;
             masm.loadStaticDouble(&shiftNeg, temp);
@@ -2273,7 +2275,6 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
             masm.loadStaticDouble(&shiftPos, temp);
             masm.bind(&skip);
         }
-
         masm.addsd(input, temp);
         masm.cvttsd2si(temp, output);
         masm.cvtsi2sd(output, ScratchFloatReg);
@@ -2288,7 +2289,7 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
     masm.bind(&fail);
     {
         saveVolatile(output);
-
+        
         masm.setupUnalignedABICall(1, output);
         masm.passABIArg(input);
         masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, js::ToInt32));

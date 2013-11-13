@@ -2670,8 +2670,8 @@ class Assembler
      //   JS_ASSERT(HasSSE2());
    //     masm.ucomisd_rr(rhs.code(), lhs.code());
    	 ASSERT(0);
-     mcss.moveDouble(lhs.code(), fpTempRegister.code());
-     mcss.moveDouble(rhs.code(), fpTemp2Register.code());
+     //mcss.moveDouble(lhs.code(), fpTempRegister.code());
+     //mcss.moveDouble(rhs.code(), fpTemp2Register.code());
     }
 //wangce
    
