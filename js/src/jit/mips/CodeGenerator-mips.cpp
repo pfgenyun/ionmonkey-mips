@@ -120,8 +120,7 @@ CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
         masm.branchDouble(cond, lhs, rhs, ifTrue->label());
     } else {
         //masm.j(Assembler::InvertCondition(cond), ifFalse->label());
-        masm.j(Assembler::InvertCondition(masm.ConditionFromDoubleCondition(cond)),
-                ifFalse->label());
+        masm.branchDouble(masm.InvertDoubleCondition(cond), lhs, rhs, ifFalse->label());
         if (!isNextBlock(ifTrue))
             masm.jmp(ifTrue->label());
     }

@@ -481,25 +481,59 @@ class Assembler
 
 	//by weizhenwei, 2013.11.05
     static inline DoubleCondition DoubleConditionFromCondition(Condition cond) {
-		if ((cond == Equal) || (cond == Zero)) {
-				return DoubleEqual;
-		} else if ((cond == NotEqual) || (cond == NonZero)) {
-				return DoubleNotEqual;
-		} else if ((cond == Above) || (cond == GreaterThan)) {
-				return DoubleGreaterThan;
-		} else if ((cond == AboveOrEqual) || (cond == GreaterThanOrEqual)) {
-				return DoubleGreaterThanOrEqual;
-		} else if ((cond == Below) || (cond == LessThan)) {
-				return DoubleLessThan;
-		} else if ((cond == BelowOrEqual) || (cond == LessThanOrEqual)) {
-				return DoubleLessThanOrEqual;
-		} else if (cond == Parity) {
-				return DoubleUnordered;
-		} else if (cond == NoParity) {
-				return DoubleOrdered;
-		} else {
-				JS_ASSERT(0);
-		}
+        if ((cond == Equal) || (cond == Zero)) {
+            return DoubleEqual;
+        } else if ((cond == NotEqual) || (cond == NonZero)) {
+            return DoubleNotEqual;
+        } else if ((cond == Above) || (cond == GreaterThan)) {
+            return DoubleGreaterThan;
+        } else if ((cond == AboveOrEqual) || (cond == GreaterThanOrEqual)) {
+            return DoubleGreaterThanOrEqual;
+        } else if ((cond == Below) || (cond == LessThan)) {
+            return DoubleLessThan;
+        } else if ((cond == BelowOrEqual) || (cond == LessThanOrEqual)) {
+            return DoubleLessThanOrEqual;
+        } else if (cond == Parity) {
+            return DoubleUnordered;
+        } else if (cond == NoParity) {
+            return DoubleOrdered;
+        } else {
+            JS_ASSERT(0);
+        }
+    }
+	//by weizhenwei, 2013.11.13
+    static inline DoubleCondition InvertDoubleCondition(DoubleCondition cond) {
+        if (cond == DoubleOrdered) {
+            return DoubleUnordered;
+        } else if (cond == DoubleUnordered) {
+            return DoubleOrdered;
+        } else if (cond == DoubleEqual) {
+            return DoubleNotEqual;
+        } else if (cond == DoubleNotEqual) {
+            return DoubleEqual;
+        } else if (cond == DoubleGreaterThan) {
+            return DoubleLessThanOrEqual;
+        } else if (cond == DoubleGreaterThanOrEqual) {
+            return DoubleLessThan;
+        } else if (cond == DoubleLessThan) {
+            return DoubleGreaterThanOrEqual;
+        } else if (cond == DoubleLessThanOrEqual) {
+            return DoubleGreaterThan;
+        } else if (cond == DoubleEqualOrUnordered) {
+            return DoubleNotEqual;
+        } else if (cond == DoubleNotEqualOrUnordered) {
+            return DoubleEqual;
+        } else if (cond == DoubleGreaterThanOrUnordered) {
+            return DoubleLessThanOrEqual;
+        } else if (cond == DoubleGreaterThanOrEqualOrUnordered) {
+            return DoubleLessThan;
+        } else if (cond == DoubleLessThanOrUnordered) {
+            return DoubleGreaterThanOrEqual;
+        } else if (cond == DoubleLessThanOrEqualOrUnordered) {
+            return DoubleGreaterThan;
+        } else {
+            JS_ASSERT(0);
+        }
     }
 
     static void TraceDataRelocations(JSTracer *trc, IonCode *code, CompactBufferReader &reader);
