@@ -2611,9 +2611,9 @@ class Assembler
     }
     void cvttsd2si(const FloatRegister &src, const Register &dest) {
 //ok        masm.cvttsd2si_rr(src.code(), dest.code());
-//        mcss.truncateDoubleToInt32(src.code(), dest.code());
-		cvtld(fpTempRegister, src);
-		mfc1(dest, fpTempRegister);
+        mcss.truncateDoubleToInt32(src.code(), dest.code());
+//		cvtld(fpTempRegister, src);
+//		mfc1(dest, fpTempRegister);
     }
     void cvtsi2sd(const Register &src, const FloatRegister &dest) {
 //ok        masm.cvtsi2sd_rr(src.code(), dest.code());

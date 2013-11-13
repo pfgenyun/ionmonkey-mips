@@ -773,9 +773,8 @@ class MacroAssemblerMIPS : public Assembler
     //It is different with x86!
 //xsb:fixme
     void branchTruncateDouble(const FloatRegister &src, const Register &dest, Label *fail) {
-        JS_STATIC_ASSERT(INT_MIN == int(0x80000000));
         cvttsd2si(src, dest);
-        cmpl(dest, Imm32(INT_MIN));
+        cmpl(dest, Imm32(0x7fffffff));
         j(Assembler::Equal, fail);
     }
 
