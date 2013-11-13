@@ -2787,7 +2787,7 @@ class Assembler
 
     static void patchWrite_Imm32(CodeLocationLabel dataLabel, Imm32 toWrite) {
      //   *((int32_t *) dataLabel.raw() - 1) = toWrite.value;
-         JSC::MIPSAssembler::setInt32((int32 *) dataLabel.raw(), toWrite.value);
+         JSC::MIPSAssembler::setInt32((int32 *) dataLabel.raw() -1, toWrite.value);
     }
 
     static void patchDataWithValueCheck(CodeLocationLabel data, ImmWord newData,

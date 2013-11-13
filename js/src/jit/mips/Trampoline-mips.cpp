@@ -307,6 +307,7 @@ IonRuntime::generateInvalidator(JSContext *cx)
     // - Now that the frame has been bailed out, convert the invalidated frame into an exit frame.
     // - Do the normal check-return-code-and-thunk-to-the-interpreter dance.
 
+//	masm.breakpoint();
     masm.addl(Imm32(sizeof(uintptr_t)), sp);
 
     masm.reserveStack(Registers::Total * sizeof(void *));

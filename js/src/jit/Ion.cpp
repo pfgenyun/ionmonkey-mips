@@ -2079,12 +2079,12 @@ InvalidateActivation(FreeOp *fop, uint8_t *ionTop, bool invalidateAll)
         // a uint32, which is checked during safepoint index
         // construction.
         CodeLocationLabel dataLabelToMunge(it.returnAddressToFp());
-        ptrdiff_t delta = ionScript->invalidateEpilogueDataOffset() -
+        ptrdiff_t delta = ionScript->invalidateEpilogueDataOffset() -   // by wangqing, 2013-11-13
                           (it.returnAddressToFp() - ionCode->raw());
         Assembler::patchWrite_Imm32(dataLabelToMunge, Imm32(delta));
 
         CodeLocationLabel osiPatchPoint = SafepointReader::InvalidationPatchPoint(ionScript, si);
-        CodeLocationLabel invalidateEpilogue(ionCode, ionScript->invalidateEpilogueOffset());
+        CodeLocationLabel invalidateEpilogue(ionCode, ionScript->invalidateEpilogueOffset()); // by wangqing, 2013-11-12
 
         IonSpew(IonSpew_Invalidate, "   ! Invalidate ionScript %p (ref %u) -> patching osipoint %p",
                 ionScript, ionScript->refcount(), (void *) osiPatchPoint.raw());
