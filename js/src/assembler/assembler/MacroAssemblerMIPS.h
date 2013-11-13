@@ -62,7 +62,8 @@ public:
     static const RegisterID dataTemp2Register = MIPSRegisters::t4;
 
     // FP temp register
-    static const FPRegisterID fpTempRegister = MIPSRegisters::f16;
+    static const FPRegisterID fpTempRegister = MIPSRegisters::f30;
+    //static const FPRegisterID fpTempRegister = MIPSRegisters::f16;
 
     enum Condition {
         Equal,
@@ -2745,7 +2746,7 @@ public:
     Jump branchTruncateDoubleToInt32(FPRegisterID src, RegisterID dest)
     {
 //        m_assembler.cvtwd(fpTempRegister, src);
-		m_assembler.cvtwd(fpTempRegister, src);
+        m_assembler.cvtwd(fpTempRegister, src);
         m_assembler.mfc1(dest, fpTempRegister);
         return branch32(Equal, dest, Imm32(0x7fffffff));
     }
@@ -2779,7 +2780,7 @@ public:
 #endif
     }
 
-    //ion helper
+    //ion helper    //by hwj 1113
     void truncateDoubleToInt32(FPRegisterID src, RegisterID dest)
     {
         m_assembler.truncwd(fpTempRegister, src);
