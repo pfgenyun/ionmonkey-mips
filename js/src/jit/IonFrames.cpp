@@ -74,7 +74,7 @@ IonFrameIterator::checkInvalidation(IonScript **ionScriptOut) const
         return false;
 
     int32_t invalidationDataOffset = ((int32_t *) returnAddr)[-1];
-    uint8_t *ionScriptDataOffset = returnAddr + invalidationDataOffset;
+    uint8_t *ionScriptDataOffset = returnAddr + invalidationDataOffset + 8;  // by wangqing, 2013-11-13
     IonScript *ionScript = (IonScript *) Assembler::getPointer(ionScriptDataOffset);
     JS_ASSERT(ionScript->containsReturnAddress(returnAddr));
     *ionScriptOut = ionScript;
