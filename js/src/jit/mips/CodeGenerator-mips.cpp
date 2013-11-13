@@ -536,12 +536,14 @@ CodeGeneratorMIPS::visitAbsD(LAbsD *ins)
 {
     FloatRegister input = ToFloatRegister(ins->input());
     JS_ASSERT(input == ToFloatRegister(ins->output()));
-    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+/*    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
     //by weizhenwei, 2013.11.08
     masm.zerod(ScratchFloatReg);
     masm.subsd(input, ScratchFloatReg); // negate the sign bit.
     masm.andpd(ScratchFloatReg, input); // s & ~s
-    return true;
+  */
+  masm.absd(input, input);
+  return true;
 }
 
 bool
