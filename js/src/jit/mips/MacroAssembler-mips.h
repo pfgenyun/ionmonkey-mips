@@ -1302,8 +1302,10 @@ class MacroAssemblerMIPS : public Assembler
 
                 // bit 0 = sign of low double
                 // bit 1 = sign of high double
-                movmskpd(src, dest);
-                andl(Imm32(1), dest);
+                // move double's high 32 to dest and get its sign bit
+                mfc1(dest, js::jit::FloatRegister::FromCode(src.code() + 1));
+                shrl(Imm32(0x1f), dest);
+
                 //add by QuQiuwen
                 cmpl(dest,zero);
                 j(Assembler::NonZero, fail);

@@ -2623,8 +2623,9 @@ class Assembler
      //   JS_ASSERT(HasSSE2());
     //    masm.movmskpd_rr(src.code(), dest.code());
         // by wangqing. fix me
-        dmfc1(dest, src);
-        dsrl32(dest, dest, 31);
+        //JS_ASSERT(0);
+//        dmfc1(dest, src);
+//        dsrl32(dest, dest, ImmWord(0x1f));
     }
 // NOT OK! This is about double compare. --QuQiuwen 
     void ucomisd(const FloatRegister &lhs, const FloatRegister &rhs) {
