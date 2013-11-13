@@ -143,8 +143,20 @@ void MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
                         }
                     } else if (passedArgsBits_[0] == 2) { //first is int, second double store ($6, $7)
                         //TODO
+                        JS_ASSERT(from.isFloatReg());
+                        FloatRegister temp1 = from.floatReg();
+                        FloatRegister temp2 = js::jit::FloatRegister::FromCode(temp1.code() + 1);
+                        MoveOperand from1 = MoveOperand(temp1);
+                        MoveOperand from2 = MoveOperand(temp2);
+
+                        GetArgReg(passedArgsfake_, &destReg); 
+                        to = MoveOperand(destReg);
+                        enoughMemory_ &= moveResolver_.addMove(from1, to, Move::GENERAL);
+
                         passedArgsfake_++; //for align reason.
-                        JS_ASSERT(0);
+                        GetArgReg(passedArgsfake_, &destReg); 
+                        to = MoveOperand(destReg);
+                        enoughMemory_ &= moveResolver_.addMove(from2, to, Move::GENERAL);
                     } else { //impossible here
                         JS_ASSERT(0);
                     }
@@ -173,8 +185,22 @@ void MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
                         } else if ( passedArgsBits_[1] == 2) { //second is int, 
                             //third is on ($6, $7)
                             //TODO
-                            passedArgsfake_++; //for align reason
-                            JS_ASSERT(0);
+                            //passedArgsfake_++; //for align reason
+                            //JS_ASSERT(0);
+                            JS_ASSERT(from.isFloatReg());
+                            FloatRegister temp1 = from.floatReg();
+                            FloatRegister temp2 = js::jit::FloatRegister::FromCode(temp1.code() + 1);
+                            MoveOperand from1 = MoveOperand(temp1);
+                            MoveOperand from2 = MoveOperand(temp2);
+
+                            GetArgReg(passedArgsfake_, &destReg); 
+                            to = MoveOperand(destReg);
+                            enoughMemory_ &= moveResolver_.addMove(from1, to, Move::GENERAL);
+
+                            passedArgsfake_++; //for align reason.
+                            GetArgReg(passedArgsfake_, &destReg); 
+                            to = MoveOperand(destReg);
+                            enoughMemory_ &= moveResolver_.addMove(from2, to, Move::GENERAL);
                         }
                     } else {
                         JS_ASSERT(0);

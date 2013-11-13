@@ -170,6 +170,8 @@ MoveEmitterMIPS::emitMove(const MoveOperand &from, const MoveOperand &to)
             spilledReg_ = InvalidReg;
         }
         masm.mov(from.reg(), toOperand(to));
+    } else if (from.isFloatReg() && to.isGeneralReg()) { //by weizhenwei, 2013.11.13
+        masm.mfc1(to.reg(), from.floatReg());
     } else if (to.isGeneralReg()) {
         JS_ASSERT(from.isMemory() || from.isEffectiveAddress());
         if (from.isMemory())
