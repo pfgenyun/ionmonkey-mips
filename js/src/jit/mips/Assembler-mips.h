@@ -499,6 +499,8 @@ class Assembler
             return DoubleOrdered;
         } else {
             JS_ASSERT(0);
+            //TODO
+            return DoubleOrdered;
         }
     }
 	//by weizhenwei, 2013.11.13
@@ -533,6 +535,8 @@ class Assembler
             return DoubleGreaterThan;
         } else {
             JS_ASSERT(0);
+            //TODO
+            return DoubleOrdered;
         }
     }
 
