@@ -2811,7 +2811,7 @@ class Assembler
     // Patching.
     //hwj
     static size_t patchWrite_NearCallSize() {
-         return 44;//11*4
+         return 32;//8*4
     }
     //NOTE*: the type of return is changed;
     static uintptr_t getPointer(uint8_t *instPtr) {
