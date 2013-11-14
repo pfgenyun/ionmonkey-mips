@@ -147,7 +147,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
         // Preserve R0.payloadReg()/edx, eax is JSVAL_TYPE_INT32.
         
-		masm.div(R0.payloadReg(), R1.payloadReg());
+	masm.div(R0.payloadReg(), R1.payloadReg());
 
         // A remainder implies a double result.
         //masm.branchTest32(Assembler::NonZero, edx, edx, &revertRegister);
