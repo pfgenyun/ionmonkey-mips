@@ -760,8 +760,15 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
     } else {
         masm.imull(ToOperand(rhs), ToRegister(lhs));
 
+        //overflow check, by weizhenwei, 2013.11.14
+        masm.mfhi(cmpTempRegister);
+        masm.mflo(cmpTemp2Register);
+        masm.sarl(Imm32(0x1f), cmpTemp2Register);
+
         // Bailout on overflow
-        if (mul->canOverflow() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
+        //if (mul->canOverflow() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
+        //see See MIPS Run Linux Chinese 2rd, Page 139. overflow check logic
+        if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
             return false;
 
         if (mul->canBeNegativeZero()) {
@@ -1522,6 +1529,7 @@ CodeGeneratorMIPS::generateInvalidateEpilogue()
     // Push the Ion script onto the stack (when we determine what that pointer is).
     invalidateEpilogueData_ = masm.pushWithPatch(ImmWord(uintptr_t(-1)));
     IonCode *thunk = GetIonContext()->compartment->ionCompartment()->getInvalidationThunk();
+
     masm.call(thunk);
 
     // We should never reach this point in JIT code -- the invalidation thunk should
