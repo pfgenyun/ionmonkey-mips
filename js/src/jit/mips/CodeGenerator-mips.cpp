@@ -131,17 +131,16 @@ void
 CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister &lhs,
         const FloatRegister &rhs, const Register &dest, Assembler::NaNCond ifNaN) {
 
-
     if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
         // If the register we're defining is a single byte register,
         // take advantage of the setCC instruction
         //setCC(cond, dest);
         //movzxbl(dest, dest);
         Label setDest;
+        masm.movl(Imm32(1), dest);
         masm.branchDouble(cond, lhs, rhs, &setDest);
         masm.xorl(dest, dest);
         masm.bind(&setDest);
-        masm.movl(Imm32(1), dest);
 
         if (ifNaN != Assembler::NaN_HandledByCond) {
             Label noNaN;

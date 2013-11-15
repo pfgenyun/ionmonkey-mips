@@ -510,17 +510,23 @@ class Assembler
         } else if (cond == DoubleUnordered) {
             return DoubleOrdered;
         } else if (cond == DoubleEqual) {
-            return DoubleNotEqual;
+            //return DoubleNotEqual;
+            return DoubleNotEqualOrUnordered;
         } else if (cond == DoubleNotEqual) {
-            return DoubleEqual;
+            //return DoubleEqual;
+            return DoubleEqualOrUnordered;
         } else if (cond == DoubleGreaterThan) {
-            return DoubleLessThanOrEqual;
+            //return DoubleLessThanOrEqual;
+            return DoubleLessThanOrEqualOrUnordered;
         } else if (cond == DoubleGreaterThanOrEqual) {
-            return DoubleLessThan;
+            //return DoubleLessThan;
+            return DoubleLessThanOrUnordered;
         } else if (cond == DoubleLessThan) {
-            return DoubleGreaterThanOrEqual;
+            //return DoubleGreaterThanOrEqual;
+            return DoubleGreaterThanOrEqualOrUnordered;
         } else if (cond == DoubleLessThanOrEqual) {
-            return DoubleGreaterThan;
+            //return DoubleGreaterThan;
+            return DoubleGreaterThanOrUnordered;
         } else if (cond == DoubleEqualOrUnordered) {
             return DoubleNotEqual;
         } else if (cond == DoubleNotEqualOrUnordered) {
