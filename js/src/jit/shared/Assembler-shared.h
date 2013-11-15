@@ -333,11 +333,16 @@ struct AbsoluteLabel : public LabelBase
   public:
     AbsoluteLabel()
     {
+#ifdef JS_CPU_MIPS
         type = 0;
+#endif
     }
     AbsoluteLabel(const AbsoluteLabel &label) : LabelBase(label)
     { 
+#ifdef JS_CPU_MIPS
+
 		type = label.type;//hwj :1108
+#endif
     }
     int32_t prev() const {
         JS_ASSERT(!bound());
@@ -354,6 +359,7 @@ struct AbsoluteLabel : public LabelBase
         // These labels cannot be used after being bound.
         offset_ = -1;
     }
+#ifdef JS_CPU_MIPS
     //hwj
     void setType(int myType){
         type = myType;
@@ -362,6 +368,7 @@ struct AbsoluteLabel : public LabelBase
     int getType() {
         return type;
     }
+#endif
     //hwj
 #ifdef JS_CPU_MIPS
     private:
