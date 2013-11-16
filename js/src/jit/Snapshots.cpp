@@ -183,7 +183,7 @@ static const uint32_t MIN_REG_FIELD_ESC    = 30;
 static const uint32_t MAX_REG_FIELD_VALUE  = 63;
 static const uint32_t ESC_REG_FIELD_INDEX  = 63;
 static const uint32_t ESC_REG_FIELD_CONST  = 62;
-static const uint32_t MIN_REG_FIELD_ESC    = 63;
+static const uint32_t MIN_REG_FIELD_ESC    = 62;
 
 SnapshotReader::Slot
 SnapshotReader::readSlot()
