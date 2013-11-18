@@ -429,16 +429,16 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
     // If we reach here the value is a double.
     masm.unboxDouble(value, fr);
     cond = masm.testDoubleTruthy(false, fr);
-
+    //parameter false means cond == Zero,
+    //so branchDouble(Assembler::DoubleEqual directly.
     //by weizhenwei, 2013.11.08
 #if defined(JS_CPU_MIPS)
-    if (cond == Assembler::NonZero) {
-	masm.branchDouble(Assembler::DoubleNotEqual,
-		ScratchFloatReg, fr, ifFalsy);
-    } else if (cond == Assembler::Zero) {
-	masm.branchDouble(Assembler::DoubleEqual,
-		ScratchFloatReg, fr, ifFalsy);
-    }
+    //by weizhenwei, 2013.11.18, add check about NaN.
+    masm.branchDouble(Assembler::DoubleUnordered, 
+            ScratchFloatReg, fr, ifFalsy);
+    //by weizhenwei, 2013.11.08
+    masm.branchDouble(Assembler::DoubleEqual,
+            ScratchFloatReg, fr, ifFalsy);
 #else
     masm.j(cond, ifFalsy);
 #endif
