@@ -53,8 +53,9 @@ def get_max_wait(tasks, results, timeout):
     """
 
     # If we have a progress-meter, we need to wake up to update it frequently.
-    wait = results.pb.update_granularity()
-
+    #wait = results.pb.update_granularity()
+    wait = timedelta(0) #   hwj date: 2013-11-18
+    
     # If a timeout is supplied, we need to wake up for the first task to
     # timeout if that is sooner.
     if timeout:
@@ -189,7 +190,8 @@ def run_all_tests(tests, results, options):
 
     while len(tests) or len(tasks):
         while len(tests) and len(tasks) < options.worker_count:
-            tasks.append(spawn_test(tests.pop(), options.passthrough))
+            tasks.append(spawn_test(tests.pop()))   #hwj    date:2013-11-18
+#            tasks.append(spawn_test(tests.pop(), options.passthrough))
 
         timeout = get_max_wait(tasks, results, options.timeout)
         read_input(tasks, timeout)
@@ -197,6 +199,9 @@ def run_all_tests(tests, results, options):
         kill_undead(tasks, results, options.timeout)
         tasks = reap_zombies(tasks, results, options.timeout)
 
+        #hwj 2013-11-18
+        #if results.pb:
+        #   results.pb.update(results.n)
         results.pb.poke()
 
     return True
