@@ -840,6 +840,9 @@ CodeGeneratorMIPS::visitMulNegativeZeroCheck(MulNegativeZeroCheck *ool)
     // Result is -0 if lhs or rhs is negative.
     masm.movl(lhsCopy, result);
     masm.orl(rhs, result);
+	// by wangqing, 2013-11-19
+    masm.movl(result, cmpTempRegister);
+    masm.movl(zero, cmpTemp2Register);
     if (!bailoutIf(Assembler::Signed, ins->snapshot()))
         return false;
 
