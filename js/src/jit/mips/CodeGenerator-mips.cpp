@@ -1376,7 +1376,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
 
         // Input is non-negative, so truncation correctly rounds.
         masm.cvttsd2si(input, output);
-        masm.cmp32(output, Imm32(INT_MIN));
+        masm.cmp32(output, Imm32(0x7fffffff)); //by wangqing, 2013-11-19
         if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
@@ -1390,7 +1390,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
             // Truncate and round toward zero.
             // This is off-by-one for everything but integer-valued inputs.
             masm.cvttsd2si(input, output);
-            masm.cmp32(output, Imm32(INT_MIN));
+            masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
             if (!bailoutIf(Assembler::Equal, lir->snapshot()))
                 return false;
 

@@ -2666,20 +2666,10 @@ class Assembler
      //   JS_ASSERT(HasSSE2());
     //    masm.movmskpd_rr(src.code(), dest.code());
         // by wangqing. fix me
-        //JS_ASSERT(0);
+        JS_ASSERT(0);
 //        dmfc1(dest, src);
 //        dsrl32(dest, dest, ImmWord(0x1f));
     }
-// NOT OK! This is about double compare. --QuQiuwen 
-    void ucomisd(const FloatRegister &lhs, const FloatRegister &rhs) {
-     //   JS_ASSERT(HasSSE2());
-   //     masm.ucomisd_rr(rhs.code(), lhs.code());
-   	 ASSERT(0);
-     //mcss.moveDouble(lhs.code(), fpTempRegister.code());
-     //mcss.moveDouble(rhs.code(), fpTemp2Register.code());
-    }
-//wangce
-   
     void movd(const Register &src, const FloatRegister &dest) {
 //ok        masm.movd_rr(src.code(), dest.code());
         mcss.convertInt32ToDouble(src.code(),dest.code());
