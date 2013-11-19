@@ -985,10 +985,6 @@ class MacroAssemblerMIPS : public Assembler
 
     void compareDouble(DoubleCondition cond, const FloatRegister &lhs, const FloatRegister &rhs) {
 		ASSERT(0);//by weizhenwei, 2013.11.05
-        if (cond & DoubleConditionBitInvert)
-            ucomisd(rhs, lhs);
-        else
-            ucomisd(lhs, rhs);
     }
     //It is different with x86!
     void branchDouble(DoubleCondition cond, const FloatRegister &lhs,

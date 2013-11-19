@@ -507,10 +507,10 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
     // Check for zero.
     masm.bind(&equal);
 //    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-	masm.zerod(ScratchFloatReg);
 	//by weizenwei, 2013.11.05
 //    masm.ucomisd(first, ScratchFloatReg);
 //    masm.j(Assembler::NotEqual, &done); // first wasn't 0 or -0, so just return it.
+    masm.zerod(ScratchFloatReg);
     masm.branchDouble(Assembler::DoubleNotEqual,
             first, ScratchFloatReg, &done); // first wasn't 0 or -0, so just return it.
 
@@ -518,7 +518,6 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
     if (ins->mir()->isMax())
         masm.addsd(second, first); // -0 + -0 = -0 and -0 + 0 = 0.
     else
-        //TODO:maybe problems here, weizhenwei
         masm.orpd(second, first); // This just ors the sign bit.
     masm.jmp(&done);
 
@@ -538,14 +537,13 @@ CodeGeneratorMIPS::visitAbsD(LAbsD *ins)
 {
     FloatRegister input = ToFloatRegister(ins->input());
     JS_ASSERT(input == ToFloatRegister(ins->output()));
-/*    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
+    //masm.xorpd(ScratchFloatReg, ScratchFloatReg);
     //by weizhenwei, 2013.11.08
-    masm.zerod(ScratchFloatReg);
-    masm.subsd(input, ScratchFloatReg); // negate the sign bit.
-    masm.andpd(ScratchFloatReg, input); // s & ~s
-  */
-  masm.absd(input, input);
-  return true;
+//    masm.zerod(ScratchFloatReg);
+//    masm.subsd(input, ScratchFloatReg); // negate the sign bit.
+//    masm.andpd(ScratchFloatReg, input); // s & ~s
+	masm.absd(input, input);
+    return true;
 }
 
 bool
@@ -840,6 +838,9 @@ CodeGeneratorMIPS::visitMulNegativeZeroCheck(MulNegativeZeroCheck *ool)
     // Result is -0 if lhs or rhs is negative.
     masm.movl(lhsCopy, result);
     masm.orl(rhs, result);
+	// by wangqing, 2013-11-19
+    masm.movl(result, cmpTempRegister);
+    masm.movl(zero, cmpTemp2Register);
     if (!bailoutIf(Assembler::Signed, ins->snapshot()))
         return false;
 
@@ -1374,7 +1375,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
 
         // Input is non-negative, so truncation correctly rounds.
         masm.cvttsd2si(input, output);
-        masm.cmp32(output, Imm32(INT_MIN));
+        masm.cmp32(output, Imm32(0x7fffffff)); //by wangqing, 2013-11-19
         if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
@@ -1388,7 +1389,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
             // Truncate and round toward zero.
             // This is off-by-one for everything but integer-valued inputs.
             masm.cvttsd2si(input, output);
-            masm.cmp32(output, Imm32(INT_MIN));
+            masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
             if (!bailoutIf(Assembler::Equal, lir->snapshot()))
                 return false;
 
@@ -1437,7 +1438,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     masm.addsd(input, temp);
 
     masm.cvttsd2si(temp, output);
-    masm.cmp32(output, Imm32(INT_MIN));
+    masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
     if (!bailoutIf(Assembler::Equal, lir->snapshot()))
         return false;
 
@@ -1455,7 +1456,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
             // Truncate and round toward zero.
             // This is off-by-one for everything but integer-valued inputs.
             masm.cvttsd2si(temp, output);
-            masm.cmp32(output, Imm32(INT_MIN));
+            masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
             if (!bailoutIf(Assembler::Equal, lir->snapshot()))
                 return false;
 
@@ -1473,6 +1474,10 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
 
         masm.bind(&testZero);
         if (!bailoutIf(Assembler::Zero, lir->snapshot()))
+            return false;
+
+        //add NaN check and Bailout, by weizhenwei, 2013.11.19
+        if (!bailoutIf(Assembler::Parity, lir->snapshot()))
             return false;
 
     masm.bind(&end);

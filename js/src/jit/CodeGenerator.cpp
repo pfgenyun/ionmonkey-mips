@@ -3342,11 +3342,20 @@ CodeGenerator::visitAbsI(LAbsI *ins)
     JS_ASSERT(input == ToRegister(ins->output()));
     masm.test32(input, input);
     masm.j(Assembler::GreaterThanOrEqual, &positive);
+// by wangqing, 2013-11-19
+// for neg32 only INT_MIN will overflow
+#ifdef JS_CPU_MIPS
+	masm.movl(input, cmpTempRegister);
+	masm.movl(Imm32(0x80000000), cmpTemp2Register);
+#endif
     masm.neg32(input);
+#ifdef JS_CPU_MIPS
+    if (ins->snapshot() && !bailoutIf(Assembler::Equal, ins->snapshot()))
+#else
     if (ins->snapshot() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
+#endif
         return false;
     masm.bind(&positive);
-
     return true;
 }
 
