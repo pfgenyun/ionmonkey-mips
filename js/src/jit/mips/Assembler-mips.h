@@ -2777,7 +2777,13 @@ class Assembler
     zerod(src);
     }
     void orpd(const FloatRegister &src, const FloatRegister &dest) {
-        ASSERT(0);
+        //ASSERT(0);
+        //only used at on place, CodeGenerator-mips.cpp:visitMinMaxD()
+        //by weizhenwei, 2013.11.19
+        mfc1(cmpTempRegister, js::jit::FloatRegister::FromCode(src.code() + 1));
+        mfc1(cmpTemp2Register, js::jit::FloatRegister::FromCode(dest.code() + 1));
+        orl(cmpTempRegister, cmpTemp2Register);
+        mtc1(cmpTemp2Register, js::jit::FloatRegister::FromCode(dest.code() + 1));
     /*    JS_ASSERT(HasSSE2());
         masm.orpd_rr(src.code(), dest.code());*/
          
