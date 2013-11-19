@@ -1439,7 +1439,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     masm.addsd(input, temp);
 
     masm.cvttsd2si(temp, output);
-    masm.cmp32(output, Imm32(INT_MIN));
+    masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
     if (!bailoutIf(Assembler::Equal, lir->snapshot()))
         return false;
 
@@ -1457,7 +1457,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
             // Truncate and round toward zero.
             // This is off-by-one for everything but integer-valued inputs.
             masm.cvttsd2si(temp, output);
-            masm.cmp32(output, Imm32(INT_MIN));
+            masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
             if (!bailoutIf(Assembler::Equal, lir->snapshot()))
                 return false;
 
