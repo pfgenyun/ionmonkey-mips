@@ -272,6 +272,6 @@ class BaselineCompiler : public BaselineCompilerSpecific
 } // namespace jit
 } // namespace js
 
-#endif // JS_ION
+#endif // JS_JIT
 
 #endif /* jit_BaselineCompiler_h */
