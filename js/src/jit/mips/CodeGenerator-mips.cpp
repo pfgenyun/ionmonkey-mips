@@ -1476,7 +1476,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
         if (!bailoutIf(Assembler::Zero, lir->snapshot()))
             return false;
 
-        //add NaN check, by weizhenwei, 2013.11.19
+        //add NaN check and Bailout, by weizhenwei, 2013.11.19
         if (!bailoutIf(Assembler::Parity, lir->snapshot()))
             return false;
 
