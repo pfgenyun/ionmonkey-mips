@@ -113,7 +113,11 @@ CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
     } else if (ifNaN == Assembler::NaN_IsTrue) {
         //masm.j(Assembler::Parity, ifTrue->label());
         masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifTrue->label());
+    } else {
+        //check NaN, add by weizhenwei, 2013.11.19
+        masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifFalse->label());
     }
+
 
     if (isNextBlock(ifFalse)) {
         //masm.j(cond, ifTrue->label());
