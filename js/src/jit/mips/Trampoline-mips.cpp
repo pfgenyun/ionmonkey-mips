@@ -38,9 +38,6 @@ enum EnterJitEbpArgumentOffset {
  * Generates a trampoline for a C++ function with the EnterIonCode signature,
  * using the standard cdecl calling convention.
  */
-//NOTE:This funtion is update in ff24; MUST BE UPDATE!
-//IonCode *
-//IonRuntime::generateEnterJIT(JSContext *cx)
 IonCode *
 IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
@@ -84,7 +81,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     masm.movl(sp, s0);
 
-    // eax <- 8*argc, eax is now the offset betwen argv and the last
     masm.movl(Operand(fp, ARG_ARGC), t6);
     masm.shll(Imm32(3), t6);
 
@@ -98,7 +94,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.subl(t6, t8);
     masm.subl(Imm32(12), t8);
 
-    // ecx = ecx & 15, holds alignment.
     masm.andl(Imm32(15), t8);
     masm.subl(t8, sp);
 
@@ -106,13 +101,8 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     Loop over argv vector, push arguments onto stack in reverse order
     ***************************************************************/
 
-    // ebx = argv   --argv pointer is in ebp + 16
     masm.movl(Operand(fp, ARG_ARGV), s1);
-
-    // eax = argv[8(argc)]  --eax now points one value past the last argument
     masm.addl(s1, t6);
-
-    // while (eax > ebx)  --while still looping through arguments
     {
         Label header, footer;
         masm.bind(&header);
@@ -120,7 +110,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.cmpl(t6, s1);
         masm.j(Assembler::BelowOrEqual, &footer);
 
-        // eax -= 8  --move to previous argument
         masm.subl(Imm32(8), t6);
 
         // Push what eax points to on stack, a Value is 2 words
@@ -161,8 +150,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         GeneralRegisterSet regs(GeneralRegisterSet::All());
         regs.take(JSReturnOperand);
         regs.takeUnchecked(OsrFrameReg);
-        //regs.take(fp);        //hwj date:1030
-        //regs.take(ReturnReg); //hwj date:1030
 
         Register scratch = regs.takeAny();
 
@@ -236,7 +223,7 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         fill in the passed in return value pointer
     ***************************************************************/
     //hwj
-    masm.call(Operand(fp, ARG_JITCODE));//ok
+    masm.call(Operand(fp, ARG_JITCODE));
     //hwj
     if (type == EnterJitBaseline) {
         // Baseline OSR will return here.
@@ -246,19 +233,10 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     }
     
     // Pop arguments off the stack.
-    // eax <- 8*argc (size of all arguments we pushed on the stack)
     masm.pop(t6);
     masm.shrl(Imm32(FRAMESIZE_SHIFT), t6); // Unmark EntryFrame.
     masm.addl(t6, sp);
 
-    // |ebp| could have been clobbered by the inner function.
-    // Grab the address for the Value result from the argument stack.
-    //  +18 ... arguments ...
-    //  +14 <return>
-    //  +10 ebp <- original %ebp pointing here.
-    //  +8  ebx
-    //  +4  esi
-    //  +0  edi
     // 19 regs saved on mips
     masm.movl(Operand(sp, ARG_RESULT + 17 * sizeof(void *)), t6);
     masm.storeValue(JSReturnOperand, Operand(t6, 0));
@@ -307,7 +285,6 @@ IonRuntime::generateInvalidator(JSContext *cx)
     // - Now that the frame has been bailed out, convert the invalidated frame into an exit frame.
     // - Do the normal check-return-code-and-thunk-to-the-interpreter dance.
 
-//	masm.breakpoint();
     masm.addl(Imm32(sizeof(uintptr_t)), sp);
 
     masm.reserveStack(Registers::Total * sizeof(void *));
@@ -329,7 +306,6 @@ IonRuntime::generateInvalidator(JSContext *cx)
     masm.reserveStack(sizeof(void *));
     masm.movl(sp, t8);
     
-    //hwj difference x86
     masm.setupUnalignedABICall(3, t7);
     masm.passABIArg(t6);
     masm.passABIArg(s1);
@@ -343,19 +319,15 @@ IonRuntime::generateInvalidator(JSContext *cx)
     // Pop the machine state and the dead frame.
     masm.lea(Operand(sp, s1, TimesOne, sizeof(InvalidationBailoutStack)), sp);//caution FloatRegisters::Total
 
-    //NOTE: This is different in ff24
     //hwj: position difference
-    //masm.generateBailoutTail(edx, ecx); //x86
     masm.generateBailoutTail(t7,t8);
 
     Linker linker(masm);
     IonCode *code = linker.newCode(cx, JSC::OTHER_CODE);
-    //IonCode *code = linker.newCode(cx);
     IonSpew(IonSpew_Invalidate, "   invalidation thunk created at %p", (void *) code->raw());
     return code;
 }
 
-//NOTE:This funtion is update in ff24; MUST BE UPDATE!
 //IonCode *
 //IonRuntime::generateArgumentsRectifier(JSContext *cx)
 IonCode *
@@ -381,9 +353,9 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     // NOTE: The fact that x86 ArgumentsRectifier saves the FramePointer is relied upon
     // by the baseline bailout code.  If this changes, fix that code!  See
     // BaselineJIT.cpp/BaselineStackBuilder::calculatePrevFramePtr, and
-    // BaselineJIT.cpp/InitFromBailout.  Check for the |#if defined(JS_CPU_X86)| portions.
+    // BaselineJIT.cpp/InitFromBailout. 
     masm.push(FramePointer);
-    masm.movl(sp, FramePointer); // Save %esp.
+    masm.movl(sp, FramePointer); 
 
     // Push undefined.
     {
@@ -761,9 +733,9 @@ IonRuntime::generateDebugTrapHandler(JSContext *cx)
 {
     MacroAssembler masm;
 
-    Register scratch1 = t6/*eax*/;
-    Register scratch2 = t8/*ecx*/;
-    Register scratch3 = t7/*edx*/;
+    Register scratch1 = t6;
+    Register scratch2 = t8;
+    Register scratch3 = t7;
 
     // Load the return address in scratch1.
     masm.loadPtr(Address(sp, 0), scratch1);

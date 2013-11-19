@@ -535,4 +535,4 @@ class InvalidationBailoutStack
 }
 }
 
-#endif /* jit_shared_IonFrames_mips_shared_h */
+#endif /* jit_mips_IonFrames_mips_h */

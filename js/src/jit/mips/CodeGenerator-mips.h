@@ -133,7 +133,6 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     bool visitOutOfLineTableSwitch(OutOfLineTableSwitch *ool);
     bool generateInvalidateEpilogue();
 
-//following is copy from CodeGenerator-x86.h
 protected:
     ValueOperand ToValue(LInstruction *ins, size_t pos);
     ValueOperand ToOutValue(LInstruction *ins);

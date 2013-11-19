@@ -183,8 +183,6 @@ class LModI : public LBinaryMath<1>
     }
 };
 
-// This class performs a simple x86 'div', yielding either a quotient or remainder depending on
-// whether this instruction is defined to output eax (quotient) or edx (remainder).
 class LAsmJSDivOrMod : public LBinaryMath<1>
 {
   public:
@@ -369,6 +367,6 @@ class LMulI : public LBinaryMath<0, 1>
 } // namespace jit
 } // namespace js
 
-#endif // jsjit_lir_mips_h__
+#endif // js_jit_lir_mips_h__
 
 

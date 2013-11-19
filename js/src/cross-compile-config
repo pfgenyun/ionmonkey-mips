@@ -1,3 +1,3 @@
 if cross compile js on x86, use following option.
 configure-option:
---without-query-cache --host=x86_64-linux-gnu --target=mips64el-unknown-linux-gnu
+--without-query-cache --host=x86_64-linux-gnu --target=mips64el-unknown-linux-gnu --enable-debug --disable-optimize

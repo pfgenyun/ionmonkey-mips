@@ -75,7 +75,6 @@ ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 }
 
 // ICBinaryArith_Int32
-
 bool
 ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
@@ -145,12 +144,10 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // Prevent negative 0 and -2147483648 / -1.
         masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
 
-        // Preserve R0.payloadReg()/edx, eax is JSVAL_TYPE_INT32.
-        
-	masm.div(R0.payloadReg(), R1.payloadReg());
+        // Preserve R0.payloadReg()
+		masm.div(R0.payloadReg(), R1.payloadReg());
 
         // A remainder implies a double result.
-        //masm.branchTest32(Assembler::NonZero, edx, edx, &revertRegister);
         //by weizhenwei, 2013.11.02
         masm.mfhi(cmpTempRegister);
         masm.movl(zero, cmpTemp2Register);
@@ -171,7 +168,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
         // Fail when we would need a negative remainder.
         Label done;
-        //masm.branchTest32(Assembler::NonZero, edx, edx, &done);
         masm.mfhi(cmpTempRegister);
         masm.movl(zero, cmpTemp2Register);
         masm.j(Assembler::NotEqual, &done);
@@ -242,7 +238,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
        JS_NOT_REACHED("Unhandled op for BinaryArith_Int32.  ");
        return false;
     }
-//#endif
 
     // Return.
     EmitReturnFromIC(masm);

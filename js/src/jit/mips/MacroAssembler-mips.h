@@ -79,10 +79,6 @@ class MacroAssemblerMIPS : public Assembler
         return Assembler::oom() || !enoughMemory_;
     }
 
-    /////////////////////////////////////////////////////////////////
-    // X86-specific interface.
-    /////////////////////////////////////////////////////////////////
-
     Operand ToPayload(Operand base) {
         return base;
     }
@@ -119,9 +115,6 @@ class MacroAssemblerMIPS : public Assembler
             movl(src.payloadReg(), dest.payloadReg());
     }
 
-    /////////////////////////////////////////////////////////////////
-    // X86/X64-common interface.
-    /////////////////////////////////////////////////////////////////
     void storeValue(ValueOperand val, Operand dest) {
         movl(val.payloadReg(), ToPayload(dest));
         movl(val.typeReg(), ToType(dest));
@@ -447,9 +440,6 @@ class MacroAssemblerMIPS : public Assembler
 
     Condition testNegativeZero(const FloatRegister &reg, const Register &scratch);
 
-    /////////////////////////////////////////////////////////////////
-    // Common interface.
-    /////////////////////////////////////////////////////////////////
     void reserveStack(uint32_t amount) {
         if (amount)
             subl(Imm32(amount), StackPointer);
@@ -673,7 +663,6 @@ class MacroAssemblerMIPS : public Assembler
             branch32(NotEqual, val.payloadReg(), Imm32(static_cast<int32_t>(why)), label);
         }
     }
-    //It is different with x86!
     // Note: this function clobbers the source register.
     void boxDouble(const FloatRegister &src, const ValueOperand &dest) {
         fastStoreDouble(src, dest.payloadReg(), dest.typeReg());
@@ -698,12 +687,10 @@ class MacroAssemblerMIPS : public Assembler
     void unboxBoolean(const Address &src, const Register &dest) {
         movl(payloadOf(src), dest);
     }
-    //It is different with x86!
     void unboxDouble(const ValueOperand &src, const FloatRegister &dest) {
         JS_ASSERT(dest != ScratchFloatReg);
         fastLoadDouble(src.payloadReg(), src.typeReg(), dest);
     }
-    //It is different with x86!
     //xsb:fixme
     void unboxDouble(const Operand &payload, const Operand &type,
                      const Register &scratch, const FloatRegister &dest) {
@@ -770,8 +757,7 @@ class MacroAssemblerMIPS : public Assembler
         movsd(dp, dest);
     }
 
-    //It is different with x86!
-//xsb:fixme
+	//xsb:fixme
     void branchTruncateDouble(const FloatRegister &src, const Register &dest, Label *fail) {
         cvttsd2si(src, dest);
         cmpl(dest, Imm32(0x7fffffff));
@@ -944,20 +930,16 @@ class MacroAssemblerMIPS : public Assembler
         movl(StackPointer, Operand(pt, offsetof(PerThreadData, ionTop)));
     }
 
-    //It is different with x86!
     void enterOsr(Register calleeToken, Register code) {
         push(Imm32(0)); // num actual args.
         push(calleeToken);
         push(Imm32(MakeFrameDescriptor(0, IonFrame_Osr)));
-//ok    //arm : ma_callIonHalfPush
-//ok    call(code);
         ma_callIonHalfPush(code);
         #if ! defined (JS_CPU_MIPS)
         addl(Imm32(sizeof(uintptr_t) * 2), sp);
         #endif
     }
 
-    // See CodeGeneratorX86 calls to noteAsmJSGlobalAccess.
     void patchAsmJSGlobalAccess(unsigned offset, uint8_t *code, unsigned codeBytes,
                                 unsigned globalDataOffset)
     {
@@ -967,7 +949,7 @@ class MacroAssemblerMIPS : public Assembler
         ((int32_t *)nextInsn)[-1] = uintptr_t(target);
     }
 
-  protected://x86
+  protected:
     // Bytes pushed onto the frame by the callee; includes frameDepth_. This is
     // needed to compute offsets to stack slots while temporary space has been
     // reserved for unexpected spills or C++ function calls. It is maintained
@@ -975,7 +957,7 @@ class MacroAssemblerMIPS : public Assembler
     // use StudlyCaps (for example, Push, Pop).
     uint32_t framePushed_;
 
-  public://x86
+  public:
     MacroAssemblerMIPS()
       : inCall_(false),
         framePushed_(0),
@@ -986,7 +968,7 @@ class MacroAssemblerMIPS : public Assembler
     void compareDouble(DoubleCondition cond, const FloatRegister &lhs, const FloatRegister &rhs) {
 		ASSERT(0);//by weizhenwei, 2013.11.05
     }
-    //It is different with x86!
+
     void branchDouble(DoubleCondition cond, const FloatRegister &lhs,
                       const FloatRegister &rhs, Label *label)
     {
@@ -1009,8 +991,6 @@ class MacroAssemblerMIPS : public Assembler
             JmpSrc prev = JmpSrc(label->use(j.offset()));
             masm.setNextJump(j, prev);
         }
-
-    //    return j;
     }
 
     void move32(const Imm32 &imm, const Register &dest) {
@@ -1019,12 +999,15 @@ class MacroAssemblerMIPS : public Assembler
         else
             movl(imm, dest);
     }
+
     void move32(const Imm32 &imm, const Operand &dest) {
         movl(imm, dest);
     }
+
     void and32(const Imm32 &imm, const Register &dest) {
         andl(imm, dest);
     }
+
     void and32(const Imm32 &imm, const Address &dest) {
         andl(imm, Operand(dest));
     }
@@ -1158,9 +1141,7 @@ class MacroAssemblerMIPS : public Assembler
         cvtsi2sd(Operand(src), dest);
     }
     Condition testDoubleTruthy(bool truthy, const FloatRegister &reg) {
-//        xorpd(ScratchFloatReg, ScratchFloatReg);
-//        ucomisd(ScratchFloatReg, reg);
-		  zerod(ScratchFloatReg);
+		zerod(ScratchFloatReg);
         return truthy ? NonZero : Zero;
     }
     void load8ZeroExtend(const Address &src, const Register &dest) {
@@ -1226,11 +1207,9 @@ class MacroAssemblerMIPS : public Assembler
     void storeDouble(FloatRegister src, const Operand &dest) {
         movsd(src, dest);
     }
-    //It is different with x86!
     void zeroDouble(FloatRegister reg) {
         zerod(reg);
     }
-    //It is different with x86!
     //xsb:fixme 
 	// by wangqing ,2013-11-06 make the FLoatRegister negated.
     void negateDouble(FloatRegister reg) {
@@ -1252,21 +1231,16 @@ class MacroAssemblerMIPS : public Assembler
         cvtsd2ss(src, dest);
     }
     void loadFloatAsDouble(const Register &src, FloatRegister dest) {
-//        movd(src, dest);
 		movss(src, dest);  // by wangqing, 2013-11-08
-//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const Address &src, FloatRegister dest) {
         movss(Operand(src), dest);
-//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
         movss(Operand(src), dest);
-//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const Operand &src, FloatRegister dest) {
         movss(src, dest);
-//        cvtss2sd(dest, dest);
     }
     void storeFloat(FloatRegister src, const Address &dest) {
         movss(src, Operand(dest));
@@ -1284,9 +1258,6 @@ class MacroAssemblerMIPS : public Assembler
         cvttsd2si(src, dest);
         cvtsi2sd(dest, ScratchFloatReg);
 		//by weizhenwei, 2013.11.05
-//        ucomisd(src, ScratchFloatReg);
-//        j(Assembler::Parity, fail);
-//        j(Assembler::NotEqual, fail);
 		branchDouble(Assembler::DoubleUnordered, src, ScratchFloatReg, fail);
 		branchDouble(Assembler::DoubleNotEqual, src, ScratchFloatReg, fail);
 
@@ -1339,25 +1310,13 @@ class MacroAssemblerMIPS : public Assembler
         // up to two shifts.
 
         if (u == 0) {
-            xorpd(dest, dest);
-            return true;
-        }
-
-        int tz = js_bitscan_ctz64(u);
-        int lz = js_bitscan_clz64(u);
-        if (u == (~uint64_t(0) << (lz + tz) >> lz)) {
-            pcmpeqw(dest, dest);
-            if (tz != 0)
-                psllq(Imm32(lz + tz), dest);
-            if (lz != 0)
-                psrlq(Imm32(lz), dest);
+			zerod(dest);
             return true;
         }
 
         return false;
     }
 
-    //It is different with x86!
     void emitSet(Assembler::Condition cond, const Register &dest,
                  Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond) {
         if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
@@ -1439,7 +1398,7 @@ class MacroAssemblerMIPS : public Assembler
         Push(Imm32(descriptor));
         call(target);
     }
-    //It is different with x86!
+
     void callIon(const Register &callee){
          ma_callIonHalfPush(callee);
     }
@@ -1459,9 +1418,9 @@ class MacroAssemblerMIPS : public Assembler
 
 typedef MacroAssemblerMIPS MacroAssemblerSpecific;
 
-} // namespace ion
+} // namespace jit
 } // namespace js
 
-#endif // jsion_macro_assembler_x86_h__
+#endif // js_jit_macro_assembler_mips_h__
 
 

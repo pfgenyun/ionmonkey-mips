@@ -40,8 +40,6 @@ MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
             return;
     }
     Double &dbl = doubles_[doubleIndex];
-    //This is different with x86! 
-    //mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
     //dbl.uses.setPrev(masm.size());
 	//hwj date:1106
 	mov(&(dbl.uses), addrTempRegister);
@@ -80,9 +78,7 @@ MacroAssemblerMIPS::setupABICall(uint32_t args)
         passedArgsBits_[i] = 0;
     }
 
-    //This is different with x86! 
     stackForCall_ = 16;
-//    subl(Imm32(16), sp);
 }
 
 void
@@ -103,7 +99,6 @@ MacroAssemblerMIPS::setupUnalignedABICall(uint32_t args, const Register &scratch
     push(scratch);
 }
 
-//This is different with x86! 
 //by weizhenwei, 2013.11.08
 void MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
 {
@@ -184,9 +179,6 @@ void MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
                             enoughMemory_ &= moveResolver_.addMove(from, to, Move::DOUBLE);
                         } else if ( passedArgsBits_[1] == 2) { //second is int, 
                             //third is on ($6, $7)
-                            //TODO
-                            //passedArgsfake_++; //for align reason
-                            //JS_ASSERT(0);
                             JS_ASSERT(from.isFloatReg());
                             FloatRegister temp1 = from.floatReg();
                             FloatRegister temp2 = js::jit::FloatRegister::FromCode(temp1.code() + 1);
@@ -307,10 +299,8 @@ MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
 
 #ifdef DEBUG
     {
-       // breakpoint();//hwj
         // Check call alignment.
         Label good;
-        /* by wangqing esp-->sp */
         testl(sp, Imm32(StackAlignment - 1));
         j(Equal, &good);
         breakpoint();
@@ -334,14 +324,12 @@ MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
     inCall_ = false;
 }
 
-//This is different with x86! 
 void
 MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     ma_call(ImmWord(fun));//1031
-    //pop(ra);
 	callWithABIPost(stackAdjust, result);
 }
 void
@@ -350,7 +338,6 @@ MacroAssemblerMIPS::callWithABI(const Address &fun, Result result)
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     ma_call(Operand(fun));//1031
-	//pop(ra);
     callWithABIPost(stackAdjust, result);
 }
 
@@ -370,7 +357,6 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     Label catch_;
     Label finally;
     Label return_;
-	//breakpoint();//hwj
     loadPtr(Address(sp, offsetof(ResumeFromException, kind)), t6);
     branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
     branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
@@ -388,7 +374,6 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
 
     // If we found a catch handler, this must be a baseline frame. Restore state
     // and jump to the catch block.
-	//breakpoint();//hwj
 	bind(&catch_);
     movl(Operand(sp, offsetof(ResumeFromException, target)), t6);
     movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
