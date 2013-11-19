@@ -507,10 +507,10 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
     // Check for zero.
     masm.bind(&equal);
 //    masm.xorpd(ScratchFloatReg, ScratchFloatReg);
-	masm.zerod(ScratchFloatReg);
 	//by weizenwei, 2013.11.05
 //    masm.ucomisd(first, ScratchFloatReg);
 //    masm.j(Assembler::NotEqual, &done); // first wasn't 0 or -0, so just return it.
+    masm.zerod(ScratchFloatReg);
     masm.branchDouble(Assembler::DoubleNotEqual,
             first, ScratchFloatReg, &done); // first wasn't 0 or -0, so just return it.
 
@@ -518,7 +518,6 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
     if (ins->mir()->isMax())
         masm.addsd(second, first); // -0 + -0 = -0 and -0 + 0 = 0.
     else
-        //TODO:maybe problems here, weizhenwei
         masm.orpd(second, first); // This just ors the sign bit.
     masm.jmp(&done);
 
