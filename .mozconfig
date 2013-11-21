@@ -1,0 +1,18 @@
+ac_add_options --enable-application=browser
+ac_add_options --prefix=/opt/firefox24
+ac_add_options --disable-webrtc
+ac_add_options --disable-tests
+ac_add_options --with-pthreads
+ac_add_options --disable-updater
+ac_add_options --enable-optimize=-O3
+ac_add_options --with-arch=mips3
+ac_add_options --with-mips-abi=32
+ac_add_options --disable-debug
+ac_add_options --target=mipsel-unknown-linux-gnu
+ac_add_options --host=mipsel-unknown-linux-gnu
+ac_add_options --build=mipsel-unknown-linux-gnu
+
+export LDFLAGS="-Wl,--no-keep-memory"
+
+
+

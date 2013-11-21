@@ -135,7 +135,8 @@ endif
 ifeq ($(OS_ARCH),Linux)
 ifneq (,$(findstring mips, $(OS_TEST)))
 ifneq (,$(findstring mips64, $(OS_TEST)))
-ASFILES		:= xptcinvoke_asm_mips64.s xptcstubs_asm_mips64.s
+#ASFILES		:= xptcinvoke_asm_mips64.s xptcstubs_asm_mips64.s
+ASFILES		:= xptcinvoke_asm_mips.s xptcstubs_asm_mips.s
 else
 ASFILES		:= xptcinvoke_asm_mips.s xptcstubs_asm_mips.s
 endif

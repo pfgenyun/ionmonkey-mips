@@ -163,8 +163,10 @@ if CONFIG['OS_ARCH'] == 'Linux':
     if CONFIG['OS_TEST'].find('mips') != -1:
         if CONFIG['OS_TEST'].find('mips64') != -1:
             CPP_SOURCES += [
-                'xptcinvoke_mips64.cpp',
-                'xptcstubs_mips64.cpp',
+                'xptcinvoke_mips.cpp',
+                'xptcstubs_mips.cpp',
+             #   'xptcinvoke_mips64.cpp',
+             #   'xptcstubs_mips64.cpp',
             ]
         else:
             CPP_SOURCES += [
