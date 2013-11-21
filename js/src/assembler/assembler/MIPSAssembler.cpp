@@ -1,4 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+
  * vim: set ts=8 sw=4 et tw=79:
  *
  * ***** BEGIN LICENSE BLOCK *****
@@ -69,6 +70,21 @@ namespace JSC {
         return true;
     }
 
+	// by wangqing, 2013-11-20
+    bool MIPSAssembler::nextBranch(const JmpSrc& from, JmpSrc* next)
+    {
+        if (oom())
+               return false;
+        char* code = reinterpret_cast<char*>(m_buffer.data());
+        int32_t branchInsn = getInt32(code + from.m_offset);
+		int32_t offset = (branchInsn << 16) >> 16; 
+
+        if (offset == -1)
+            return false;
+        *next = JmpSrc(from.m_offset + 4 + (offset << 2));
+        return true;
+    }
+
     //hwj
     void MIPSAssembler::setNextJump(const JmpSrc& from, const JmpSrc &to)
     {
@@ -79,7 +95,7 @@ namespace JSC {
         char* code = reinterpret_cast<char*>(m_buffer.data());
         setInt32(code + from.m_offset-4, to.m_offset);
     }
-    
+
     //hwj:set nop
     void MIPSAssembler::clearOffsetForLabel(const JmpSrc& from)
     {
@@ -98,6 +114,18 @@ namespace JSC {
         insn = insn - 6;
         linkWithOffset(insn, toPos);
     }
+	
+	// by wangqing, 2013-11-20
+    void MIPSAssembler::linkBranch(JmpSrc from, JmpDst to)
+    {
+        ASSERT(to.m_offset != -1);
+        ASSERT(from.m_offset != -1);
+        MIPSWord* insn = reinterpret_cast<MIPSWord*>(reinterpret_cast<intptr_t>(m_buffer.data()) + from.m_offset);
+		
+		int32_t offset = (to.m_offset - (from.m_offset + 4)) >> 2;
+		*insn = (*insn & 0xffff0000) | (offset & 0x0000ffff);
+    }
+
     //hwj
     void MIPSAssembler::linkJump(void* code, JmpSrc from, void* to)
     {

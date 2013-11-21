@@ -538,9 +538,21 @@ public:
         emitInst(0x04010000 | (rs << OP_SH_RS) | (imm & 0xffff));
     }
 
+	// by wangqing, 2013-11-21
+	void bgtz(RegisterID rs, int imm)
+    {
+        emitInst(0x1c000000 | (rs << OP_SH_RS) | (imm & 0xffff));
+    }
+
     void bltz(RegisterID rs, int imm)
     {
         emitInst(0x04000000 | (rs << OP_SH_RS) | (imm & 0xffff));
+    }
+
+	// by wangqing, 2013-11-21
+	void blez(RegisterID rs, int imm)
+    {
+        emitInst(0x18000000 | (rs << OP_SH_RS) | (imm & 0xffff));
     }
 
     void beq(RegisterID rs, RegisterID rt, int imm)
@@ -886,6 +898,9 @@ public:
     // the head of the jump list) is bound.
     bool nextJump(const JmpSrc& from, JmpSrc* next);
 
+	// by wangqing, 2013-11-21
+	bool nextBranch(const JmpSrc& from, JmpSrc* next);
+
     void setNextJump(const JmpSrc& from, const JmpSrc &to);
 
     //hwj
@@ -903,6 +918,9 @@ public:
     }
 
     void linkJump(JmpSrc from, JmpDst to);
+
+	// by wangqing, 2013-11-21
+	void linkBranch(JmpSrc from, JmpDst to);
 
     static void linkJump(void* code, JmpSrc from, void* to);
 

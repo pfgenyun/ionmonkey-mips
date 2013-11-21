@@ -1655,9 +1655,9 @@ class Assembler
         }
         return j;
     }
+	
     //hwj
     JmpSrc jmpSrc(Label *label) {
-        //JmpSrc j = masm.jmp();
         JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -1682,7 +1682,6 @@ class Assembler
     }
     //hwj
     JmpSrc jmpSrc(RepatchLabel *label) {
-        //JmpSrc j = masm.jmp();
         JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -1701,7 +1700,7 @@ class Assembler
     void j(Condition cond, RepatchLabel *label) { jSrc(cond, label); }
     void jmp(RepatchLabel *label) { jmpSrc(label); }
 
-   void jmp(const Operand &op){
+   	void jmp(const Operand &op){
         switch (op.kind()) {
           case Operand::REG_DISP:
             mcss.jump(mAddress(op.base(), op.disp()));
@@ -1734,6 +1733,24 @@ class Assembler
         }
         label->bind(dst.offset());
     }
+	
+	// by wangqing, 2013-11-20 
+    void bindBranch(Label *label) {
+        JSC::MacroAssembler::Label jsclabel;
+        JSC::MIPSAssembler::JmpDst dst(masm.label());
+        if (label->used()) {
+            bool more;
+            JSC::MIPSAssembler::JmpSrc jmp(label->offset());
+            do {
+                JSC::MIPSAssembler::JmpSrc next;
+                more = masm.nextBranch(jmp, &next);
+                masm.linkBranch(jmp, dst);
+                jmp = next;
+            } while (more);
+        }
+        label->bind(dst.offset());
+    }
+
     //hwj
     void bind(RepatchLabel *label) {
         JSC::MacroAssembler::Label jsclabel;
@@ -2796,6 +2813,36 @@ class Assembler
         masm.bgez(rs.code(), imm);
     }
 
+	// by wangqing, 2013-11-21
+	void bgtz(const Register &rs, ImmWord imm)
+    {
+		masm.bgtz(rs.code(), imm.value);
+    }
+
+	// by wangqing, 2013-11-21
+	void bgtz(const Register &rs, int32_t imm)
+    {
+		masm.bgtz(rs.code(), imm);
+    }
+
+	// by wangqing, 2013-11-21
+	void blez(const Register &rs, ImmWord imm)
+    {
+		masm.blez(rs.code(), imm.value);
+    }
+
+	// by wangqing, 2013-11-21
+	void blez(const Register &rs, int32_t imm)
+    {
+		masm.blez(rs.code(), imm);
+    }
+
+	// by wangqing, overload bltz, 2013-11-21
+    void bltz(const Register &rs, int32_t imm)
+    {
+        masm.bltz(rs.code(), imm);
+    }
+
     void bltz(const Register &rs, ImmWord imm)
     {
         masm.bltz(rs.code(), imm.value);
@@ -3073,7 +3120,149 @@ class Assembler
     {
         masm.cultd(fs.code(), ft.code());
     }
+	
+	// by wangqing, 2013-11-21
+	void b(Label *label) {
+		beq(zero, zero, label);
+    }
 
+	// by wangqing, 2013-11-20
+	void beq(const Register &left, const Register &right, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			beq(left, right, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				beq(left, right, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				beq(left, right, offset);
+			}
+        }
+    }
+	
+	// by wangqing, 2013-11-20
+	void bne(const Register &left, const Register &right, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bne(left, right, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bne(left, right, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bne(left, right, offset);
+			}
+        }
+    }
+	
+	// by wangqing, 2013-11-20
+	void bgtz(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bgtz(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bgtz(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bgtz(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-20
+	void bgez(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bgez(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bgez(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bgez(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-20
+	void bltz(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bltz(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bltz(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bltz(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-20
+	void blez(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			blez(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				blez(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				blez(left, offset);
+			}
+        }
+    }
 };
 
 // Get a register in which we plan to put a quantity that will be used as an
