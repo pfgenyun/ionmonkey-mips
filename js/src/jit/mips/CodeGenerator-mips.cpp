@@ -832,6 +832,7 @@ CodeGeneratorMIPS::visitDivPowTwoI(LDivPowTwoI *ins)
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitDivI(LDivI *ins)
 {
@@ -854,10 +855,12 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
         if (mir->isTruncated()) {
             // Truncated division by zero is zero (Infinity|0 == 0)
             Label notzero;
-            masm.j(Assembler::NonZero, &notzero);
+            masm.bne(rhs, zero, &notzero);
+			masm.nop();
             masm.xorl(output, output);
-            masm.jmp(&done);
-            masm.bind(&notzero);
+			masm.b(&done);
+			masm.nop();
+            masm.bindBranch(&notzero);
         } else {
             JS_ASSERT(mir->fallible());
             if (!bailoutIf(Assembler::Zero, ins->snapshot()))
@@ -874,7 +877,8 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
         if (mir->isTruncated()) {
             // (-INT32_MIN)|0 == INT32_MIN and INT32_MIN is already in the
             // output register.
-            masm.j(Assembler::Equal, &done);
+            masm.beq(cmpTempRegister, cmpTemp2Register, &done);
+			masm.nop();
         } else {
             JS_ASSERT(mir->fallible());
             if (!bailoutIf(Assembler::Equal, ins->snapshot()))
@@ -904,7 +908,7 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
             return false;
     }
 
-    masm.bind(&done);
+    masm.bindBranch(&done);
 
     return true;
 }
@@ -1799,14 +1803,16 @@ CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
         else
             masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
         masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
-        masm.jump(&done);
+
+		masm.b(&done);
+		masm.nop();
     }
     masm.bind(&notBoolean);
     {
         masm.move32(Imm32(mir->jsop() == JSOP_STRICTNE), output);
     }
 
-    masm.bind(&done);
+    masm.bindBranch(&done);
     return true;
 }
 
