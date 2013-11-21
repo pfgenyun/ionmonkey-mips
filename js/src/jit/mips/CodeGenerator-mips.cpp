@@ -872,7 +872,8 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
     if (mir->canBeNegativeOverflow()) {
         Label notmin;
         masm.cmpl(lhs, Imm32(INT32_MIN));
-        masm.j(Assembler::NotEqual, &notmin);
+		masm.bne(cmpTempRegister, cmpTemp2Register, &notmin);
+		masm.nop();
         masm.cmpl(rhs, Imm32(-1));
         if (mir->isTruncated()) {
             // (-INT32_MIN)|0 == INT32_MIN and INT32_MIN is already in the
@@ -884,18 +885,19 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
             if (!bailoutIf(Assembler::Equal, ins->snapshot()))
                 return false;
         }
-        masm.bind(&notmin);
+        masm.bindBranch(&notmin);
     }
 
     // Handle negative 0.
     if (!mir->isTruncated() && mir->canBeNegativeZero()) {
         Label nonzero;
         masm.testl(lhs, lhs);
-        masm.j(Assembler::NonZero, &nonzero);
+        masm.bne(lhs, zero, &nonzero);
+		masm.nop();
         masm.cmpl(rhs, Imm32(0));
         if (!bailoutIf(Assembler::LessThan, ins->snapshot()))
             return false;
-        masm.bind(&nonzero);
+        masm.bindBranch(&nonzero);
     }
 
     // Sign extend eax into edx to make (edx:eax), since idiv is 64-bit.
@@ -913,6 +915,7 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitModPowTwoI(LModPowTwoI *ins)
 {
@@ -925,7 +928,8 @@ CodeGeneratorMIPS::visitModPowTwoI(LModPowTwoI *ins)
     masm.branchTest32(Assembler::Signed, lhs, lhs, &negative);
     {
         masm.andl(Imm32((1 << shift) - 1), lhs);
-        masm.jump(&done);
+        masm.b(&done);
+		masm.nop();
     }
     // Negative numbers need a negate, bitmask, negate
     {
@@ -938,11 +942,12 @@ CodeGeneratorMIPS::visitModPowTwoI(LModPowTwoI *ins)
         if (!ins->mir()->isTruncated() && !bailoutIf(Assembler::Zero, ins->snapshot()))
             return false;
     }
-    masm.bind(&done);
+    masm.bindBranch(&done);
     return true;
 
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitModI(LModI *ins)
 {
@@ -966,10 +971,12 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
     masm.testl(rhs, rhs);
     if (ins->mir()->isTruncated()) {
         Label notzero;
-        masm.j(Assembler::NonZero, &notzero);
+        masm.bne(rhs, zero, &notzero);
+		masm.nop();
         masm.xorl(t7,t7);
-        masm.jmp(&done);
-        masm.bind(&notzero);
+        masm.b(&done);
+		masm.nop();
+        masm.bindBranch(&notzero);
     } else {
         if (!bailoutIf(Assembler::Zero, ins->snapshot()))
             return false;
@@ -984,7 +991,8 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         // Since lhs >= 0, the sign-extension will be 0
         masm.xorl(t7,t7);
         masm.idiv(rhs);
-        masm.jump(&done);
+        masm.b(&done);
+		masm.nop();
     }
 
     // Otherwise, we have to beware of two special cases:
@@ -994,17 +1002,20 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         // Prevent an integer overflow exception from -2147483648 % -1
         Label notmin;
         masm.cmpl(lhs, Imm32(INT32_MIN));
-        masm.j(Assembler::NotEqual, &notmin);
+        masm.bne(cmpTempRegister, cmpTemp2Register, &notmin);
+		masm.nop();
         masm.cmpl(rhs, Imm32(-1));
         if (ins->mir()->isTruncated()) {
-            masm.j(Assembler::NotEqual, &notmin);
+            masm.bne(cmpTempRegister, cmpTemp2Register, &notmin);
+			masm.nop();
 			masm.xorl(t7,t7);
-            masm.jmp(&done);
+            masm.b(&done);
+			masm.nop();
         } else {
             if (!bailoutIf(Assembler::Equal, ins->snapshot()))
                 return false;
         }
-        masm.bind(&notmin);
+        masm.bindBranch(&notmin);
         masm.idiv(rhs);
 
         if (!ins->mir()->isTruncated()) {
@@ -1015,7 +1026,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         }
     }
 
-    masm.bind(&done);
+    masm.bindBranch(&done);
     return true;
 }
 
@@ -1299,6 +1310,7 @@ CodeGeneratorMIPS::visitMathD(LMathD *math)
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitFloor(LFloor *lir)
 {
@@ -1324,7 +1336,8 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
-        masm.jump(&end);
+        masm.b(&end);
+		masm.nop();
 
         // Input is negative, but isn't -0.
         // Negative values go on a comparatively expensive path, since no
@@ -1348,10 +1361,11 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
             // Cannot overflow: output was already checked against INT_MIN.
         }
 
-        masm.bind(&end);
+        masm.bindBranch(&end);
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitRound(LRound *lir)
 {
@@ -1386,7 +1400,8 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     if (!bailoutIf(Assembler::Equal, lir->snapshot()))
         return false;
 
-    masm.jump(&end);
+    masm.b(&end);
+	masm.nop();
 
 
     // Input is negative, but isn't -0.
@@ -1424,7 +1439,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
         if (!bailoutIf(Assembler::Parity, lir->snapshot()))
             return false;
 
-    masm.bind(&end);
+    masm.bindBranch(&end);
     return true;
 }
 
@@ -1784,6 +1799,7 @@ CodeGeneratorMIPS::visitInterruptCheck(LInterruptCheck *lir)
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
 {
@@ -1838,6 +1854,7 @@ CodeGeneratorMIPS::visitCompareBAndBranch(LCompareBAndBranch *lir)
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
 {
@@ -1851,18 +1868,20 @@ CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
 
     Label notEqual, done;
     masm.cmp32(lhs.typeReg(), rhs.typeReg());
-    masm.j(Assembler::NotEqual, &notEqual);
+    masm.bne(cmpTempRegister, cmpTemp2Register, &notEqual);
+	masm.nop();
     {
         masm.cmp32(lhs.payloadReg(), rhs.payloadReg());
         masm.emitSet(cond, output);
-        masm.jump(&done);
+        masm.b(&done);
+		masm.nop();
     }
-    masm.bind(&notEqual);
+    masm.bindBranch(&notEqual);
     {
         masm.move32(Imm32(cond == Assembler::NotEqual), output);
     }
 
-    masm.bind(&done);
+    masm.bindBranch(&done);
     return true;
 }
 
@@ -2040,6 +2059,7 @@ CodeGeneratorMIPS::storeViewTypeElement(ArrayBufferView::ViewType vt, const LAll
     }
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins)
 {
@@ -2051,20 +2071,23 @@ CodeGeneratorMIPS::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStat
 
     masm.cmpl(ptr, Imm32(mir->length()));
     Label rejoin;
-    masm.j(Assembler::AboveOrEqual, &rejoin);
+	masm.sltu(cmpTempRegister, cmpTempRegister, cmpTemp2Register);
+    masm.blez(cmpTempRegister, &rejoin);
+	masm.nop();
 
     Address dstAddr(ptr, (int32_t) mir->base());
     if (vt == ArrayBufferView::TYPE_FLOAT32) {
         masm.convertDoubleToFloat(ToFloatRegister(value), ScratchFloatReg);
         masm.movssWithPatch(ScratchFloatReg, dstAddr);
-        masm.bind(&rejoin);
+        masm.bindBranch(&rejoin);
         return true;
     }
     storeViewTypeElement(vt, value, dstAddr);
-    masm.bind(&rejoin);
+    masm.bindBranch(&rejoin);
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 {
@@ -2079,7 +2102,9 @@ CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 
     CodeOffsetLabel cmp = masm.cmplWithPatch(ptr, Imm32(0));
     Label rejoin;
-    masm.j(Assembler::AboveOrEqual, &rejoin);
+	masm.sltu(cmpTempRegister, cmpTempRegister, cmpTemp2Register);
+	masm.blez(cmpTempRegister, &rejoin);
+	masm.nop();
 
     Address dstAddr(ptr, 0);
     if (vt == ArrayBufferView::TYPE_FLOAT32) {
@@ -2087,13 +2112,13 @@ CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
         uint32_t before = masm.size();
         masm.movssWithPatch(ScratchFloatReg, dstAddr);
         uint32_t after = masm.size();
-        masm.bind(&rejoin);
+        masm.bindBranch(&rejoin);
         return gen->noteHeapAccess(AsmJSHeapAccess(cmp.offset(), before, after));
     }
     uint32_t before = masm.size();
     storeViewTypeElement(vt, value, dstAddr);
     uint32_t after = masm.size();
-    masm.bind(&rejoin);
+    masm.bindBranch(&rejoin);
     bool temp= gen->noteHeapAccess(AsmJSHeapAccess(cmp.offset(), before, after));
 	return temp;
 }
@@ -2209,6 +2234,7 @@ CodeGeneratorMIPS::visitTruncateDToInt32(LTruncateDToInt32 *ins)
     return true;
 }
 
+// by wangqing, 2013-11-21
 bool
 CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
 {
@@ -2236,12 +2262,13 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
             static const double shiftNeg = 4294967296.0;
             masm.loadStaticDouble(&shiftNeg, temp);
             Label skip;
-            masm.jmp(&skip);
+            masm.b(&skip);
+			masm.nop();
 
             masm.bind(&positive);
             static const double shiftPos = -4294967296.0;
             masm.loadStaticDouble(&shiftPos, temp);
-            masm.bind(&skip);
+            masm.bindBranch(&skip);
         }
         masm.addsd(input, temp);
         masm.cvttsd2si(temp, output);
