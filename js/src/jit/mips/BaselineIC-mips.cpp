@@ -55,8 +55,13 @@ ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
     // Guard that R0 is an integer and R1 is an integer.
     Label failure;
-    masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
-    masm.branchTestInt32(Assembler::NotEqual, R1, &failure);
+	// by wangqing, 2013-11-22
+	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
+	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.nop();
+	masm.cmpl(R1.typeReg(), ImmTag(JSVAL_TAG_INT32));
+	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.nop();
 
     // Compare payload regs of R0 and R1.
     Assembler::Condition cond = JSOpToCondition(op, /* signed = */true);
@@ -69,19 +74,27 @@ ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     EmitReturnFromIC(masm);
 
     // Failure case - jump to next stub
-    masm.bind(&failure);
+    masm.bindBranch(&failure);
     EmitStubGuardFailure(masm);
     return true;
 }
 
 // ICBinaryArith_Int32
+// by wangqing, 2013-11-22
 bool
 ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
     // Guard that R0 is an integer and R1 is an integer.
     Label failure;
-    masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
-    masm.branchTestInt32(Assembler::NotEqual, R1, &failure);
+//    masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
+//    masm.branchTestInt32(Assembler::NotEqual, R1, &failure);
+	
+	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
+	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.nop();
+	masm.cmpl(R1.typeReg(), ImmTag(JSVAL_TAG_INT32));
+	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.nop();
 
     // Add R0 and R1.  Don't need to explicitly unbox, just use the TailCallReg which
     // should be available.
@@ -89,7 +102,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
     Label revertRegister, maybeNegZero;
 //xsb:fix me
-//#if 0
 //fixed by weizhenwei, 2013.11.05
     switch(op_) {
       case JSOP_ADD:
@@ -103,10 +115,18 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.movl(R0.payloadReg(), scratchReg);
         masm.addl(R1.payloadReg(), scratchReg);
 
-
         // Just jump to failure on overflow.  R0 and R1 are preserved, so we can just jump to
         // the next stub.
-        masm.j(Assembler::Overflow, &failure);
+//        masm.j(Assembler::Overflow, &failure);
+		masm.xorInsn(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.bgez(dataTempRegister, 7);
+		masm.nop();
+		masm.subu(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.xorInsn(dataTempRegister, dataTempRegister, cmpTempRegister);
+		masm.bgez(dataTempRegister, 3);
+		masm.nop();
+		masm.b(&failure);
+		masm.nop();
 
         // Just overwrite the payload, the tag is still fine.
         masm.movl(scratchReg, R0.payloadReg());
@@ -116,33 +136,53 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
         masm.movl(R0.payloadReg(), scratchReg);
         masm.subl(R1.payloadReg(), scratchReg);
-        masm.j(Assembler::Overflow, &failure);
+//        masm.j(Assembler::Overflow, &failure);
+		masm.xorInsn(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.bgez(dataTempRegister, 7);
+		masm.nop();
+		masm.subu(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.xorInsn(dataTempRegister, dataTempRegister, cmpTempRegister);
+		masm.bgez(dataTempRegister, 3);
+		masm.nop();
+		masm.b(&failure);
+		masm.nop();
+
         masm.movl(scratchReg, R0.payloadReg());
         break;
       case JSOP_MUL:
         masm.movl(R0.payloadReg(), scratchReg);
         masm.imull(R1.payloadReg(), scratchReg);
 
-        //original overflow check, removed by weizhenwei, 2013.11.01
-        //masm.j(Assembler::Overflow, &failure);
-
         //test whether signed multiply overflow. by weizhenwei, 2013.11.01
         masm.mfhi(cmpTempRegister);
         masm.mflo(cmpTemp2Register);
         masm.sarl(Imm32(0x1f), cmpTemp2Register);
-        masm.j(Assembler::NotEqual, &failure);
+//        masm.j(Assembler::NotEqual, &failure);
+        masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+		masm.nop();
 
-        masm.testl(scratchReg, scratchReg);
-        masm.j(Assembler::Zero, &maybeNegZero);
+//        masm.testl(scratchReg, scratchReg);
+//        masm.j(Assembler::Zero, &maybeNegZero);
+		masm.beq(scratchReg, zero, &maybeNegZero);
+		masm.nop();
 
         masm.movl(scratchReg, R0.payloadReg());
         break;
       case JSOP_DIV:
         // Prevent division by 0.
-        masm.branchTest32(Assembler::Zero, R1.payloadReg(), R1.payloadReg(), &failure);
+//		masm.testl(R1.payloadReg(), R1.payloadReg());
+		masm.beq(R1.payloadReg(), zero, &failure);
+		masm.nop();
 
         // Prevent negative 0 and -2147483648 / -1.
-        masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
+//        masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
+//		masm.testl(R0.payloadReg(), Imm32(0x7fffffff));
+
+		/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
+		masm.movl(R0.payloadReg(), cmpTempRegister);
+		masm.andl(Imm32(0x7fffffff), cmpTempRegister);
+		masm.beq(cmpTempRegister, zero, &failure);
+		masm.nop();
 
         // Preserve R0.payloadReg()
 		masm.div(R0.payloadReg(), R1.payloadReg());
@@ -150,8 +190,10 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // A remainder implies a double result.
         //by weizhenwei, 2013.11.02
         masm.mfhi(cmpTempRegister);
-        masm.movl(zero, cmpTemp2Register);
-        masm.j(Assembler::NotEqual, &failure);
+//        masm.movl(zero, cmpTemp2Register);
+//        masm.j(Assembler::NotEqual, &failure);
+		masm.bne(cmpTempRegister, zero, &failure);
+		masm.nop();
 
         //by weizhenwei, 2013.11.05
         masm.mflo(R0.payloadReg());
@@ -159,24 +201,41 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_MOD:
       {
         // x % 0 always results in NaN.
-        masm.branchTest32(Assembler::Zero, R1.payloadReg(), R1.payloadReg(), &failure);
+//        masm.branchTest32(Assembler::Zero, R1.payloadReg(), R1.payloadReg(), &failure);
+//		masm.testl(R1.payloadReg(), R1.payloadReg());
+		masm.beq(R1.payloadReg(), zero, &failure);
+		masm.nop();
 
         // Prevent negative 0 and -2147483648 % -1.
-        masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
+//        masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
+//		masm.testl(R0.payloadReg(), Imm32(0x7fffffff));
+
+		/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
+		masm.movl(R0.payloadReg(), cmpTempRegister);
+		masm.andl(Imm32(0x7fffffff), cmpTempRegister);
+		masm.beq(cmpTempRegister, zero, &failure);
+		masm.nop();
 
 		masm.div(R0.payloadReg(), R1.payloadReg());
 
         // Fail when we would need a negative remainder.
         Label done;
         masm.mfhi(cmpTempRegister);
-        masm.movl(zero, cmpTemp2Register);
-        masm.j(Assembler::NotEqual, &done);
+//        masm.movl(zero, cmpTemp2Register);
+//        masm.j(Assembler::NotEqual, &done);
+		masm.bne(cmpTempRegister, zero, &done);
+		masm.nop();
 
-        masm.branchTest32(Assembler::Signed, R0.payloadReg(), R0.payloadReg(), &failure);
-        masm.branchTest32(Assembler::Signed, R1.payloadReg(), R1.payloadReg(), &failure);
+//        masm.branchTest32(Assembler::Signed, R0.payloadReg(), R0.payloadReg(), &failure);
+//		masm.j(Assembler::Signed, &failure);
+		masm.bltz(R0.payloadReg(), &failure);
+		masm.nop();
+//        masm.branchTest32(Assembler::Signed, R1.payloadReg(), R1.payloadReg(), &failure);
+//		masm.j(Assembler::Signed, &failure);
+		masm.bltz(R1.payloadReg(), &failure);
+		masm.nop();
 
-
-        masm.bind(&done);
+        masm.bindBranch(&done);
 
         //move reminder to R0.payloadReg, by weizhenwei, 2013.11.05
         masm.mfhi(R0.payloadReg());
@@ -217,20 +276,25 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         //rewrite by weizhenwei, 2013.11.06
         masm.srlv(R0.payloadReg(), R0.payloadReg(), R1.payloadReg());
 
-        masm.testl(R0.payloadReg(), R0.payloadReg());
+//        masm.testl(R0.payloadReg(), R0.payloadReg());
+// by wangqing. 2013-11-22
         if (allowDouble_) {
             Label toUint;
-            masm.j(Assembler::Signed, &toUint);
+//            masm.j(Assembler::Signed, &toUint);
+			masm.bltz(R0.payloadReg(),&toUint);
+			masm.nop();
 
             // Box and return.
             masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
             EmitReturnFromIC(masm);
 
-            masm.bind(&toUint);
+            masm.bindBranch(&toUint);
             masm.convertUInt32ToDouble(R0.payloadReg(), ScratchFloatReg);
             masm.boxDouble(ScratchFloatReg, R0);
         } else {
-            masm.j(Assembler::Signed, &revertRegister);
+//            masm.j(Assembler::Signed, &revertRegister);
+			masm.bltz(R0.payloadReg(),&revertRegister);
+			masm.nop();
             masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
         }
         break;
@@ -244,14 +308,15 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
     switch(op_) {
       case JSOP_MUL:
-        masm.bind(&maybeNegZero);
+        masm.bindBranch(&maybeNegZero);
 
         // Result is -0 if exactly one of lhs or rhs is negative.
         masm.movl(R0.payloadReg(), scratchReg);
         masm.orl(R1.payloadReg(), scratchReg);
         //add by QuQiuwen;
-        masm.cmpl(scratchReg,zero);
-        masm.j(Assembler::Signed, &failure);
+//        masm.j(Assembler::Signed, &failure);
+		masm.bltz(scratchReg, &failure);
+		masm.nop();
 
         // Result is +0.
         masm.xorl(R0.payloadReg(), R0.payloadReg());
@@ -260,7 +325,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_URSH:
         // Revert the content of R0 in the fallible >>> case.
         if (!allowDouble_) {
-            masm.bind(&revertRegister);
+            masm.bindBranch(&revertRegister);
             masm.tagValue(JSVAL_TYPE_INT32, scratchReg, R0);
         }
         break;
@@ -271,7 +336,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     }
 
     // Failure case - jump to next stub
-    masm.bind(&failure);
+    masm.bindBranch(&failure);
     EmitStubGuardFailure(masm);
 
     return true;
@@ -281,7 +346,11 @@ bool
 ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
     Label failure;
-    masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
+//    masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
+	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
+	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.nop();
+
 
     switch (op) {
       case JSOP_BITNOT:
@@ -289,7 +358,14 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         break;
       case JSOP_NEG:
         // Guard against 0 and MIN_INT, both result in a double.
-        masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
+//        masm.branchTest32(Assembler::Zero, R0.payloadReg(), Imm32(0x7fffffff), &failure);
+
+		/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
+		masm.movl(R0.payloadReg(), cmpTempRegister);
+		masm.andl(Imm32(0x7fffffff), cmpTempRegister);
+
+		masm.beq(cmpTempRegister, zero, &failure);
+		masm.nop();
         masm.negl(R0.payloadReg());
         break;
       default:
@@ -299,7 +375,7 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
     EmitReturnFromIC(masm);
 
-    masm.bind(&failure);
+    masm.bindBranch(&failure);
     EmitStubGuardFailure(masm);
     return true;
 }

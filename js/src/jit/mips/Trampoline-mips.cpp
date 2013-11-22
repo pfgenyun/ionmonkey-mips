@@ -108,9 +108,8 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         Label header, footer;
         masm.bindBranch(&header);
 
-        masm.cmpl(t6, s1);
-		masm.sltu(cmpTemp2Register, cmpTemp2Register, cmpTempRegister);
-		masm.blez(cmpTemp2Register, &footer);
+		masm.sltu(cmpTempRegister, s1, t6);
+		masm.blez(cmpTempRegister, &footer);
 		masm.nop();
 
         masm.subl(Imm32(8), t6);
@@ -158,7 +157,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         Register scratch = regs.takeAny();
 
         Label notOsr;
-		masm.testl(OsrFrameReg, OsrFrameReg);
 		masm.beq(OsrFrameReg, zero, &notOsr);
 		masm.nop();
 
@@ -207,7 +205,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         Label error;
         masm.addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), sp);
         masm.addPtr(Imm32(BaselineFrame::Size()), framePtr);
-		masm.testl(ReturnReg, ReturnReg);
 		masm.beq(ReturnReg, zero, &error);
 		masm.nop();
 
@@ -375,7 +372,6 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
         masm.push(s2); // payload(undefined);
         masm.subl(Imm32(1), t8);
 
-        masm.testl(t8, t8);
 		masm.bne(t8, zero, &undefLoopTop);
 		masm.nop();
     }
@@ -402,7 +398,6 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
         masm.push(Operand(t8, sizeof(Value)/2));
         masm.push(Operand(t8, 0x0));
 
-        masm.testl(s5, s5);
 		masm.bne(s5, zero, &copyLoopTop);
 		masm.nop();
     }
@@ -648,18 +643,17 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     Label failure;
     switch (f.failType()) {
       case Type_Object:
-		masm.testl(v0, v0);
 		masm.beq(v0, zero, &failure);
 		masm.nop();
         break;
       case Type_Bool:
-        masm.testb(v0, v0);
 		masm.beq(v0, zero, &failure);
 		masm.nop();
         break;
       case Type_ParallelResult:
-		masm.testl(v0, Imm32(TP_SUCCESS));
-		masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+		masm.movl(v0, cmpTempRegister);
+		masm.andl(Imm32(TP_SUCCESS), cmpTempRegister);
+		masm.bne(cmpTempRegister, zero, &failure);
 		masm.nop();
         break;
       default:
@@ -785,7 +779,6 @@ IonRuntime::generateDebugTrapHandler(JSContext *cx)
     // (return from the JS frame). If the stub returns |false|, just return
     // from the trap stub so that execution continues at the current pc.
     Label forcedReturn;
-	masm.testl(ReturnReg, ReturnReg);
 	masm.bne(ReturnReg, zero, &forcedReturn);
 	masm.nop();
     masm.ret();
