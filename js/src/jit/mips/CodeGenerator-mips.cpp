@@ -1336,8 +1336,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
-        masm.b(&end);
-		masm.nop();
+        masm.jump(&end);
 
         // Input is negative, but isn't -0.
         // Negative values go on a comparatively expensive path, since no
@@ -1361,7 +1360,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
             // Cannot overflow: output was already checked against INT_MIN.
         }
 
-        masm.bindBranch(&end);
+        masm.bind(&end);
     return true;
 }
 

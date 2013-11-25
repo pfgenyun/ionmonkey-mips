@@ -56,11 +56,15 @@ ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     // Guard that R0 is an integer and R1 is an integer.
     Label failure;
 	// by wangqing, 2013-11-22
-	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
-	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+//	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
+//	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+	masm.bne(R0.typeReg(), cmpTempRegister, &failure);
 	masm.nop();
-	masm.cmpl(R1.typeReg(), ImmTag(JSVAL_TAG_INT32));
-	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+//	masm.cmpl(R1.typeReg(), ImmTag(JSVAL_TAG_INT32));
+//	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+	masm.bne(R1.typeReg(), cmpTempRegister, &failure);
 	masm.nop();
 
     // Compare payload regs of R0 and R1.
@@ -89,11 +93,15 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 //    masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
 //    masm.branchTestInt32(Assembler::NotEqual, R1, &failure);
 	
-	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
-	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+//	masm.cmpl(R0.typeReg(), ImmTag(JSVAL_TAG_INT32));
+//	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+	masm.bne(R0.typeReg(), cmpTempRegister, &failure);
 	masm.nop();
-	masm.cmpl(R1.typeReg(), ImmTag(JSVAL_TAG_INT32));
-	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+//	masm.cmpl(R1.typeReg(), ImmTag(JSVAL_TAG_INT32));
+//	masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
+	masm.movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+	masm.bne(R1.typeReg(), cmpTempRegister, &failure);
 	masm.nop();
 
     // Add R0 and R1.  Don't need to explicitly unbox, just use the TailCallReg which
