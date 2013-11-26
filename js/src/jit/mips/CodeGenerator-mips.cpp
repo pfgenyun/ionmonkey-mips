@@ -202,7 +202,7 @@ CodeGeneratorMIPS::visitTestDAndBranch(LTestDAndBranch *test)
     // NaN is falsey, so comparing against 0 and then using the Z flag is
     // enough to determine which branch to take.
 	//by weizhenwei, 2013.11.05
-	masm.zerod(ScratchFloatReg);
+    masm.zerod(ScratchFloatReg);
     emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
             ScratchFloatReg, test->ifTrue(), test->ifFalse());
 
@@ -471,7 +471,7 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
 
     // Check for zero.
     masm.bind(&equal);
-	//by weizenwei, 2013.11.05
+    //by weizenwei, 2013.11.05
     masm.zerod(ScratchFloatReg);
     masm.branchDouble(Assembler::DoubleNotEqual,
             first, ScratchFloatReg, &done); // first wasn't 0 or -0, so just return it.
@@ -501,7 +501,7 @@ CodeGeneratorMIPS::visitAbsD(LAbsD *ins)
     JS_ASSERT(input == ToFloatRegister(ins->output()));
 
     //by weizhenwei, 2013.11.08
-	masm.absd(input, input);
+    masm.absd(input, input);
     return true;
 }
 
@@ -757,14 +757,12 @@ CodeGeneratorMIPS::visitAsmJSDivOrMod(LAsmJSDivOrMod *ins)
 
     Label afterDiv;
 
-//    masm.testl(rhs, rhs);
     Label notzero;
-//    masm.j(Assembler::NonZero, &notzero);
-	masm.bne(rhs, zero, &notzero);
-	masm.nop();
+    masm.bne(rhs, zero, &notzero);
+    masm.nop();
     masm.xorl(output, output);
     masm.b(&afterDiv);
-	masm.nop();
+    masm.nop();
     masm.bindBranch(&notzero);
 
     masm.xorl(t7,t7);
@@ -787,9 +785,8 @@ CodeGeneratorMIPS::visitMulNegativeZeroCheck(MulNegativeZeroCheck *ool)
     // Result is -0 if lhs or rhs is negative.
     masm.movl(lhsCopy, result);
     masm.orl(rhs, result);
-	// by wangqing, 2013-11-19
-    masm.movl(result, cmpTempRegister);
-    masm.movl(zero, cmpTemp2Register);
+    // by wangqing, 2013-11-19
+    masm.cmpl(result, zero);
     if (!bailoutIf(Assembler::Signed, ins->snapshot()))
         return false;
 
@@ -876,11 +873,10 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
     // Handle an integer overflow exception from -2147483648 / -1.
     if (mir->canBeNegativeOverflow()) {
         Label notmin;
-		// by wangqing, 2013-11-25
-//        masm.cmpl(lhs, Imm32(INT32_MIN));
-		masm.movl(Imm32(INT32_MIN), cmpTempRegister);
-		masm.bne(lhs, cmpTempRegister, &notmin);
-		masm.nop();
+	// by wangqing, 2013-11-25
+	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
+	masm.bne(lhs, cmpTempRegister, &notmin);
+	masm.nop();
         masm.cmpl(rhs, Imm32(-1));
         if (mir->isTruncated()) {
             // (-INT32_MIN)|0 == INT32_MIN and INT32_MIN is already in the
@@ -898,23 +894,20 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
     // Handle negative 0.
     if (!mir->isTruncated() && mir->canBeNegativeZero()) {
         Label nonzero;
-		// by wangqing, 2013-11-25
-//        masm.testl(lhs, lhs);
+	// by wangqing, 2013-11-25
         masm.bne(lhs, zero, &nonzero);
-		masm.nop();
+	masm.nop();
         masm.cmpl(rhs, Imm32(0));
         if (!bailoutIf(Assembler::LessThan, ins->snapshot()))
             return false;
         masm.bindBranch(&nonzero);
     }
 
-    // Sign extend eax into edx to make (edx:eax), since idiv is 64-bit.
     masm.idiv(rhs);
 
     if (!mir->isTruncated()) {
         // If the remainder is > 0, bailout since this must be a double.
-//        masm.testl(remainder, remainder);
-		masm.cmpl(remainder, zero);
+	masm.cmpl(remainder, zero);
         if (!bailoutIf(Assembler::NonZero, ins->snapshot()))
             return false;
     }
@@ -934,13 +927,12 @@ CodeGeneratorMIPS::visitModPowTwoI(LModPowTwoI *ins)
     Label negative, done;
     // Switch based on sign of the lhs.
     // Positive numbers are just a bitmask
-//    masm.branchTest32(Assembler::Signed, lhs, lhs, &negative);
-	masm.bltz(lhs, &negative);
-	masm.nop();
+    masm.bltz(lhs, &negative);
+    masm.nop();
     {
         masm.andl(Imm32((1 << shift) - 1), lhs);
         masm.b(&done);
-		masm.nop();
+	masm.nop();
     }
     // Negative numbers need a negate, bitmask, negate
     {
@@ -979,14 +971,13 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
     Label done;
 
     // Prevent divide by zero
-//    masm.testl(rhs, rhs);
     if (ins->mir()->isTruncated()) {
         Label notzero;
         masm.bne(rhs, zero, &notzero);
-		masm.nop();
+	masm.nop();
         masm.xorl(t7,t7);
         masm.b(&done);
-		masm.nop();
+	masm.nop();
         masm.bindBranch(&notzero);
     } else {
 		masm.cmpl(rhs, zero);
@@ -1006,7 +997,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         masm.xorl(t7,t7);
         masm.idiv(rhs);
         masm.b(&done);
-		masm.nop();
+	masm.nop();
     }
 
     // Otherwise, we have to beware of two special cases:
@@ -1015,17 +1006,16 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
 
         // Prevent an integer overflow exception from -2147483648 % -1
         Label notmin;
-//        masm.cmpl(lhs, Imm32(INT32_MIN));
-		masm.movl(Imm32(INT32_MIN), cmpTempRegister);
+	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
         masm.bne(lhs, cmpTempRegister, &notmin);
-		masm.nop();
+	masm.nop();
         masm.cmpl(rhs, Imm32(-1));
         if (ins->mir()->isTruncated()) {
             masm.bne(cmpTempRegister, cmpTemp2Register, &notmin);
-			masm.nop();
-			masm.xorl(t7,t7);
+            masm.nop();
+            masm.xorl(t7,t7);
             masm.b(&done);
-			masm.nop();
+	    masm.nop();
         } else {
             if (!bailoutIf(Assembler::Equal, ins->snapshot()))
                 return false;
@@ -1035,8 +1025,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
 
         if (!ins->mir()->isTruncated()) {
             // A remainder of 0 means that the rval must be -0, which is a double.
-//            masm.testl(remainder, remainder);
-			masm.cmpl(remainder, zero);
+	    masm.cmpl(remainder, zero);
             if (!bailoutIf(Assembler::Zero, ins->snapshot()))
                 return false;
         }
@@ -1131,7 +1120,7 @@ CodeGeneratorMIPS::visitShiftI(LShiftI *ins)
             masm.shrl_cl(lhs);
             if (ins->mir()->toUrsh()->canOverflow()) {
                 // x >>> 0 can overflow.
-                masm.testl(lhs, lhs);
+		masm.cmpl(lhs, zero);
                 if (!bailoutIf(Assembler::Signed, ins->snapshot()))
                     return false;
             }
@@ -1337,7 +1326,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         Label negative, end;
 
         // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-        //by weizhenwei, 2013.11.08
+        // by weizhenwei, 2013.11.08
         masm.zerod(scratch);
         masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &negative);
 
@@ -1348,7 +1337,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
 
         // Input is non-negative, so truncation correctly rounds.
         masm.cvttsd2si(input, output);
-        masm.cmp32(output, Imm32(0x7fffffff)); //by wangqing, 2013-11-19
+        masm.cmpl(output, Imm32(0x7fffffff)); //by wangqing, 2013-11-19
         if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
@@ -1362,7 +1351,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
             // Truncate and round toward zero.
             // This is off-by-one for everything but integer-valued inputs.
             masm.cvttsd2si(input, output);
-            masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
+            masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
             if (!bailoutIf(Assembler::Equal, lir->snapshot()))
                 return false;
 
@@ -1396,7 +1385,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     masm.loadStaticDouble(&PointFive, temp);
 
     // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-    //by weizhenwei, 2013.11.08
+    // by weizhenwei, 2013.11.08
     masm.zerod(scratch);
     masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &negative);
 
@@ -1411,12 +1400,12 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     masm.addsd(input, temp);
 
     masm.cvttsd2si(temp, output);
-    masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
+    masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
     if (!bailoutIf(Assembler::Equal, lir->snapshot()))
         return false;
 
     masm.b(&end);
-	masm.nop();
+    masm.nop();
 
 
     // Input is negative, but isn't -0.
@@ -1430,7 +1419,7 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
             // Truncate and round toward zero.
             // This is off-by-one for everything but integer-valued inputs.
             masm.cvttsd2si(temp, output);
-            masm.cmp32(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
+            masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
             if (!bailoutIf(Assembler::Equal, lir->snapshot()))
                 return false;
 
@@ -1827,20 +1816,18 @@ CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
     JS_ASSERT(mir->jsop() == JSOP_STRICTEQ || mir->jsop() == JSOP_STRICTNE);
 
     Label notBoolean, done;
-//    masm.branchTestBoolean(Assembler::NotEqual, lhs, &notBoolean);
-	// by wangqing, 2013-11-25
-	masm.movl(ImmTag(JSVAL_TAG_BOOLEAN), cmpTempRegister);
-	masm.bne(lhs.typeReg(), cmpTempRegister, &notBoolean);
-	masm.nop();
+    // by wangqing, 2013-11-25
+    masm.movl(ImmTag(JSVAL_TAG_BOOLEAN), cmpTempRegister);
+    masm.bne(lhs.typeReg(), cmpTempRegister, &notBoolean);
+    masm.nop();
     {
         if (rhs->isConstant())
             masm.cmp32(lhs.payloadReg(), Imm32(rhs->toConstant()->toBoolean()));
         else
             masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
-        masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
-
-		masm.b(&done);
-		masm.nop();
+            masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
+	    masm.b(&done);
+	    masm.nop();
     }
     masm.bindBranch(&notBoolean);
     {
@@ -1886,14 +1873,13 @@ CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
     JS_ASSERT(IsEqualityOp(mir->jsop()));
 
     Label notEqual, done;
-//    masm.cmp32(lhs.typeReg(), rhs.typeReg());
     masm.bne(lhs.typeReg(), rhs.typeReg(), &notEqual);
-	masm.nop();
+    masm.nop();
     {
         masm.cmp32(lhs.payloadReg(), rhs.payloadReg());
         masm.emitSet(cond, output);
         masm.b(&done);
-		masm.nop();
+	masm.nop();
     }
     masm.bindBranch(&notEqual);
     {
@@ -2090,9 +2076,9 @@ CodeGeneratorMIPS::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStat
 
     masm.cmpl(ptr, Imm32(mir->length()));
     Label rejoin;
-	masm.sltu(cmpTempRegister, cmpTempRegister, cmpTemp2Register);
+    masm.sltu(cmpTempRegister, cmpTempRegister, cmpTemp2Register);
     masm.blez(cmpTempRegister, &rejoin);
-	masm.nop();
+    masm.nop();
 
     Address dstAddr(ptr, (int32_t) mir->base());
     if (vt == ArrayBufferView::TYPE_FLOAT32) {
@@ -2121,9 +2107,9 @@ CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 
     CodeOffsetLabel cmp = masm.cmplWithPatch(ptr, Imm32(0));
     Label rejoin;
-	masm.sltu(cmpTempRegister, cmpTempRegister, cmpTemp2Register);
-	masm.blez(cmpTempRegister, &rejoin);
-	masm.nop();
+    masm.sltu(cmpTempRegister, cmpTempRegister, cmpTemp2Register);
+    masm.blez(cmpTempRegister, &rejoin);
+    masm.nop();
 
     Address dstAddr(ptr, 0);
     if (vt == ArrayBufferView::TYPE_FLOAT32) {
@@ -2200,7 +2186,7 @@ void
 CodeGeneratorMIPS::postAsmJSCall(LAsmJSCall *lir)
 {
     ASSERT(0);
-	return;
+    return;
 	//no need to move double return value
 	//to ReturnFloatReg=f0,
 	//since it has been in f0,due to ABI
@@ -2293,7 +2279,7 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
         masm.cvttsd2si(temp, output);
         masm.cvtsi2sd(output, ScratchFloatReg);
 
-		//by weizhenwei, 2013.11.05
+	//by weizhenwei, 2013.11.05
         masm.branchDouble(Assembler::DoubleUnordered, temp, ScratchFloatReg, &fail);
         masm.branchDouble(Assembler::DoubleEqual, temp, ScratchFloatReg, ool->rejoin());
 

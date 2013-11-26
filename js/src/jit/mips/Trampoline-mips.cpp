@@ -104,13 +104,13 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.movl(Operand(fp, ARG_ARGV), s1);
     masm.addl(s1, t6);
     {
-		// by wangqing, 2013-11-21
+	// by wangqing, 2013-11-21
         Label header, footer;
         masm.bindBranch(&header);
 
-		masm.sltu(cmpTempRegister, s1, t6);
-		masm.blez(cmpTempRegister, &footer);
-		masm.nop();
+	masm.sltu(cmpTempRegister, s1, t6);
+	masm.blez(cmpTempRegister, &footer);
+	masm.nop();
 
         masm.subl(Imm32(8), t6);
 
@@ -119,7 +119,7 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.push(Operand(t6, 0));
 
         masm.b(&header);
-		masm.nop();
+	masm.nop();
         masm.bindBranch(&footer);
     }
 
@@ -157,8 +157,8 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         Register scratch = regs.takeAny();
 
         Label notOsr;
-		masm.beq(OsrFrameReg, zero, &notOsr);
-		masm.nop();
+	masm.beq(OsrFrameReg, zero, &notOsr);
+	masm.nop();
 
         Register numStackValues = regs.takeAny();
         masm.movl(Operand(fp, ARG_STACKVALUES), numStackValues);
@@ -205,8 +205,8 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         Label error;
         masm.addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), sp);
         masm.addPtr(Imm32(BaselineFrame::Size()), framePtr);
-		masm.beq(ReturnReg, zero, &error);
-		masm.nop();
+	masm.beq(ReturnReg, zero, &error);
+	masm.nop();
 
         masm.jump(jitcode);
 
@@ -364,7 +364,7 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
     // Push undefined.
     {
-		// by wangqing, 2013-11-21
+	// by wangqing, 2013-11-21
         Label undefLoopTop;
         masm.bindBranch(&undefLoopTop);
 
@@ -372,8 +372,8 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
         masm.push(s2); // payload(undefined);
         masm.subl(Imm32(1), t8);
 
-		masm.bne(t8, zero, &undefLoopTop);
-		masm.nop();
+	masm.bne(t8, zero, &undefLoopTop);
+	masm.nop();
     }
 
     // Get the topmost argument. We did a push of %ebp earlier, so be sure to
@@ -384,11 +384,11 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
     // Push arguments, |nargs| + 1 times (to include |this|).
     {
-		// by wangqing, 2013-11-21
+	// by wangqing, 2013-11-21
         Label copyLoopTop, initialSkip;
 
         masm.b(&initialSkip);
-		masm.nop();
+	masm.nop();
 
         masm.bindBranch(&copyLoopTop);
         masm.subl(Imm32(sizeof(Value)), t8);
@@ -398,8 +398,8 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
         masm.push(Operand(t8, sizeof(Value)/2));
         masm.push(Operand(t8, 0x0));
 
-		masm.bne(s5, zero, &copyLoopTop);
-		masm.nop();
+	masm.bne(s5, zero, &copyLoopTop);
+	masm.nop();
     }
 
     // Construct descriptor, accounting for pushed frame pointer above
@@ -507,7 +507,7 @@ IonRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
 {
     MacroAssembler masm;
 	
-	// by wangqing, 2013-11-21
+    // by wangqing, 2013-11-21
     Label bailout;
     for (size_t i = 0; i < BAILOUT_TABLE_SIZE; i++)
         masm.call(&bailout);
