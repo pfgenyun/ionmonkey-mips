@@ -117,15 +117,15 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
         // Just jump to failure on overflow.  R0 and R1 are preserved, so we can just jump to
         // the next stub.
-	masm.xorInsn(dataTempRegister, cmpTempRegister, cmpTemp2Register);
-	masm.bgez(dataTempRegister, 7);
-	masm.nop();
-	masm.subu(dataTempRegister, cmpTempRegister, cmpTemp2Register);
-	masm.xorInsn(dataTempRegister, dataTempRegister, cmpTempRegister);
-	masm.bgez(dataTempRegister, 3);
-	masm.nop();
-	masm.b(&failure);
-	masm.nop();
+    	masm.xorInsn(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.bgez(dataTempRegister, 7);
+		masm.nop();
+		masm.subu(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.xorInsn(dataTempRegister, dataTempRegister, cmpTempRegister);
+		masm.bgez(dataTempRegister, 3);
+		masm.nop();
+		masm.b(&failure);
+		masm.nop();
 
         // Just overwrite the payload, the tag is still fine.
         masm.movl(scratchReg, R0.payloadReg());

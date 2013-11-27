@@ -349,13 +349,13 @@ public:
 
     void mul(RegisterID rd, RegisterID rs, RegisterID rt)
     {
-#if WTF_MIPS_ISA_AT_LEAST(32) 
+//#if WTF_MIPS_ISA_AT_LEAST(32) 
         emitInst(0x70000002 | (rd << OP_SH_RD) | (rs << OP_SH_RS)
                  | (rt << OP_SH_RT));
-#else
-        mult(rs, rt);
-        mflo(rd);
-#endif
+//#else
+//        mult(rs, rt);
+//        mflo(rd);
+//#endif
     }
 
     void andInsn(RegisterID rd, RegisterID rs, RegisterID rt)
