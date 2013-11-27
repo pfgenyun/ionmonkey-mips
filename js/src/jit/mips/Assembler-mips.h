@@ -345,6 +345,8 @@ class Assembler
     typedef JSC::MIPSAssembler::JmpSrc JmpSrc;
     typedef JSC::MIPSAssembler::JmpDst JmpDst;
       
+    typedef JSC::MIPSRegisters::FPCCID mFPCCID; //by weizhenwei, 2013.11.27
+    typedef JSC::MacroAssembler::Jump mJump;    //by weizhenwei, 2013.11.27
       
     void writeRelocation(JmpSrc src) {
         jumpRelocations_.writeUnsigned(src.offset());
@@ -2870,26 +2872,34 @@ class Assembler
         masm.bne(rs.code(), rt.code(), imm);
     }
 
-	void bc1t()
+    void bc1t()
     {
-		masm.bc1t();
+	masm.bc1t();
     }
-
-	// by wangqing, 2013-11-27
-	void bc1t(int32_t imm)
+    // by wangqing, 2013-11-27
+    void bc1t(int32_t imm)
     {
-		masm.bc1t(imm);
+	masm.bc1t(imm);
+    }
+    // by weizhenwei, 2013-11-27
+    void bc1t(int32_t cc, int32_t imm)
+    {
+	masm.bc1t(mFPCCID(cc), imm);
     }
 
     void bc1f()
     {
-		masm.bc1f();
+	masm.bc1f();
     }
-
-	// by wangqing, 2013-11-27
+    // by wangqing, 2013-11-27
     void bc1f(int32_t imm)
     {
-		masm.bc1f(imm);
+	masm.bc1f(imm);
+    }
+    // by weizhenwei, 2013-11-27
+    void bc1f(int32_t cc, int32_t imm)
+    {
+	masm.bc1f(mFPCCID(cc), imm);
     }
 
     // by wangqing 2010-10-30

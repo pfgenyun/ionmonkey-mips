@@ -152,12 +152,25 @@ typedef enum {
     invalid_freg
 } FPRegisterID;
 
+//by weizhenwei, 2013.11.27
+typedef enum {
+     CC0= 0,
+     CC1,
+     CC2,
+     CC3,
+     CC4,
+     CC5,
+     CC6,
+     CC7,
+    invalid_CC
+} FPCCID;
 } // namespace MIPSRegisters
 
 class MIPSAssembler : public GenericAssembler {
 public:
     typedef MIPSRegisters::RegisterID RegisterID;
     typedef MIPSRegisters::FPRegisterID FPRegisterID;
+    typedef MIPSRegisters::FPCCID FPCCID;//by weizhenwei, 2013.11.27
     typedef SegmentedVector<int, 64> Jumps;
     unsigned char *buffer() const { return m_buffer.buffer(); }
     bool oom() const { return m_buffer.oom(); }
@@ -171,7 +184,9 @@ public:
         OP_SH_CODE = 16,
         OP_SH_FD = 6,
         OP_SH_FS = 11,
-        OP_SH_FT = 16
+		OP_SH_CC = 8, //by weizhenwei, 2013.11.27, for c.cond.d CC bit.
+        OP_SH_FT = 16,
+        OP_SH_CCC = 18 //by weizhenwei, 2013.11.27, for bc1t/bc1f CC bit.
     };
 
     class JmpSrc {
@@ -569,22 +584,30 @@ public:
     {
         emitInst(0x45010000);
     }
-
 	// by wangqing, 2013-11-27
 	void bc1t(int imm)
     {
         emitInst(0x45010000 | (imm & 0xffff));
+    }
+	//by weizhenwei, 2013.11.27
+    void bc1t(FPCCID cc, int imm)
+    {
+        emitInst(0x45010000 | (cc << OP_SH_CCC) | (imm & 0xffff));
     }
 
     void bc1f()
     {
         emitInst(0x45000000);
     }
-
 	// by wangqing, 2013-11-27
     void bc1f(int imm)
     {
         emitInst(0x45000000 | (imm & 0xffff));
+    }
+	//by weizhenwei, 2013.11.27
+    void bc1f(FPCCID cc, int imm)
+    {
+        emitInst(0x45000000 | (cc << OP_SH_CCC) | (imm & 0xffff));
     }
 
     JmpSrc newJmpSrc()
@@ -755,10 +778,22 @@ public:
         emitInst(0x46200031 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void cud(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200031 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
 
     void ceqd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x46200032 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+	//by weizhenwei, 2013.11.27
+    void ceqd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200032 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
         copDelayNop();
     }
 
@@ -768,10 +803,22 @@ public:
         emitInst(0x4620003a | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void cseqd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003a | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
 
     void cngtd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x4620003f | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+	//by weizhenwei, 2013.11.27
+    void cngtd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003f | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
         copDelayNop();
     }
 
@@ -780,10 +827,22 @@ public:
         emitInst(0x4620003d | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void cnged(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003d | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
 
     void cltd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x4620003c | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+	//by weizhenwei, 2013.11.27
+    void cltd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003c | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
         copDelayNop();
     }
 
@@ -792,10 +851,22 @@ public:
         emitInst(0x4620003e | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void cled(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x4620003e | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
 
     void cueqd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x46200033 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+	//by weizhenwei, 2013.11.27
+    void cueqd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200033 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
         copDelayNop();
     }
 
@@ -804,10 +875,22 @@ public:
         emitInst(0x46200036 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void coled(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200036 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
 
     void coltd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x46200034 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
+        copDelayNop();
+    }
+	//by weizhenwei, 2013.11.27
+    void coltd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200034 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
         copDelayNop();
     }
 
@@ -816,12 +899,25 @@ public:
         emitInst(0x46200037 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void culed(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200037 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
 
     void cultd(FPRegisterID fs, FPRegisterID ft)
     {
         emitInst(0x46200035 | (fs << OP_SH_FS) | (ft << OP_SH_FT));
         copDelayNop();
     }
+	//by weizhenwei, 2013.11.27
+    void cultd(FPCCID cc, FPRegisterID fs, FPRegisterID ft)
+    {
+        emitInst(0x46200035 | (fs << OP_SH_FS) | (ft << OP_SH_FT) | (cc << OP_SH_CC));
+        copDelayNop();
+    }
+
 
     // General helpers
 

@@ -134,16 +134,17 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         // take advantage of the setCC instruction
         Label setDest;
         masm.movl(Imm32(1), dest);
-        masm.branchDouble(cond, lhs, rhs, &setDest);
+        masm.branchDoubleLocal(cond, lhs, rhs, &setDest); //by weizhenwei, 2013.11.27
         masm.xorl(dest, dest);
-        masm.bind(&setDest);
+        masm.bindBranch(&setDest);
 
         if (ifNaN != Assembler::NaN_HandledByCond) {
-			// by wangqing, 2013-11-27
+            //DoubleOrdered check, by wangqing, 2013.11.27
             Label noNaN;
-			masm.cud(lhs, rhs);
-			masm.bc1f(&noNaN);
-			masm.nop();
+            masm.cud(lhs, rhs);
+            masm.bc1f(&noNaN);
+            masm.nop();
+
             if (ifNaN == Assembler::NaN_IsTrue)
                 masm.movl(Imm32(1), dest);
             else
@@ -151,25 +152,27 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
             masm.bindBranch(&noNaN);
         }
     } else {
-        Label end;
-		// by wangqing, 2013-11-27
-        Label ifFalse;
+        Label end, ifFalse;
 
         if (ifNaN == Assembler::NaN_IsFalse) {
-			masm.cud(lhs, rhs);
-			masm.bc1t(&ifFalse);
-			masm.nop();
+            //DoubleUnordered check, by wangqing, 2013.11.27
+            masm.cud(lhs, rhs);
+            masm.bc1t(&ifFalse);
+            masm.nop();
         }
         masm.movl(Imm32(1), dest);
-        masm.branchDouble(cond, lhs, rhs, &end);
+        masm.branchDoubleLocal(cond, lhs, rhs, &end);
         if (ifNaN == Assembler::NaN_IsTrue) {
-            masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, &end);
+            //DoubleUnordered check, by weizhenwei, 2013.11.27
+            masm.cud(lhs, rhs);
+            masm.bc1t(&end);
+            masm.nop();
         }
           
         masm.bindBranch(&ifFalse);
         masm.xorl(dest, dest);
 
-        masm.bind(&end);
+        masm.bindBranch(&end);
     }
 }
 
@@ -459,35 +462,42 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
                                : Assembler::Below;
     Label nan, equal, returnSecond, done;
 
-	// by wangqing, 2013-11-27
-	masm.cud(second, first);
-	masm.bc1t(&nan);
-	masm.nop();
+    // DoubleUnordered check, by wangqing, 2013-11-27
+    // if first or shecond is NaN, then return NaN
+    masm.cud(second, first);
+    masm.bc1t(&nan);
+    masm.nop();
 
-	masm.cseqd(second, first);
-	masm.bc1t(&equal);
-	masm.nop();
+    // DoubleEqual check, by wangqing, 2013-11-27
+    // make sure we handle -0 and 0 right.
+    masm.cseqd(second, first);
+    masm.bc1t(&equal);
+    masm.nop();
 
     if (cond == Assembler::Above) {
-		masm.cngtd(second, first);
-		masm.bc1f(&returnSecond);
-		masm.nop();
+        //DoubleGreaterThan check, by wangqing, 2013.11.07
+        masm.cngtd(second, first);
+        masm.bc1f(&returnSecond);
+        masm.nop();
     } else if (cond == Assembler::Below) {
-		masm.cltd(second, first);
-		masm.bc1t(&returnSecond);
-		masm.nop();
+        //DoubleLessThan check, by wangqing, 2013.11.27
+        masm.cltd(second, first);
+        masm.bc1t(&returnSecond);
+        masm.nop();
     }
 
     masm.b(&done);
-	masm.nop();
+    masm.nop();
 
     // Check for zero.
     masm.bindBranch(&equal);
 
+    // DoubleNotEqual check, by wangqing, 2013.11.27
+    // first wasn't 0 or -0, so just return it.
     masm.zerod(ScratchFloatReg);
-	masm.ceqd(first, ScratchFloatReg);
-	masm.bc1f(&done);
-	masm.nop();
+    masm.ceqd(first, ScratchFloatReg);
+    masm.bc1f(&done);
+    masm.nop();
 
     // So now both operands are either -0 or 0.
     if (ins->mir()->isMax())
@@ -495,12 +505,12 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
     else
         masm.orpd(second, first); // This just ors the sign bit.
     masm.b(&done);
-	masm.nop();
+    masm.nop();
 
     masm.bindBranch(&nan);
     masm.loadStaticDouble(&js_NaN, output);
     masm.b(&done);
-	masm.nop();
+    masm.nop();
 
     masm.bindBranch(&returnSecond);
     masm.movsd(second, output);
@@ -543,15 +553,16 @@ CodeGeneratorMIPS::visitPowHalfD(LPowHalfD *ins)
     // Branch if not -Infinity.
     masm.move32(Imm32(NegInfinityFloatBits), scratch);
     masm.loadFloatAsDouble(scratch, ScratchFloatReg);
-	masm.cseqd(input, ScratchFloatReg);
-	masm.bc1f(&sqrt);
-	masm.nop();
+    //DoubleNotEqualOrUnordered check, by wangqing, 2013.11.27
+    masm.cseqd(input, ScratchFloatReg);
+    masm.bc1f(&sqrt);
+    masm.nop();
 
     //by weizhenwei, 2013.11.08
     masm.zerod(input);
     masm.subsd(ScratchFloatReg, input);
     masm.b(&done);
-	masm.nop();
+    masm.nop();
 
     // Math.pow(-0, 0.5) == 0 == Math.pow(0, 0.5). Adding 0 converts any -0 to 0.
     masm.bindBranch(&sqrt);
@@ -1349,54 +1360,57 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
     FloatRegister scratch = ScratchFloatReg;
     Register output = ToRegister(lir->output());
 
-        Label negative, end; // by wangqing, 2013-11-27
+    Label negative, end; // by wangqing, 2013-11-27
 
-        // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
-        // by weizhenwei, 2013.11.08
-        masm.zerod(scratch);
-		masm.cltd(input, scratch);
-		masm.bc1t(&negative);
-		masm.nop();
+    // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
+    // by weizhenwei, 2013.11.08
+    masm.zerod(scratch);
 
-        // Bail on negative-zero.
-        Assembler::Condition bailCond = masm.testNegativeZero(input, output);
-        if (!bailoutIf(bailCond, lir->snapshot()))
-            return false;
+    //DoubleLessThan check, by wangqing, 2013.11.27
+    masm.cltd(input, scratch);
+    masm.bc1t(&negative);
+    masm.nop();
 
-        // Input is non-negative, so truncation correctly rounds.
+    // Bail on negative-zero.
+    Assembler::Condition bailCond = masm.testNegativeZero(input, output);
+    if (!bailoutIf(bailCond, lir->snapshot()))
+        return false;
+
+    // Input is non-negative, so truncation correctly rounds.
+    masm.cvttsd2si(input, output);
+    masm.cmpl(output, Imm32(0x7fffffff)); //by wangqing, 2013-11-19
+    if (!bailoutIf(Assembler::Equal, lir->snapshot()))
+        return false;
+
+    masm.b(&end);
+            masm.nop();
+
+    // Input is negative, but isn't -0.
+    // Negative values go on a comparatively expensive path, since no
+    // native rounding mode matches JS semantics. Still better than callVM.
+    masm.bindBranch(&negative);
+    {
+        // Truncate and round toward zero.
+        // This is off-by-one for everything but integer-valued inputs.
         masm.cvttsd2si(input, output);
-        masm.cmpl(output, Imm32(0x7fffffff)); //by wangqing, 2013-11-19
+        masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
         if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
-        masm.b(&end);
-		masm.nop();
+        // Test whether the input double was integer-valued.
+        masm.cvtsi2sd(output, scratch);
+        //DoubleEqualOrUnordered check, by wangqing, 2013.11.27
+        masm.cueqd(input, scratch);
+        masm.bc1t(&end);
+        masm.nop();
 
-        // Input is negative, but isn't -0.
-        // Negative values go on a comparatively expensive path, since no
-        // native rounding mode matches JS semantics. Still better than callVM.
-        masm.bindBranch(&negative);
-        {
-            // Truncate and round toward zero.
-            // This is off-by-one for everything but integer-valued inputs.
-            masm.cvttsd2si(input, output);
-            masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
-            if (!bailoutIf(Assembler::Equal, lir->snapshot()))
-                return false;
+        // Input is not integer-valued, so we rounded off-by-one in the
+        // wrong direction. Correct by subtraction.
+        masm.subl(Imm32(1), output);
+        // Cannot overflow: output was already checked against INT_MIN.
+    }
 
-            // Test whether the input double was integer-valued.
-            masm.cvtsi2sd(output, scratch);
-			masm.cueqd(input, scratch);
-			masm.bc1t(&end);
-			masm.nop();
-
-            // Input is not integer-valued, so we rounded off-by-one in the
-            // wrong direction. Correct by subtraction.
-            masm.subl(Imm32(1), output);
-            // Cannot overflow: output was already checked against INT_MIN.
-        }
-
-        masm.bindBranch(&end);
+    masm.bindBranch(&end);
     return true;
 }
 
@@ -1418,9 +1432,10 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     // Branch to a slow path for negative inputs. Doesn't catch NaN or -0.
     // by weizhenwei, 2013.11.08
     masm.zerod(scratch);
-	masm.cltd(input, scratch);
-	masm.bc1t(&negative);
-	masm.nop();
+    //DoubleLessThan check, by wangqing, 2013.11.27
+    masm.cltd(input, scratch);
+    masm.bc1t(&negative);
+    masm.nop();
 
     // Bail on negative-zero.
     Assembler::Condition bailCond = masm.testNegativeZero(input, output);
@@ -1444,39 +1459,40 @@ CodeGeneratorMIPS::visitRound(LRound *lir)
     // Input is negative, but isn't -0.
     masm.bindBranch(&negative);
 
-        masm.addsd(input, temp);
+    masm.addsd(input, temp);
 
-        // Round toward -Infinity without the benefit of ROUNDSD.
-        Label testZero; // by wangqing, 2013-11-27
-        {
-            // Truncate and round toward zero.
-            // This is off-by-one for everything but integer-valued inputs.
-            masm.cvttsd2si(temp, output);
-            masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
-            if (!bailoutIf(Assembler::Equal, lir->snapshot()))
-                return false;
-
-            // Test whether the truncated double was integer-valued.
-            masm.cvtsi2sd(output, scratch);
-			masm.cueqd(temp, scratch);
-			masm.bc1t(&testZero);
-			masm.nop();
-
-            // Input is not integer-valued, so we rounded off-by-one in the
-            // wrong direction. Correct by subtraction.
-            masm.subl(Imm32(1), output);
-            // Cannot overflow: output was already checked against INT_MIN.
-
-            // Fall through to testZero.
-        }
-
-        masm.bindBranch(&testZero);
-        if (!bailoutIf(Assembler::Zero, lir->snapshot()))
+    // Round toward -Infinity without the benefit of ROUNDSD.
+    Label testZero; // by wangqing, 2013-11-27
+    {
+        // Truncate and round toward zero.
+        // This is off-by-one for everything but integer-valued inputs.
+        masm.cvttsd2si(temp, output);
+        masm.cmpl(output, Imm32(0x7fffffff)); // by wangqing, 2013-11-19
+        if (!bailoutIf(Assembler::Equal, lir->snapshot()))
             return false;
 
-        //add NaN check and Bailout, by weizhenwei, 2013.11.19
-        if (!bailoutIf(Assembler::Parity, lir->snapshot()))
-            return false;
+        // Test whether the truncated double was integer-valued.
+        masm.cvtsi2sd(output, scratch);
+        //DoubleEqualOrUnordered check, by wangqing, 2013.11.27
+        masm.cueqd(temp, scratch);
+        masm.bc1t(&testZero);
+        masm.nop();
+
+        // Input is not integer-valued, so we rounded off-by-one in the
+        // wrong direction. Correct by subtraction.
+        masm.subl(Imm32(1), output);
+        // Cannot overflow: output was already checked against INT_MIN.
+
+        // Fall through to testZero.
+    }
+
+    masm.bindBranch(&testZero);
+    if (!bailoutIf(Assembler::Zero, lir->snapshot()))
+        return false;
+
+    //add NaN check and Bailout, by weizhenwei, 2013.11.19
+    if (!bailoutIf(Assembler::Parity, lir->snapshot()))
+        return false;
 
     masm.bindBranch(&end);
     return true;
@@ -2284,44 +2300,48 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
 
     Label fail;  // by wangqing, 2013-11-27
 
-        FloatRegister temp = ToFloatRegister(ins->tempFloat());
+    FloatRegister temp = ToFloatRegister(ins->tempFloat());
 
-        // Try to convert doubles representing integers within 2^32 of a signed
-        // integer, by adding/subtracting 2^32 and then trying to convert to int32.
-        // This has to be an exact conversion, as otherwise the truncation works
-        // incorrectly on the modified value.
+    // Try to convert doubles representing integers within 2^32 of a signed
+    // integer, by adding/subtracting 2^32 and then trying to convert to int32.
+    // This has to be an exact conversion, as otherwise the truncation works
+    // incorrectly on the modified value.
 
-      	//by weizhenwei, 2013.11.05
-        masm.zerod(ScratchFloatReg);
-		masm.cud(input, ScratchFloatReg);
-		masm.bc1t(&fail);
-		masm.nop();
+    //by weizhenwei, 2013.11.05
+    masm.zerod(ScratchFloatReg);
+    //DoubleUnordered check, by wangqing, 2013.11.27
+    masm.cud(input, ScratchFloatReg);
+    masm.bc1t(&fail);
+    masm.nop();
 
-        {
-            Label positive; // by wangqing, 2013-11-27
-			masm.cngtd(input, ScratchFloatReg);
-			masm.bc1f(&positive);
-			masm.nop();
+    {
+        Label positive; // by wangqing, 2013-11-27
+        //DoubleGreaterThan check, by wangqing, 2013.11.27
+        masm.cngtd(input, ScratchFloatReg);
+        masm.bc1f(&positive);
+        masm.nop();
 
-            static const double shiftNeg = 4294967296.0;
-            masm.loadStaticDouble(&shiftNeg, temp);
-            Label skip;
-            masm.b(&skip);
-			masm.nop();
+        static const double shiftNeg = 4294967296.0;
+        masm.loadStaticDouble(&shiftNeg, temp);
+        Label skip;
+        masm.b(&skip);
+                    masm.nop();
 
-            masm.bindBranch(&positive);
-            static const double shiftPos = -4294967296.0;
-            masm.loadStaticDouble(&shiftPos, temp);
-            masm.bindBranch(&skip);
-        }
-        masm.addsd(input, temp);
-        masm.cvttsd2si(temp, output);
-        masm.cvtsi2sd(output, ScratchFloatReg);
+        masm.bindBranch(&positive);
+        static const double shiftPos = -4294967296.0;
+        masm.loadStaticDouble(&shiftPos, temp);
+        masm.bindBranch(&skip);
+    }
+    masm.addsd(input, temp);
+    masm.cvttsd2si(temp, output);
+    masm.cvtsi2sd(output, ScratchFloatReg);
 
-		masm.cud(temp, ScratchFloatReg);
-		masm.bc1t(&fail);
-		masm.nop();
-        masm.branchDouble(Assembler::DoubleEqual, temp, ScratchFloatReg, ool->rejoin());
+    //DoubleUnordered check, by wangqing, 2013.11.27
+    masm.cud(temp, ScratchFloatReg);
+    masm.bc1t(&fail);
+    masm.nop();
+
+    masm.branchDouble(Assembler::DoubleEqual, temp, ScratchFloatReg, ool->rejoin());
 
     masm.bindBranch(&fail);
     {

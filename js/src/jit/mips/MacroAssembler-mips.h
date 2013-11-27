@@ -965,19 +965,103 @@ class MacroAssemblerMIPS : public Assembler
     {
     }
 
+    //by weizhenwei, 2013.11.27
+    mJump branchTrue(bool branchTrue)
+    {
+        masm.appendJump();
+        if (branchTrue) {
+            masm.bc1t();
+        } else {
+            masm.bc1f();
+
+        }
+        masm.nop();
+
+        //insertRelaxationWords(); replaced by following, weizhenwei, 2013.11.22
+        /* We need four words for relaxation. */
+        masm.beq(mRegisterID(zero.code()), mRegisterID(zero.code()), 3); // Jump over nops;
+        masm.nop();
+        masm.nop();
+        masm.nop();
+
+        return mJump(masm.newJmpSrc());
+    }
+
+    //by weizhenwei, 2013.11.27
+    mJump branchDouble(DoubleCondition cond, mFPRegisterID left, mFPRegisterID right)
+    {
+        if (cond == DoubleUnordered) {
+            masm.cud(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleOrdered) {
+            masm.cud(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleEqual) {
+            masm.ceqd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleNotEqual) {
+            masm.ceqd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThan) {
+            masm.cngtd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThanOrEqual) {
+            masm.cnged(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleLessThan) {
+            masm.cltd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleLessThanOrEqual) {
+            masm.cled(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleEqualOrUnordered) {
+            masm.cueqd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleNotEqualOrUnordered) {
+            masm.ceqd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThanOrUnordered) {
+            masm.coled(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThanOrEqualOrUnordered) {
+            masm.coltd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleLessThanOrUnordered) {
+            masm.cultd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleLessThanOrEqualOrUnordered) {
+            masm.culed(left, right);
+            return branchTrue(true);
+        }
+
+        ASSERT(0);
+        return branchTrue(true);
+    }
+
     void branchDouble(DoubleCondition cond, const FloatRegister &lhs,
                       const FloatRegister &rhs, Label *label)
     {
+        JmpSrc j;
 
         //by weizhenwei, 2013.10.29
-        JmpSrc j;
         if (cond & DoubleConditionBitInvert) {
-            j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond),
-                    rhs.code(), lhs.code()).getJmpSrc();
-        } else {
-            j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond),
-                    lhs.code(), rhs.code()).getJmpSrc();
+            JS_ASSERT(0);
         }
+
+        j = branchDouble(cond, mFPRegisterID(lhs.code()), mFPRegisterID(rhs.code())).getJmpSrc();
 
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -988,6 +1072,75 @@ class MacroAssemblerMIPS : public Assembler
             masm.setNextJump(j, prev);
         }
     }
+
+    //by weizhenwei, 2013.11.27
+    void branchDoubleLocal(DoubleCondition cond, const FloatRegister &lhs,
+                      const FloatRegister &rhs, Label *label)
+    {
+        mFPRegisterID left = mFPRegisterID(lhs.code());
+        mFPRegisterID right = mFPRegisterID(rhs.code());
+
+        if (cond == DoubleUnordered) {
+            masm.cud(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleOrdered) {
+            masm.cud(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleEqual) {
+            masm.ceqd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleNotEqual) {
+            masm.ceqd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThan) {
+            masm.cngtd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThanOrEqual) {
+            masm.cnged(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleLessThan) {
+            masm.cltd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleLessThanOrEqual) {
+            masm.cled(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleEqualOrUnordered) {
+            masm.cueqd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleNotEqualOrUnordered) {
+            masm.ceqd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThanOrUnordered) {
+            masm.coled(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThanOrEqualOrUnordered) {
+            masm.coltd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleLessThanOrUnordered) {
+            masm.cultd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleLessThanOrEqualOrUnordered) {
+            masm.culed(left, right);
+            bc1t(label);
+        }
+
+        masm.nop();
+    }
+
+
 
     void move32(const Imm32 &imm, const Register &dest) {
         if (imm.value == 0)
