@@ -965,10 +965,6 @@ class MacroAssemblerMIPS : public Assembler
     {
     }
 
-    void compareDouble(DoubleCondition cond, const FloatRegister &lhs, const FloatRegister &rhs) {
-		ASSERT(0);//by weizhenwei, 2013.11.05
-    }
-
     void branchDouble(DoubleCondition cond, const FloatRegister &lhs,
                       const FloatRegister &rhs, Label *label)
     {

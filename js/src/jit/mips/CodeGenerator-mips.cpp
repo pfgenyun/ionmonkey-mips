@@ -452,9 +452,10 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
                                : Assembler::Below;
     Label nan, equal, returnSecond, done;
 
-   //by weizhenwei, 2013.11.05
-    masm.branchDouble(Assembler::DoubleUnordered,
-            second, first, &nan); // first or second is NaN, result is NaN.
+	// by wangqing, 2013-11-27
+	masm.cud(second, first);
+	masm.bc1t(&nan);
+	masm.nop();
     masm.branchDouble(Assembler::DoubleEqual,
             second, first, &equal); // make sure we handle -0 and 0 right.
 
@@ -483,7 +484,7 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
         masm.orpd(second, first); // This just ors the sign bit.
     masm.jmp(&done);
 
-    masm.bind(&nan);
+    masm.bindBranch(&nan);
     masm.loadStaticDouble(&js_NaN, output);
     masm.jmp(&done);
 

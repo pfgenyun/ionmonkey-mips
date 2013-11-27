@@ -570,9 +570,21 @@ public:
         emitInst(0x45010000);
     }
 
+	// by wangqing, 2013-11-27
+	void bc1t(int imm)
+    {
+        emitInst(0x45010000 | (imm & 0xffff));
+    }
+
     void bc1f()
     {
         emitInst(0x45000000);
+    }
+
+	// by wangqing, 2013-11-27
+    void bc1f(int imm)
+    {
+        emitInst(0x45000000 | (imm & 0xffff));
     }
 
     JmpSrc newJmpSrc()

@@ -2870,14 +2870,26 @@ class Assembler
         masm.bne(rs.code(), rt.code(), imm);
     }
 
-    void bc1t()
+	void bc1t()
     {
-        masm.bc1t();
+		masm.bc1t();
+    }
+
+	// by wangqing, 2013-11-27
+	void bc1t(int32_t imm)
+    {
+		masm.bc1t(imm);
     }
 
     void bc1f()
     {
-        masm.bc1f();
+		masm.bc1f();
+    }
+
+	// by wangqing, 2013-11-27
+    void bc1f(int32_t imm)
+    {
+		masm.bc1f(imm);
     }
 
     // by wangqing 2010-10-30
@@ -3260,6 +3272,54 @@ class Assembler
 			else{
 				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
 				blez(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-27
+	void bc1t(Label *label)
+    {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2;	
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bc1t(offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+			JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bc1t(-1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bc1t(offset);
+			}
+        }
+    }
+	
+	// by wangqing, 2013-11-27
+	void bc1f(Label *label)
+    {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2;	
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bc1f(offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+			JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bc1f(-1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bc1f(offset);
 			}
         }
     }
