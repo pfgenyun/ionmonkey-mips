@@ -2281,6 +2281,17 @@ class Assembler
       mfhi(t7);
       mflo(t6);
     }
+
+    //  by weizhenwei, 2013.11.28
+    void udiv(const Register &lhs, const Register &rhs) {
+      divu(lhs, rhs);
+      mflo(lhs);
+    }
+    //  by weizhenwei, 2013.11.28
+    void udivmod(const Register &lhs, const Register &rhs) {
+      divu(lhs, rhs);
+      mfhi(lhs);
+    }
     
     void cvtsi2sd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {

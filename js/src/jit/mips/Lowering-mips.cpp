@@ -188,19 +188,17 @@ LIRGeneratorMIPS::visitAsmJSNeg(MAsmJSNeg *ins)
 bool
 LIRGeneratorMIPS::visitAsmJSUDiv(MAsmJSUDiv *div)
 {
-    LAsmJSDivOrMod *lir = new LAsmJSDivOrMod(useFixed(div->lhs(), t6),
-                                             useRegister(div->rhs()),
-                                             tempFixed(t7));
-    return defineFixed(lir, div, LAllocation(AnyRegister(t6)));
+//by weizhenwei, 2013.11.28
+    LAsmJSDiv *lir = new LAsmJSDiv(useRegisterAtStart(div->lhs()), useRegister(div->rhs()));
+    return defineReuseInput(lir, div, 0);
 }
 
 bool
 LIRGeneratorMIPS::visitAsmJSUMod(MAsmJSUMod *mod)
 {
-    LAsmJSDivOrMod *lir = new LAsmJSDivOrMod(useFixed(mod->lhs(), t6),
-                                             useRegister(mod->rhs()),
-                                             LDefinition::BogusTemp());
-    return defineFixed(lir, mod, LAllocation(AnyRegister(t7)));
+//by weizhenwei, 2013.11.28
+    LAsmJSMod *lir = new LAsmJSMod(useRegisterAtStart(mod->lhs()), useRegister(mod->rhs()));
+    return defineReuseInput(lir, mod, 0);
 }
 
 bool
@@ -415,7 +413,9 @@ LIRGeneratorMIPS::visitStoreTypedArrayElement(MStoreTypedArrayElement *ins)
 
     // For byte arrays, the value has to be in a byte register on mips.
     if (ins->isByteArray())
-        value = useFixed(ins->value(), t6);
+        //value = useFixed(ins->value(), t6);
+        //by weizhenwei, 2013.11.28
+        value = useRegister(ins->value());
     else
         value = useRegisterOrNonDoubleConstant(ins->value());
     return add(new LStoreTypedArrayElement(elements, index, value), ins);
@@ -440,7 +440,9 @@ LIRGeneratorMIPS::visitStoreTypedArrayElementHole(MStoreTypedArrayElementHole *i
 
     // For byte arrays, the value has to be in a byte register on mips.
     if (ins->isByteArray())
-        value = useFixed(ins->value(), t6);
+        //value = useFixed(ins->value(), t6);
+        //by weizhenwei, 2013.11.28
+        value = useRegister(ins->value());
     else
         value = useRegisterOrNonDoubleConstant(ins->value());
     return add(new LStoreTypedArrayElementHole(elements, length, index, value), ins);
@@ -460,8 +462,10 @@ LIRGeneratorMIPS::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
     LAsmJSStoreHeap *lir;
     switch (ins->viewType()) {
       case ArrayBufferView::TYPE_INT8: case ArrayBufferView::TYPE_UINT8:
-        lir = new LAsmJSStoreHeap(useRegister(ins->ptr()),
-                                  useFixed(ins->value(), t6));
+//        lir = new LAsmJSStoreHeap(useRegister(ins->ptr()),
+//                                  useFixed(ins->value(), t6));
+        //byw weizhenwei, 2013.11.28
+        lir = new LAsmJSStoreHeap(useRegister(ins->ptr()), useRegister(ins->value()));
         break;
       case ArrayBufferView::TYPE_INT16: case ArrayBufferView::TYPE_UINT16:
       case ArrayBufferView::TYPE_INT32: case ArrayBufferView::TYPE_UINT32:
@@ -486,8 +490,11 @@ LIRGeneratorMIPS::visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStati
     switch (ins->viewType()) {
       case ArrayBufferView::TYPE_INT8: case ArrayBufferView::TYPE_UINT8:
       case ArrayBufferView::TYPE_UINT8_CLAMPED:
+        //lir = new LStoreTypedArrayElementStatic(useRegister(ins->ptr()),
+        //                                        useFixed(ins->value(), t6));
+        //by weizhenwei, 2013.11.28
         lir = new LStoreTypedArrayElementStatic(useRegister(ins->ptr()),
-                                                useFixed(ins->value(), t6));
+                                                useRegister(ins->value()));
         break;
       case ArrayBufferView::TYPE_INT16: case ArrayBufferView::TYPE_UINT16:
       case ArrayBufferView::TYPE_INT32: case ArrayBufferView::TYPE_UINT32:

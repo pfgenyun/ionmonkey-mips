@@ -778,17 +778,18 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
     return true;
 }
 
+//by weizhenwei, 2013.11.28
+//divide AsmJSDivOrMod into AsmJSDiv and AsmJSMod
 bool
-CodeGeneratorMIPS::visitAsmJSDivOrMod(LAsmJSDivOrMod *ins)
+CodeGeneratorMIPS::visitAsmJSDiv(LAsmJSDiv *ins)
 {
-    JS_ASSERT(ToRegister(ins->lhs()) == t6);
+    Register lhs = ToRegister(ins->lhs());
     Register rhs = ToRegister(ins->rhs());
     Register output = ToRegister(ins->output());
 
-    JS_ASSERT_IF(output == t6, ToRegister(ins->remainder()) == t7);
+    JS_ASSERT( lhs == output);
 
     Label afterDiv;
-
     Label notzero;
     masm.bne(rhs, zero, &notzero);
     masm.nop();
@@ -797,10 +798,33 @@ CodeGeneratorMIPS::visitAsmJSDivOrMod(LAsmJSDivOrMod *ins)
     masm.nop();
     masm.bindBranch(&notzero);
 
-    masm.xorl(t7,t7);
-    masm.udiv(rhs);
+    masm.udiv(lhs, rhs);
 
     masm.bindBranch(&afterDiv);
+
+    return true;
+}
+bool
+CodeGeneratorMIPS::visitAsmJSMod(LAsmJSMod *ins)
+{
+    Register lhs = ToRegister(ins->lhs());
+    Register rhs = ToRegister(ins->rhs());
+    Register output = ToRegister(ins->output());
+
+    JS_ASSERT( lhs == output);
+
+    Label afterMod;
+    Label notzero;
+    masm.bne(rhs, zero, &notzero);
+    masm.nop();
+    masm.xorl(output, output);
+    masm.b(&afterMod);
+    masm.nop();
+    masm.bindBranch(&notzero);
+
+    masm.udivmod(lhs, rhs);
+
+    masm.bindBranch(&afterMod);
 
     return true;
 }
@@ -1053,6 +1077,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         }
         masm.bindBranch(&notmin);
 
+        //by weizhenwei, 2013.11.28
         masm.idivmod(lhs, rhs);
 
         if (!ins->mir()->isTruncated()) {
