@@ -80,7 +80,8 @@ LIRGeneratorMIPS::lowerForShift(LInstructionHelper<1, 2, 0> *ins, MDefinition *m
     if (rhs->isConstant())
         ins->setOperand(1, useOrConstant(rhs));
     else
-        ins->setOperand(1, useFixed(rhs,t8));
+        //by weizhenwei, 2013.11.28
+        ins->setOperand(1, useRegister(rhs));
 
     return defineReuseInput(ins, mir, 0);
 }
@@ -144,10 +145,11 @@ LIRGeneratorMIPS::lowerDivI(MDiv *div)
         }
     }
 
-    LDivI *lir = new LDivI(useFixed(div->lhs(),t6), useRegister(div->rhs()), tempFixed(t7));
+    //by weizhenwei, 2013.11.28
+    LDivI *lir = new LDivI(useRegisterAtStart(div->lhs()), useRegister(div->rhs()));
     if (div->fallible() && !assignSnapshot(lir))
         return false;
-    return defineFixed(lir, div, LAllocation(AnyRegister(t6)));
+    return defineReuseInput(lir, div, 0);
 }
 
 bool
@@ -164,10 +166,13 @@ LIRGeneratorMIPS::lowerModI(MMod *mod)
             return defineReuseInput(lir, mod, 0);
         }
     }
-    LModI *lir = new LModI(useRegister(mod->lhs()), useRegister(mod->rhs()), tempFixed(t6));
+
+    //by weizhenwei, 2013.11.28
+    LModI *lir = new LModI(useRegisterAtStart(mod->lhs()), useRegister(mod->rhs()));
     if (mod->fallible() && !assignSnapshot(lir))
         return false;
-    return defineFixed(lir, mod, LAllocation(AnyRegister(t7)));
+
+    return defineReuseInput(lir, mod, 0);
 }
 
 bool
@@ -209,7 +214,9 @@ LIRGeneratorMIPS::lowerUrshD(MUrsh *mir)
     JS_ASSERT(mir->type() == MIRType_Double);
 
     LUse lhsUse = useRegisterAtStart(lhs);
-    LAllocation rhsAlloc = rhs->isConstant() ? useOrConstant(rhs) : useFixed(rhs, t8);
+
+    //by weizhenwei, 2013.11.28
+    LAllocation rhsAlloc = rhs->isConstant() ? useOrConstant(rhs) : useRegister(rhs);
 
     LUrshD *lir = new LUrshD(lhsUse, rhsAlloc, tempCopy(lhs, 0));
     return define(lir, mir);

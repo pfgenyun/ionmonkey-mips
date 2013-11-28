@@ -869,17 +869,12 @@ CodeGeneratorMIPS::visitDivPowTwoI(LDivPowTwoI *ins)
 bool
 CodeGeneratorMIPS::visitDivI(LDivI *ins)
 {
-    Register remainder = ToRegister(ins->remainder());
     Register lhs = ToRegister(ins->lhs());
     Register rhs = ToRegister(ins->rhs());
     Register output = ToRegister(ins->output());
-
     MDiv *mir = ins->mir();
 
-    JS_ASSERT(remainder == t7);
-    JS_ASSERT(lhs == t6);
-    JS_ASSERT(output == t6);
-
+    JS_ASSERT(lhs == output); //by weizhenwei, 2013.11.28
     Label done;
 
     // Handle divide by zero.
@@ -888,14 +883,14 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
             // Truncated division by zero is zero (Infinity|0 == 0)
             Label notzero;
             masm.bne(rhs, zero, &notzero);
-			masm.nop();
+            masm.nop();
             masm.xorl(output, output);
-			masm.b(&done);
-			masm.nop();
+            masm.b(&done);
+            masm.nop();
             masm.bindBranch(&notzero);
         } else {
-			// by wangqing, 2013-11-27 testl--->cmpl
-			masm.cmpl(rhs, zero);
+            // by wangqing, 2013-11-27 testl--->cmpl
+            masm.cmpl(rhs, zero);
             JS_ASSERT(mir->fallible());
             if (!bailoutIf(Assembler::Zero, ins->snapshot()))
                 return false;
@@ -909,15 +904,15 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
 	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
 	masm.bne(lhs, cmpTempRegister, &notmin);
 	masm.nop();
-		// by wangqing, 2013-11-27
+	// by wangqing, 2013-11-27
         if (mir->isTruncated()) {
             // (-INT32_MIN)|0 == INT32_MIN and INT32_MIN is already in the
             // output register.
-			masm.movl(Imm32(-1), cmpTempRegister);
+            masm.movl(Imm32(-1), cmpTempRegister);
             masm.beq(rhs, cmpTempRegister, &done);
-			masm.nop();
+            masm.nop();
         } else {
-        	masm.cmpl(rhs, Imm32(-1));
+            masm.cmpl(rhs, Imm32(-1));
             JS_ASSERT(mir->fallible());
             if (!bailoutIf(Assembler::Equal, ins->snapshot()))
                 return false;
@@ -930,18 +925,22 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
         Label nonzero;
 	// by wangqing, 2013-11-25
         masm.bne(lhs, zero, &nonzero);
-	    masm.nop();
+        masm.nop();
         masm.cmpl(rhs, Imm32(0));
         if (!bailoutIf(Assembler::LessThan, ins->snapshot()))
             return false;
         masm.bindBranch(&nonzero);
     }
 
-    masm.idiv(rhs);
+    //by weizhenwei, 2013.11.28
+    masm.idiv(lhs, rhs);
 
     if (!mir->isTruncated()) {
         // If the remainder is > 0, bailout since this must be a double.
-	    masm.cmpl(remainder, zero); // by wangqing, 2013-11-27 testl--->cmpl
+	//masm.cmpl(remainder, zero); // by wangqing, 2013-11-27 testl--->cmpl
+        //by weizhenwei, 2013.11.28
+        masm.mfhi(cmpTempRegister);
+        masm.movl(zero, cmpTemp2Register);
         if (!bailoutIf(Assembler::NonZero, ins->snapshot()))
             return false;
     }
@@ -991,31 +990,24 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
     Register remainder = ToRegister(ins->remainder());
     Register lhs = ToRegister(ins->lhs());
     Register rhs = ToRegister(ins->rhs());
-    Register temp = ToRegister(ins->getTemp(0));
 
-    // Required to use idiv.
-    JS_ASSERT(remainder == t7);
-    JS_ASSERT(temp == t6);
-
-    if (lhs != temp) {
-        masm.mov(lhs, temp);
-        lhs = temp;
-    }
+    //by weizhenwei, 2013.11.28
+    JS_ASSERT(lhs == remainder);
 
     Label done;
 
     // Prevent divide by zero
     if (ins->mir()->isTruncated()) {
-    Label notzero;
-    masm.bne(rhs, zero, &notzero);
-	masm.nop();
-    masm.xorl(t7,t7);
-    masm.b(&done);
-	masm.nop();
+        Label notzero;
+        masm.bne(rhs, zero, &notzero);
+        masm.nop();
+        masm.xorl(remainder, remainder);
+        masm.b(&done);
+        masm.nop();
         masm.bindBranch(&notzero);
     } else {
-		// by wangqing, 2013-11-27 testl--->cmpl
-		masm.cmpl(rhs, zero);
+        // by wangqing, 2013-11-27 testl--->cmpl
+        masm.cmpl(rhs, zero);
         if (!bailoutIf(Assembler::Zero, ins->snapshot()))
             return false;
     }
@@ -1024,15 +1016,15 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
 
     // Switch based on sign of the lhs.
 //    masm.branchTest32(Assembler::Signed, lhs, lhs, &negative);
-	masm.bltz(lhs, &negative);
-	masm.nop();
+    masm.bltz(lhs, &negative);
+    masm.nop();
     // If lhs >= 0 then remainder = lhs % rhs. The remainder must be positive.
     {
         // Since lhs >= 0, the sign-extension will be 0
-        masm.xorl(t7,t7);
-        masm.idiv(rhs);
+        // by weizhenwei, 2013.11.28
+        masm.idivmod(lhs, rhs);
         masm.b(&done);
-		masm.nop();
+	masm.nop();
     }
 
     // Otherwise, we have to beware of two special cases:
@@ -1041,24 +1033,27 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
 
         // Prevent an integer overflow exception from -2147483648 % -1
         Label notmin;
-	    masm.movl(Imm32(INT32_MIN), cmpTempRegister);
+	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
         masm.bne(lhs, cmpTempRegister, &notmin);
-	    masm.nop();
-		// by wangqing, 2013-11-27
+        masm.nop();
+
+        // by wangqing, 2013-11-27
         if (ins->mir()->isTruncated()) {
-			masm.movl(Imm32(-1), cmpTempRegister);
+	    masm.movl(Imm32(-1), cmpTempRegister);
             masm.bne(rhs, cmpTempRegister, &notmin);
             masm.nop();
-            masm.xorl(t7,t7);
+            //by weizhenwei, 2013.11.28
+            masm.xorl(remainder, remainder);
             masm.b(&done);
-	    	masm.nop();
+            masm.nop();
         } else {
         	masm.cmpl(rhs, Imm32(-1));
             if (!bailoutIf(Assembler::Equal, ins->snapshot()))
                 return false;
         }
         masm.bindBranch(&notmin);
-        masm.idiv(rhs);
+
+        masm.idivmod(lhs, rhs);
 
         if (!ins->mir()->isTruncated()) {
             // A remainder of 0 means that the rval must be -0, which is a double.
@@ -1145,19 +1140,21 @@ CodeGeneratorMIPS::visitShiftI(LShiftI *ins)
             JS_NOT_REACHED("Unexpected shift op");
         }
     } else {
-        JS_ASSERT(ToRegister(rhs) == t8);
+        //by weizhenwei, 2013.11.28
+        JS_ASSERT(rhs->isGeneralReg());
+        Register cl = ToRegister(rhs);
         switch (ins->bitop()) {
           case JSOP_LSH:
-            masm.shll_cl(lhs);
+            masm.shll_cl(lhs, cl);
             break;
           case JSOP_RSH:
-            masm.sarl_cl(lhs);
+            masm.sarl_cl(lhs, cl);
             break;
           case JSOP_URSH:
-            masm.shrl_cl(lhs);
+            masm.shrl_cl(lhs, cl);
             if (ins->mir()->toUrsh()->canOverflow()) {
                 // x >>> 0 can overflow.
-		        masm.cmpl(lhs, zero); // by wangqing, 2013-11-27, testl--->cmpl
+		masm.cmpl(lhs, zero); // by wangqing, 2013-11-27, testl--->cmpl
                 if (!bailoutIf(Assembler::Signed, ins->snapshot()))
                     return false;
             }
@@ -1184,8 +1181,10 @@ CodeGeneratorMIPS::visitUrshD(LUrshD *ins)
         if (shift)
             masm.shrl(Imm32(shift), lhs);
     } else {
-        JS_ASSERT(ToRegister(rhs) == t8);
-        masm.shrl_cl(lhs);
+        //by weizhenwei, 2013.11.28
+        JS_ASSERT(rhs->isGeneralReg());
+        Register cl = ToRegister(rhs);
+        masm.shrl_cl(lhs, cl);
     }
 
     masm.convertUInt32ToDouble(lhs, out);
