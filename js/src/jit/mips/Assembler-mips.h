@@ -2108,6 +2108,21 @@ class Assembler
         }
     }
 
+    // by wangqing, 2013-11-29
+    void imull_opt(const Operand &src, const Register &dest) {
+        switch (src.kind()) {
+          case Operand::REG:
+	    masm.mul_opt(dest.code(), dest.code(), src.reg());
+            break;
+          case Operand::REG_DISP:
+	    mcss.load32(mAddress(src.base(), src.disp()), dataTempRegister.code());
+            masm.mul_opt(dest.code(), dest.code(), dataTempRegister.code());
+            break;
+          default:
+            JS_NOT_REACHED("unexpected operand kind");
+        }
+    }
+
     void negl(const Operand &src) {
         switch (src.kind()) {
           case Operand::REG:
@@ -2571,6 +2586,12 @@ class Assembler
     void mflo(const Register &rd)
     {
         masm.mflo(rd.code());
+    }
+
+    // by wangqing, 2013-11-29
+    void mul_opt(const Register &rd, const Register &rs, const Register &rt)
+    {
+        masm.mul_opt(rd.code(), rs.code(), rt.code());
     }
 
     void mul(const Register &rd, const Register &rs, const Register &rt)

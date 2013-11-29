@@ -732,34 +732,43 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
                     return true;
                 }
             }
-            masm.imull(Imm32(ToInt32(rhs)), ToRegister(lhs));
+	    // by wangqing, 2013-11-29
+	    // Optimization the mul instruction.
+            if(mul->canOverflow()){
+            	masm.imull(Imm32(ToInt32(rhs)), ToRegister(lhs));
 
-            //overflow check, by weizhenwei, 2013.11.14
-            masm.mfhi(cmpTempRegister);
-            masm.mflo(cmpTemp2Register);
-            masm.sarl(Imm32(0x1f), cmpTemp2Register);
+            	//overflow check, by weizhenwei, 2013.11.14
+            	masm.mfhi(cmpTempRegister);
+            	masm.mflo(cmpTemp2Register);
+            	masm.sarl(Imm32(0x1f), cmpTemp2Register);
 
-            // Bailout on overflow
-            //if (mul->canOverflow() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
-            //see See MIPS Run Linux Chinese 2rd, Page 139. overflow check logic
-            if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
-                return false;
-
-
-        }
+            	// Bailout on overflow
+            	//see See MIPS Run Linux Chinese 2rd, Page 139. overflow check logic
+            	if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
+                	return false;
+	    	}else{
+			masm.movl(Imm32(ToInt32(rhs)), cmpTempRegister);
+                	masm.mul_opt(ToRegister(lhs), cmpTempRegister, ToRegister(lhs));
+	    	}
+	   }
     } else {
-        masm.imull(ToOperand(rhs), ToRegister(lhs));
+	// by wangqing, 2013-11-29
+	// Optimization the mul instruction.
+	if(mul->canOverflow()){
+             	masm.imull(ToOperand(rhs), ToRegister(lhs));
 
-        //overflow check, by weizhenwei, 2013.11.14
-        masm.mfhi(cmpTempRegister);
-        masm.mflo(cmpTemp2Register);
-        masm.sarl(Imm32(0x1f), cmpTemp2Register);
+        	//overflow check, by weizhenwei, 2013.11.14
+      	  	masm.mfhi(cmpTempRegister);
+        	masm.mflo(cmpTemp2Register);
+       		masm.sarl(Imm32(0x1f), cmpTemp2Register);
 
-        // Bailout on overflow
-        //if (mul->canOverflow() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
-        //see See MIPS Run Linux Chinese 2rd, Page 139. overflow check logic
-        if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
-            return false;
+        	// Bailout on overflow
+      		//see See MIPS Run Linux Chinese 2rd, Page 139. overflow check logic
+                if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
+                   return false;
+	}else{
+             	masm.imull_opt(ToOperand(rhs), ToRegister(lhs));
+	}
 
         if (mul->canBeNegativeZero()) {
             // Jump to an OOL path if the result is 0.
@@ -767,9 +776,9 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
             if (!addOutOfLineCode(ool))
                 return false;
 
-			// by wangqing, 2013-11-27
-			// Modify the testl ----> cmpl
-			masm.cmpl(ToRegister(lhs), zero); 
+            // by wangqing, 2013-11-27
+            // Modify the testl ----> cmpl
+            masm.cmpl(ToRegister(lhs), zero); 
             masm.j(Assembler::Zero, ool->entry());
             masm.bind(ool->rejoin());
         }
