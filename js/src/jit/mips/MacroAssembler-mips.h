@@ -1073,68 +1073,80 @@ class MacroAssemblerMIPS : public Assembler
         }
     }
 
-    //by weizhenwei, 2013.11.27
-    void branchDoubleLocal(DoubleCondition cond, const FloatRegister &lhs,
-                      const FloatRegister &rhs, Label *label)
-    {
-        mFPRegisterID left = mFPRegisterID(lhs.code());
-        mFPRegisterID right = mFPRegisterID(rhs.code());
+    //by weizhenwei, 2013.11.29, emit mutiple cc at one time.
+    typedef enum {
+        CCUnordered = 0,
+        CCEqual, /*Equal and NotEqualOrUnordered use same instruction */
+        CCNotEqual, /*NotEqual and EqualOrUnordered use same instruction */
+        CCGreaterThan,
+        CCGreaterThanOrEqual,
+        CCLessThan,
+        CCLessThanOrEqual,
+    } CCPosition;
 
+    void emitCCMutiple(FloatRegister left, FloatRegister right)
+    {
+        mFPRegisterID lhs = left.code();
+        mFPRegisterID rhs = right.code();
+
+        //DoubleOrdered and DoubleUnordered
+        masm.cud(mFPCCID(CCUnordered), lhs, rhs);
+
+        //DoubleEqual and DoubleNotEqualOrUnordered
+        masm.ceqd(mFPCCID(CCEqual), lhs, rhs);
+
+        //DoubleNotEqual and DoubleEqualOrUnordered
+        masm.cueqd(mFPCCID(CCNotEqual), lhs, rhs);
+
+        //DoubleGreaterThan
+        masm.cngtd(mFPCCID(CCGreaterThan), lhs, rhs);
+
+        //DoubleGreaterThanOrEqual
+        masm.cnged(mFPCCID(CCGreaterThanOrEqual), lhs, rhs);
+
+        //DoubleLessThan
+        masm.cltd(mFPCCID(CCLessThan), lhs, rhs);
+
+        //DoubleLessThanOrEqual
+        masm.cled(mFPCCID(CCLessThanOrEqual), lhs, rhs);
+    }
+
+    //by weizhenwei, 2013.11.29
+    //use with emitCCMutiple together.
+    void branchDoubleLocal(DoubleCondition cond, Label *label)
+    {
         if (cond == DoubleUnordered) {
-            masm.cud(left, right);
-            bc1t(label);
-        }
-        if (cond == DoubleOrdered) {
-            masm.cud(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleEqual) {
-            masm.ceqd(left, right);
-            bc1t(label);
-        }
-        if (cond == DoubleNotEqual) {
-            masm.ceqd(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleGreaterThan) {
-            masm.cngtd(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleGreaterThanOrEqual) {
-            masm.cnged(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleLessThan) {
-            masm.cltd(left, right);
-            bc1t(label);
-        }
-        if (cond == DoubleLessThanOrEqual) {
-            masm.cled(left, right);
-            bc1t(label);
-        }
-        if (cond == DoubleEqualOrUnordered) {
-            masm.cueqd(left, right);
-            bc1t(label);
-        }
-        if (cond == DoubleNotEqualOrUnordered) {
-            masm.ceqd(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleGreaterThanOrUnordered) {
-            masm.coled(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleGreaterThanOrEqualOrUnordered) {
-            masm.coltd(left, right);
-            bc1f(label); //false
-        }
-        if (cond == DoubleLessThanOrUnordered) {
-            masm.cultd(left, right);
-            bc1t(label);
-        }
-        if (cond == DoubleLessThanOrEqualOrUnordered) {
-            masm.culed(left, right);
-            bc1t(label);
+            //masm.cud(left, right);
+            bc1t(mFPCCID(CCUnordered), label);
+        } else if (cond == DoubleOrdered) {
+            //masm.cud(left, right);
+            bc1f(mFPCCID(CCUnordered), label); //false
+        } else if (cond == DoubleEqual) {
+            //masm.ceqd(left, right);
+            bc1t(mFPCCID(CCEqual), label);
+        } else if (cond == DoubleNotEqualOrUnordered) {
+            //masm.ceqd(left, right);
+            bc1f(mFPCCID(CCEqual), label); //false
+        } else if (cond == DoubleNotEqual) {
+            //masm.cueqd(left, right);
+            bc1f(mFPCCID(CCNotEqual), label); //false
+        } else if (cond == DoubleEqualOrUnordered) {
+            //masm.cueqd(left, right);
+            bc1t(mFPCCID(CCNotEqual), label);
+        } else if (cond == DoubleGreaterThan) {
+            //masm.cngtd(left, right);
+            bc1f(mFPCCID(CCGreaterThan), label); //false
+        } else if (cond == DoubleGreaterThanOrEqual) {
+            //masm.cnged(left, right);
+            bc1f(mFPCCID(CCGreaterThanOrEqual), label); //false
+        } else if (cond == DoubleLessThan) {
+            //masm.cltd(left, right);
+            bc1t(mFPCCID(CCLessThan), label);
+        } else if (cond == DoubleLessThanOrEqual) {
+            //masm.cled(left, right);
+            bc1t(mFPCCID(CCLessThanOrEqual), label);
+        } else {
+            JS_ASSERT(0);
         }
 
         masm.nop();

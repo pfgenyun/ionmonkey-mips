@@ -134,16 +134,14 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         // take advantage of the setCC instruction
         Label setDest;
         masm.movl(Imm32(1), dest);
-        masm.branchDoubleLocal(cond, lhs, rhs, &setDest); //by weizhenwei, 2013.11.27
+        masm.branchDoubleLocal(cond, &setDest); //by weizhenwei, 2013.11.29
         masm.xorl(dest, dest);
         masm.bindBranch(&setDest);
 
         if (ifNaN != Assembler::NaN_HandledByCond) {
-            //DoubleOrdered check, by wangqing, 2013.11.27
             Label noNaN;
-            masm.cud(lhs, rhs);
-            masm.bc1f(&noNaN);
-            masm.nop();
+            //DoubleOrdered check, by weizhenwei, 2013.11.29
+            masm.branchDoubleLocal(Assembler::DoubleOrdered, &noNaN);
 
             if (ifNaN == Assembler::NaN_IsTrue)
                 masm.movl(Imm32(1), dest);
@@ -155,18 +153,16 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         Label end, ifFalse;
 
         if (ifNaN == Assembler::NaN_IsFalse) {
-            //DoubleUnordered check, by wangqing, 2013.11.27
-            masm.cud(lhs, rhs);
-            masm.bc1t(&ifFalse);
-            masm.nop();
+            //DoubleUnordered check, by weizhenwei, 2013.11.29
+            masm.branchDoubleLocal(Assembler::DoubleUnordered, &ifFalse);
         }
+
         masm.movl(Imm32(1), dest);
-        masm.branchDoubleLocal(cond, lhs, rhs, &end);
+        masm.branchDoubleLocal(cond, &end); //by weizhenwei, 2013.11.29
+
         if (ifNaN == Assembler::NaN_IsTrue) {
-            //DoubleUnordered check, by weizhenwei, 2013.11.27
-            masm.cud(lhs, rhs);
-            masm.bc1t(&end);
-            masm.nop();
+            //DoubleUnordered check, by weizhenwei, 2013.11.29
+            masm.branchDoubleLocal(Assembler::DoubleUnordered, &end);
         }
           
         masm.bindBranch(&ifFalse);
@@ -190,7 +186,7 @@ CodeGeneratorMIPS::visitTestIAndBranch(LTestIAndBranch *test)
     const LAllocation *opd = test->input();
 
     // Test the operand
-	masm.cmpl(ToRegister(opd), zero);
+    masm.cmpl(ToRegister(opd), zero);
     emitBranch(Assembler::NonZero, test->ifTrue(), test->ifFalse());
     return true;
 }
@@ -254,6 +250,8 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
     FloatRegister rhs = ToFloatRegister(comp->right());
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
+    //by weizhenwei, 2013.11.29
+    masm.emitCCMutiple(lhs, rhs);
     //by weizhenwei, 2013.11.07
     emitSet(cond, lhs, rhs, ToRegister(comp->output()),
             Assembler::NaNCondFromDoubleCondition(cond));
@@ -275,6 +273,8 @@ CodeGeneratorMIPS::visitNotD(LNotD *ins)
 
     //by weizhenwei, 2013.11.07
     masm.zerod(ScratchFloatReg);
+    //by weizhenwei, 2013.11.29
+    masm.emitCCMutiple(opd, ScratchFloatReg);
     emitSet(Assembler::DoubleEqualOrUnordered, opd, ScratchFloatReg,
             ToRegister(ins->output()), Assembler::NaN_IsTrue);
     return true;
@@ -290,8 +290,6 @@ CodeGeneratorMIPS::visitCompareDAndBranch(LCompareDAndBranch *comp)
 //  by weizhenwei, 2013.11.07
     emitBranch(cond, lhs, rhs, comp->ifTrue(), comp->ifFalse(),
             Assembler::NaNCondFromDoubleCondition(cond));
-        
-      
     return true;
 }
 
@@ -462,28 +460,24 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
                                : Assembler::Below;
     Label nan, equal, returnSecond, done;
 
-    // DoubleUnordered check, by wangqing, 2013-11-27
-    // if first or shecond is NaN, then return NaN
-    masm.cud(second, first);
-    masm.bc1t(&nan);
-    masm.nop();
+    //by weizhenwei, 2013.11.29
+    //emit Mutiple CC flags ahead.
+    masm.emitCCMutiple(second, first);
 
-    // DoubleEqual check, by wangqing, 2013-11-27
+    // DoubleUnordered check, by weizhenwei, 2013.11.29
+    // if first or shecond is NaN, then return NaN
+    masm.branchDoubleLocal(Assembler::DoubleUnordered, &nan);
+
+    // DoubleEqual check, by weizhenwei, 2013.11.29
     // make sure we handle -0 and 0 right.
-    masm.cseqd(second, first);
-    masm.bc1t(&equal);
-    masm.nop();
+    masm.branchDoubleLocal(Assembler::DoubleEqual, &equal);
 
     if (cond == Assembler::Above) {
-        //DoubleGreaterThan check, by wangqing, 2013.11.07
-        masm.cngtd(second, first);
-        masm.bc1f(&returnSecond);
-        masm.nop();
+        //DoubleGreaterThan check, by weizhenwei, 2013.11.29
+        masm.branchDoubleLocal(Assembler::DoubleGreaterThan, &returnSecond);
     } else if (cond == Assembler::Below) {
-        //DoubleLessThan check, by wangqing, 2013.11.27
-        masm.cltd(second, first);
-        masm.bc1t(&returnSecond);
-        masm.nop();
+        //DoubleLessThan check, by weizhenwei, 2013.11.29
+        masm.branchDoubleLocal(Assembler::DoubleLessThan, &returnSecond);
     }
 
     masm.b(&done);
@@ -553,6 +547,7 @@ CodeGeneratorMIPS::visitPowHalfD(LPowHalfD *ins)
     // Branch if not -Infinity.
     masm.move32(Imm32(NegInfinityFloatBits), scratch);
     masm.loadFloatAsDouble(scratch, ScratchFloatReg);
+
     //DoubleNotEqualOrUnordered check, by wangqing, 2013.11.27
     masm.cseqd(input, ScratchFloatReg);
     masm.bc1f(&sqrt);
@@ -2331,25 +2326,23 @@ CodeGeneratorMIPS::visitOutOfLineTruncate(OutOfLineTruncate *ool)
     // This has to be an exact conversion, as otherwise the truncation works
     // incorrectly on the modified value.
 
-    //by weizhenwei, 2013.11.05
+    //by weizhenwei, 2013.11.29
+    //emit mutiple CC flags ahead
     masm.zerod(ScratchFloatReg);
-    //DoubleUnordered check, by wangqing, 2013.11.27
-    masm.cud(input, ScratchFloatReg);
-    masm.bc1t(&fail);
-    masm.nop();
+    masm.emitCCMutiple(input, ScratchFloatReg);
 
+    //DoubleUnordered check, by wangqing, 2013.11.27
+    masm.branchDoubleLocal(Assembler::DoubleUnordered, &fail);
     {
         Label positive; // by wangqing, 2013-11-27
-        //DoubleGreaterThan check, by wangqing, 2013.11.27
-        masm.cngtd(input, ScratchFloatReg);
-        masm.bc1f(&positive);
-        masm.nop();
+        //DoubleGreaterThan check, by wangqing, 2013.11.29
+        masm.branchDoubleLocal(Assembler::DoubleGreaterThan, &positive);
 
         static const double shiftNeg = 4294967296.0;
         masm.loadStaticDouble(&shiftNeg, temp);
         Label skip;
         masm.b(&skip);
-                    masm.nop();
+        masm.nop();
 
         masm.bindBranch(&positive);
         static const double shiftPos = -4294967296.0;
