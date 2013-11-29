@@ -75,7 +75,7 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
     masm.addiu(dest, zero, 1);
     masm.branchDouble(cond, FloatReg0, FloatReg1, &isTrue);
     masm.xorl(dest, dest);
-    masm.bindBranch(&isTrue);
+    masm.bind(&isTrue);
 
 
     // Check for NaN, if needed.
