@@ -20,7 +20,10 @@
     _(PowHalfD)                 \
     _(UInt32ToDouble)           \
     _(AsmJSLoadFuncPtr)         \
-    _(AsmJSDivOrMod)
+    _(AsmJSDiv)                 \
+    _(AsmJSMod)
+//    by weizhenwei, 2013.11.28
+//    divide AsmJSDivOrMod into AsmJSDiv and AsmJSMod
 #endif // jit_mips_opcodes_mips_h__
 
 

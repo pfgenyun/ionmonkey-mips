@@ -19,32 +19,81 @@ namespace jit {
 bool
 ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 {
+	// by wangqing, 2013-11-28
     Label failure, notNaN, isTrue;
-    masm.ensureDouble(R0, FloatReg0, &failure);
-    masm.ensureDouble(R1, FloatReg1, &failure);
+    /* if R0 is a double, load it into dest. If R0 is int32,  
+	   convert it to double. Else, branch to failure.
+	   by wangqing, 2013-11-28
+	*/	
+	    Label isDouble, done;
+
+		masm.movl(ImmTag(JSVAL_TAG_CLEAR), cmpTempRegister);
+		masm.sltu(cmpTempRegister, R0.typeReg(), cmpTempRegister);
+		masm.bgtz(cmpTempRegister, &isDouble);
+		masm.nop();
+
+		masm.movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+		masm.bne(R0.typeReg(), cmpTempRegister, &failure);
+		masm.nop();
+
+        masm.convertInt32ToDouble(R0.payloadReg(), FloatReg0);
+        masm.b(&done);
+		masm.nop();
+
+        masm.bindBranch(&isDouble);
+        masm.unboxDouble(R0, FloatReg0);
+
+        masm.bindBranch(&done);
+
+	/* if R1 is a double, load it into dest. If R1 is int32,  
+	   convert it to double. Else, branch to failure.
+	   by wangqing, 2013-11-28
+	*/	
+	    Label isDouble1, done1;
+
+		masm.movl(ImmTag(JSVAL_TAG_CLEAR), cmpTempRegister);
+		masm.sltu(cmpTempRegister, R1.typeReg(), cmpTempRegister);
+		masm.bgtz(cmpTempRegister, &isDouble1);
+		masm.nop();
+
+		masm.movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+		masm.bne(R1.typeReg(), cmpTempRegister, &failure);
+		masm.nop();
+
+        masm.convertInt32ToDouble(R1.payloadReg(), FloatReg1);
+        masm.b(&done1);
+		masm.nop();
+
+        masm.bindBranch(&isDouble1);
+        masm.unboxDouble(R1, FloatReg1);
+
+        masm.bindBranch(&done1);
 
     Register dest = R0.scratchReg();
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
     masm.addiu(dest, zero, 1);
-    masm.branchDouble(cond, FloatReg0, FloatReg1, &isTrue);
+    masm.branchDoubleLocal(cond, FloatReg0, FloatReg1, &isTrue);
     masm.xorl(dest, dest);
-    masm.bind(&isTrue);
+    masm.bindBranch(&isTrue);
 
 
     // Check for NaN, if needed.
     Assembler::NaNCond nanCond = Assembler::NaNCondFromDoubleCondition(cond);
     if (nanCond != Assembler::NaN_HandledByCond) {
-      masm.branchDouble(Assembler::DoubleOrdered, FloatReg0, FloatReg1, &notNaN);
+	  // check DoubleOrdered, by wangqing, 2013-11-28
+	  masm.cud(FloatReg0, FloatReg1);
+	  masm.bc1f(&notNaN);
+	  masm.nop();
       masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
-      masm.bind(&notNaN);
+      masm.bindBranch(&notNaN);
     }
 
     masm.tagValue(JSVAL_TYPE_BOOLEAN, dest, R0);
     EmitReturnFromIC(masm);
 
     // Failure case - jump to next stub
-    masm.bind(&failure);
+    masm.bindBranch(&failure);
     EmitStubGuardFailure(masm);
     return true;
 }

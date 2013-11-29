@@ -2173,21 +2173,33 @@ class Assembler
         masm.sra(dest.code(), dest.code(), imm.value);
     }
 
-
     void shrl_cl(const Register &dest) {
      //  by weizhenwei, 2013.10.21, change shift variable v0 to t8.
          mcss.urshift32(mRegisterID(t8.code()), dest.code());
+    }
+    //  by weizhenwei, 2013.11.28
+    void shrl_cl(const Register &dest, const Register &cl) {
+         mcss.urshift32(cl.code(), dest.code());
     }
 
     void shll_cl(const Register &dest) {
      //  by weizhenwei, 2013.10.21, change shift variable v0 to t8.
         mcss.lshift32(mRegisterID(t8.code()), dest.code());
     }
+     //  by weizhenwei, 2013.11.28
+    void shll_cl(const Register &dest, const Register &cl) {
+        mcss.lshift32(cl.code(), dest.code());
+    }
 
     void sarl_cl(const Register &dest) {
      //  by weizhenwei, 2013.10.21, change shift variable v0 to t8.
       	mcss.rshift32(mRegisterID(t8.code()), dest.code());
     }
+     //  by weizhenwei, 2013.11.28
+    void sarl_cl(const Register &dest, const Register &cl) {
+      	mcss.rshift32(cl.code(), dest.code());
+    }
+
     void push(const Imm32 imm) {
 	//  by weizhenwei, 2013.10.20, according MacroAssemblerMIPS.h:1515,void push(TrustImm32)
         mcss.push(mTrustedImm32(imm.value));
@@ -2264,6 +2276,16 @@ class Assembler
       mfhi(t7);
       mflo(t6);
     }
+    void idiv(const Register &lhs, const Register &rhs) {
+      //  by weizhenwei, 2013.11.28
+      div(lhs, rhs);
+      mflo(lhs);
+    }
+    void idivmod(const Register &lhs, const Register &rhs) {
+      //  by weizhenwei, 2013.11.28
+      div(lhs, rhs);
+      mfhi(lhs);
+    }
 
     void udiv(Register divisor) {
       //  by weizhenwei, 2013.10.21
@@ -2273,6 +2295,17 @@ class Assembler
       divu(t6, divisor);
       mfhi(t7);
       mflo(t6);
+    }
+
+    //  by weizhenwei, 2013.11.28
+    void udiv(const Register &lhs, const Register &rhs) {
+      divu(lhs, rhs);
+      mflo(lhs);
+    }
+    //  by weizhenwei, 2013.11.28
+    void udivmod(const Register &lhs, const Register &rhs) {
+      divu(lhs, rhs);
+      mfhi(lhs);
     }
     
     void cvtsi2sd(const Operand &src, const FloatRegister &dest) {

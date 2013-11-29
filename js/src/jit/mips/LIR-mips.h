@@ -97,16 +97,16 @@ class LAsmJSLoadFuncPtr : public LInstructionHelper<1, 1, 0>
     }
 };
 
-
-class LDivI : public LBinaryMath<1>
+//by weizhenwei, 2013.11.28
+//reuse input lhs to store result.
+class LDivI : public LBinaryMath<0>
 {
   public:
     LIR_HEADER(DivI)
 
-    LDivI(const LAllocation &lhs, const LAllocation &rhs, const LDefinition &temp) {
+    LDivI(const LAllocation &lhs, const LAllocation &rhs) {
         setOperand(0, lhs);
         setOperand(1, rhs);
-        setTemp(0, temp);
     }
 
     const char *extraName() const {
@@ -123,9 +123,6 @@ class LDivI : public LBinaryMath<1>
         return mir()->canBeNegativeOverflow() ? "NegativeOverflow" : NULL;
     }
 
-    const LDefinition *remainder() {
-        return getTemp(0);
-    }
     MDiv *mir() const {
         return mir_->toDiv();
     }
@@ -160,15 +157,16 @@ class LDivPowTwoI : public LBinaryMath<0>
     }
 };
 
-class LModI : public LBinaryMath<1>
+//by weizhenwei, 2013.11.28
+//reuse input lhs to store result.
+class LModI : public LBinaryMath<0>
 {
   public:
     LIR_HEADER(ModI)
 
-    LModI(const LAllocation &lhs, const LAllocation &rhs, const LDefinition &temp) {
+    LModI(const LAllocation &lhs, const LAllocation &rhs) {
         setOperand(0, lhs);
         setOperand(1, rhs);
-        setTemp(0, temp);
     }
 
     const char *extraName() const {
@@ -183,21 +181,30 @@ class LModI : public LBinaryMath<1>
     }
 };
 
-class LAsmJSDivOrMod : public LBinaryMath<1>
+//divide LAsmJSDivOrMod into LAsmJSDiv and LAsmJSMod,
+//by weizhenwei, 2013.11.28
+class LAsmJSDiv: public LBinaryMath<0>
 {
   public:
-    LIR_HEADER(AsmJSDivOrMod);
+    LIR_HEADER(AsmJSDiv);
 
-    LAsmJSDivOrMod(const LAllocation &lhs, const LAllocation &rhs, const LDefinition &temp) {
+    LAsmJSDiv(const LAllocation &lhs, const LAllocation &rhs) {
         setOperand(0, lhs);
         setOperand(1, rhs);
-        setTemp(0, temp);
-    }
-
-    const LDefinition *remainder() {
-        return getTemp(0);
     }
 };
+class LAsmJSMod : public LBinaryMath<0>
+{
+  public:
+    LIR_HEADER(AsmJSMod);
+
+    LAsmJSMod(const LAllocation &lhs, const LAllocation &rhs) {
+        setOperand(0, lhs);
+        setOperand(1, rhs);
+    }
+
+};
+
 
 class LModPowTwoI : public LInstructionHelper<1,1,0>
 {
