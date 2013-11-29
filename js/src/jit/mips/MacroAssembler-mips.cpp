@@ -358,23 +358,38 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     Label finally;
     Label return_;
     loadPtr(Address(sp, offsetof(ResumeFromException, kind)), t6);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_FINALLY), &finally);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_FORCED_RETURN), &return_);
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_ENTRY_FRAME), cmpTempRegister);
+	beq(t6, cmpTempRegister, &entryFrame);
+	nop();
+
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_CATCH), cmpTempRegister);
+	beq(t6, cmpTempRegister, &catch_);
+	nop();
+
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_FINALLY), cmpTempRegister);
+	beq(t6, cmpTempRegister, &finally);
+	nop();
+
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_FORCED_RETURN), cmpTempRegister);
+	beq(t6, cmpTempRegister, &return_);
+	nop();
 
     breakpoint(); // Invalid kind.
 
     // No exception handler. Load the error value, load the new stack pointer
     // and return from the entry frame.
-    bind(&entryFrame);
+    bindBranch(&entryFrame);
     moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
     ret();
 
     // If we found a catch handler, this must be a baseline frame. Restore state
     // and jump to the catch block.
-	bind(&catch_);
+	bindBranch(&catch_);
     movl(Operand(sp, offsetof(ResumeFromException, target)), t6);
     movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
@@ -383,7 +398,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     // If we found a finally block, this must be a baseline frame. Push
     // two values expected by JSOP_RETSUB: BooleanValue(true) and the
     // exception.
-    bind(&finally);
+    bindBranch(&finally);
     ValueOperand exception = ValueOperand(t7, t8);
     loadValue(Operand(sp, offsetof(ResumeFromException, exception)), exception);
 
@@ -396,7 +411,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     jmp(Operand(t6));
 
     // Only used in debug mode. Return BaselineFrame->returnValue() to the caller.
-    bind(&return_);
+    bindBranch(&return_);
     movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
     loadValue(Address(fp, BaselineFrame::reverseOffsetOfReturnValue()), JSReturnOperand);
@@ -409,21 +424,25 @@ void
 MacroAssemblerMIPS::branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label)
 {
     jsval_layout jv = JSVAL_TO_IMPL(v);
+	// by wangqing, 2013-11-29
     if (v.isMarkable())
-        cmpl(value.payloadReg(), ImmGCPtr(reinterpret_cast<gc::Cell *>(v.toGCThing())));
+		movl(ImmGCPtr(reinterpret_cast<gc::Cell *>(v.toGCThing())), cmpTempRegister);
     else
-        cmpl(value.payloadReg(), Imm32(jv.s.payload.i32));
+		movl(Imm32(jv.s.payload.i32), cmpTempRegister);
 
     if (cond == Equal) {
         Label done;
-        j(NotEqual, &done);
+		bne(value.payloadReg(), cmpTempRegister, &done);
+		nop();
         {
             cmpl(value.typeReg(), Imm32(jv.s.tag));
             j(Equal, label);
         }
-        bind(&done);
+        bindBranch(&done);
     } else {
         JS_ASSERT(cond == NotEqual);
+	    movl(value.payloadReg(), cmpTemp2Register);	
+
         j(NotEqual, label);
 
         cmpl(value.typeReg(), Imm32(jv.s.tag));
@@ -442,7 +461,10 @@ MacroAssemblerMIPS::testNegativeZero(const FloatRegister &reg, const Register &s
     // Compare to zero. Lets through {0, -0}.
     xorpd(ScratchFloatReg, ScratchFloatReg);
     // If reg is non-zero, then a test of Zero is false.
-    branchDouble(DoubleNotEqual, reg, ScratchFloatReg, &nonZero);
+	// check DoubleNotEqual, by wangqing, 2013-11-29
+    ceqd(reg, ScratchFloatReg);
+	bc1t(&nonZero);
+	nop();
 
     // Input register is either zero or negative zero. Test sign bit.
 	// by wangqing, 2013-11-19 
@@ -452,6 +474,6 @@ MacroAssemblerMIPS::testNegativeZero(const FloatRegister &reg, const Register &s
     // If reg is -0, then a test of Zero is true.
     cmpl(scratch, Imm32(1));
 
-    bind(&nonZero);
+    bindBranch(&nonZero);
     return Zero;
 }
