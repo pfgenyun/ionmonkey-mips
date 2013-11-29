@@ -73,7 +73,7 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
     masm.addiu(dest, zero, 1);
-    masm.branchDoubleLocal(cond, FloatReg0, FloatReg1, &isTrue);
+    masm.branchDouble(cond, FloatReg0, FloatReg1, &isTrue);
     masm.xorl(dest, dest);
     masm.bindBranch(&isTrue);
 
