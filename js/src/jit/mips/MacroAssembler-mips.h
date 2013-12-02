@@ -435,7 +435,9 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(lhs, rhs);
     }
     void testPtr(Register lhs, Register rhs) {
-        testl(lhs, rhs);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		andInsn(cmpTempRegister, lhs, rhs);
+		movl(zero, cmpTemp2Register);
     }
 
     Condition testNegativeZero(const FloatRegister &reg, const Register &scratch);
@@ -529,11 +531,16 @@ class MacroAssemblerMIPS : public Assembler
         j(cond, label);
     }
     void branchTestPtr(Condition cond, Register lhs, Register rhs, Label *label) {
-        testl(lhs, rhs);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		andInsn(cmpTempRegister, lhs, rhs);
+		movl(zero, cmpTemp2Register);
         j(cond, label);
     }
     void branchTestPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        testl(lhs, imm);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		movl(imm, cmpTempRegister);
+		andInsn(cmpTempRegister, lhs, cmpTempRegister);
+		movl(zero, cmpTemp2Register);
         j(cond, label);
     }
     void branchTestPtr(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
@@ -700,13 +707,18 @@ class MacroAssemblerMIPS : public Assembler
     
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
         if (dest.isFloat()) {
+			// by wangqing, 2013-12-02
             Label notInt32, end;
-            branchTestInt32(Assembler::NotEqual, src, &notInt32);
+			movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+			bne(src.typeReg(), cmpTempRegister, &notInt32);
+			nop();
+
             cvtsi2sd(src.payloadReg(), dest.fpu());
-            jump(&end);
-            bind(&notInt32);
+            b(&end);
+			nop();
+            bindBranch(&notInt32);
             unboxDouble(src, dest.fpu());
-            bind(&end);
+            bindBranch(&end);
         } else {
             if (src.payloadReg() != dest.gpr())
                 movl(src.payloadReg(), dest.gpr());
@@ -765,11 +777,11 @@ class MacroAssemblerMIPS : public Assembler
     }
 
     Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
-        testl(operand.payloadReg(), operand.payloadReg());
+		cmpl(operand.payloadReg(), zero);
         return truthy ? NonZero : Zero;
     }
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
-        testl(operand.payloadReg(), operand.payloadReg());
+		cmpl(operand.payloadReg(), zero);
         j(truthy ? NonZero : Zero, label);
     }
     Condition testStringTruthy(bool truthy, const ValueOperand &value) {
@@ -784,12 +796,17 @@ class MacroAssemblerMIPS : public Assembler
 
     void loadInt32OrDouble(const Operand &operand, const FloatRegister &dest) {
         Label notInt32, end;
-        branchTestInt32(Assembler::NotEqual, operand, &notInt32);
+		// by wangqing, 2013-12-02
+        cmpl(ToType(operand), ImmTag(JSVAL_TAG_INT32));
+		bne(cmpTempRegister, cmpTemp2Register, &notInt32);
+		nop();
+
         cvtsi2sd(ToPayload(operand), dest);
-        jump(&end);
-        bind(&notInt32);
+        b(&end);
+		nop();
+        bindBranch(&notInt32);
         movsd(operand, dest);
-        bind(&end);
+        bindBranch(&end);
     }
 
     template <typename T>
@@ -845,29 +862,36 @@ class MacroAssemblerMIPS : public Assembler
 
     void inc64(AbsoluteAddress dest) {
         addl(Imm32(1), Operand(dest));
+		// by wangqing, 2013-12-02
         Label noOverflow;
-      //add by QuQiuwen
-        cmpl(Operand(dest),zero);
-        j(NonZero, &noOverflow);
-        addl(Imm32(1), Operand(dest.offset(4)));
-        bind(&noOverflow);
-    }
+		movl(Operand(dest), cmpTempRegister);
+		bne(cmpTempRegister, zero, &noOverflow);
+		nop();
 
+        addl(Imm32(1), Operand(dest.offset(4)));
+        bindBranch(&noOverflow);
+    }
 
     // If source is a double, load it into dest. If source is int32,
     // convert it to double. Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
+    	// by wangqing, 2013-12-02
         Label isDouble, done;
-        branchTestDouble(Assembler::Equal, source.typeReg(), &isDouble);
+		movl(ImmTag(JSVAL_TAG_CLEAR), cmpTempRegister);
+		sltu(cmpTempRegister, source.typeReg(), cmpTempRegister);
+		bgtz(cmpTempRegister, &isDouble);
+		nop();
+
         branchTestInt32(Assembler::NotEqual, source.typeReg(), failure);
 
         convertInt32ToDouble(source.payloadReg(), dest);
-        jump(&done);
+        b(&done);
+		nop();
 
-        bind(&isDouble);
+        bindBranch(&isDouble);
         unboxDouble(source, dest);
 
-        bind(&done);
+        bindBranch(&done);
     }
 
     // Setup a call to C/C++ code, given the number of general arguments it
@@ -1251,7 +1275,9 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(lhs, rhs);
     }
     void test32(const Register &lhs, const Register &rhs) {
-        testl(lhs, rhs);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		andInsn(cmpTempRegister, lhs, rhs);
+		movl(zero, cmpTemp2Register);
     }
     void test32(const Address &addr, Imm32 imm) {
         testl(Operand(addr), imm);
@@ -1437,7 +1463,6 @@ class MacroAssemblerMIPS : public Assembler
     void zeroDouble(FloatRegister reg) {
         zerod(reg);
     }
-    //xsb:fixme 
 	// by wangqing ,2013-11-06 make the FLoatRegister negated.
     void negateDouble(FloatRegister reg) {
 	    negd(reg, reg); 
@@ -1490,44 +1515,52 @@ class MacroAssemblerMIPS : public Assembler
 
         // Check for -0
         if (negativeZeroCheck) {
+		    // by wangqing, 2013-12-02
             Label notZero;
-            testl(dest, dest);
-            j(Assembler::NonZero, &notZero);
+			bne(dest, zero, &notZero);
+			nop();
 
-                // bit 0 = sign of low double
-                // bit 1 = sign of high double
-                // move double's high 32 to dest and get its sign bit
-                mfc1(dest, js::jit::FloatRegister::FromCode(src.code() + 1));
-                shrl(Imm32(0x1f), dest);
+            // bit 0 = sign of low double
+            // bit 1 = sign of high double
+            // move double's high 32 to dest and get its sign bit
+            mfc1(dest, js::jit::FloatRegister::FromCode(src.code() + 1));
+            shrl(Imm32(0x1f), dest);
 
-                //add by QuQiuwen
-                cmpl(dest,zero);
-                j(Assembler::NonZero, fail);
+            //add by QuQiuwen
+            cmpl(dest,zero);
+            j(Assembler::NonZero, fail);
 
-            bind(&notZero);
+            bindBranch(&notZero);
         }
     }
 
     void clampIntToUint8(Register src, Register dest) {
+		// by wangqing, 2013-11-02
         Label inRange, done;
-        branchTest32(Assembler::Zero, src, Imm32(0xffffff00), &inRange);
+		movl(Imm32(0xffffff00), cmpTempRegister);
+		andl(src, cmpTempRegister);
+		beq(cmpTempRegister, zero, &inRange);
+		nop();
         {
             Label negative;
-            branchTest32(Assembler::Signed, src, src, &negative);
+			bltz(src, &negative);
+			nop();
             {
                 movl(Imm32(255), dest);
-                jump(&done);
+                b(&done);
+				nop();
             }
-            bind(&negative);
+            bindBranch(&negative);
             {
                 xorl(dest, dest);
-                jump(&done);
+                b(&done);
+				nop();
             }
         }
-        bind(&inRange);
+        bindBranch(&inRange);
         if (src != dest)
             movl(src, dest);
-        bind(&done);
+        bindBranch(&done);
     }
 
     bool maybeInlineDouble(uint64_t u, const FloatRegister &dest) {
@@ -1555,7 +1588,7 @@ class MacroAssemblerMIPS : public Assembler
             if (ifNaN != Assembler::NaN_HandledByCond) {
                 Label noNaN;
             	ASSERT(0);// test Parity!
-               j(Assembler::NoParity, &noNaN);
+                j(Assembler::NoParity, &noNaN);
                 if (ifNaN == Assembler::NaN_IsTrue)
                     movl(Imm32(1), dest);
                 else
@@ -1568,12 +1601,12 @@ class MacroAssemblerMIPS : public Assembler
 
             if (ifNaN == Assembler::NaN_IsFalse)
             	ASSERT(0);// test Parity!
-                j(Assembler::Parity, &ifFalse);
+            j(Assembler::Parity, &ifFalse);
             movl(Imm32(1), dest);
             j(cond, &end);
             if (ifNaN == Assembler::NaN_IsTrue)
             	ASSERT(0);// test Parity!
-               j(Assembler::Parity, &end);
+            (Assembler::Parity, &end);
               
             bind(&ifFalse);
             xorl(dest, dest);
