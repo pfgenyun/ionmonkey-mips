@@ -461,14 +461,14 @@ MacroAssemblerMIPS::testNegativeZero(const FloatRegister &reg, const Register &s
     // Compare to zero. Lets through {0, -0}.
     xorpd(ScratchFloatReg, ScratchFloatReg);
     // If reg is non-zero, then a test of Zero is false.
-	// check DoubleNotEqual, by wangqing, 2013-11-29
+    // check DoubleNotEqual, by wangqing, 2013-11-29
     ceqd(reg, ScratchFloatReg);
-	bc1t(&nonZero);
-	nop();
+    bc1f(&nonZero);
+    nop();
 
     // Input register is either zero or negative zero. Test sign bit.
-	// by wangqing, 2013-11-19 
-	// get sign bit of Double
+    // by wangqing, 2013-11-19 
+    // get sign bit of Double
     mfc1(scratch, js::jit::FloatRegister::FromCode(reg.code() + 1));
     shrl(Imm32(31), scratch);
     // If reg is -0, then a test of Zero is true.
