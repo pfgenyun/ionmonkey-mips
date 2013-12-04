@@ -1,0 +1,318 @@
+From 124ce26fd4e94b1484aa73dfa1aea417fc3720b2 Mon Sep 17 00:00:00 2001
+From: huangwenjun <huangwenjun-hf@loongson.com>
+Date: Wed, 4 Dec 2013 09:46:28 +0800
+Subject: [PATCH] Cross compile with X86-64 Machine for loongson3A
+
+---
+ config/rules.mk                               |  6 +++---
+ configure.in                                  |  5 +++--
+ dom/plugins/base/Makefile.in                  |  1 +
+ dom/plugins/ipc/Makefile.in                   |  1 +
+ gfx/2d/Makefile.in                            | 11 ++++++++++-
+ gfx/cairo/cairo/src/cairo.h                   |  1 +
+ gfx/thebes/Makefile.in                        |  4 ++++
+ gfx/thebes/gfxASurface.cpp                    |  2 +-
+ gfx/thebes/gfxPlatformGtk.cpp                 |  1 +
+ gfx/thebes/gfxTeeSurface.cpp                  |  2 +-
+ js/public/Utility.h                           |  2 +-
+ security/nss/coreconf/Linux.mk                |  9 +++++----
+ toolkit/library/Makefile.in                   |  2 +-
+ toolkit/xre/Makefile.in                       |  2 ++
+ widget/gtk2/Makefile.in                       |  1 +
+ widget/xremoteclient/Makefile.in              |  3 ++-
+ xpcom/reflect/xptcall/src/md/unix/Makefile.in |  2 +-
+ xpcom/reflect/xptcall/src/md/unix/moz.build   |  4 ++--
+ 18 files changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/config/rules.mk b/config/rules.mk
+index f64edab..4fca1ef 100644
+--- a/config/rules.mk
++++ b/config/rules.mk
+@@ -878,7 +878,7 @@ ifdef MOZ_PROFILE_GENERATE
+ 	touch -t `date +%Y%m%d%H%M.%S -d "now+5seconds"` pgo.relink
+ endif
+ else # !WINNT || GNU_CC
+-	$(EXPAND_CCC) -o $@ $(CXXFLAGS) $(PROGOBJS) $(RESFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(WRAP_LDFLAGS) $(LIBS_DIR) $(LIBS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(OS_LIBS) $(EXTRA_LIBS) $(BIN_FLAGS) $(EXE_DEF_FILE)
++	$(EXPAND_CCC) -o $@ $(CXXFLAGS) $(PROGOBJS) $(RESFILE) $(WIN32_EXE_LDFLAGS) $(WRAP_LDFLAGS) $(LIBS_DIR) $(LIBS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(LDFLAGS) $(OS_LIBS) $(EXTRA_LIBS) $(BIN_FLAGS) $(EXE_DEF_FILE)
+ 	@$(call CHECK_STDCXX,$@)
+ endif # WINNT && !GNU_CC
+ 
+@@ -1028,10 +1028,10 @@ ifdef DTRACE_LIB_DEPENDENT
+ ifndef XP_MACOSX
+ 	dtrace -G -C -s $(MOZILLA_DTRACE_SRC) -o  $(DTRACE_PROBE_OBJ) $(shell $(EXPAND_LIBS) $(MOZILLA_PROBE_LIBS))
+ endif
+-	$(EXPAND_MKSHLIB) $(SHLIB_LDSTARTFILE) $(OBJS) $(LOBJS) $(SUB_SHLOBJS) $(DTRACE_PROBE_OBJ) $(MOZILLA_PROBE_LIBS) $(RESFILE) $(LDFLAGS) $(WRAP_LDFLAGS) $(SHARED_LIBRARY_LIBS) $(EXTRA_DSO_LDOPTS) $(MOZ_GLUE_LDFLAGS) $(OS_LIBS) $(EXTRA_LIBS) $(DEF_FILE) $(SHLIB_LDENDFILE)
++	$(EXPAND_MKSHLIB) $(SHLIB_LDSTARTFILE) $(OBJS) $(LOBJS) $(SUB_SHLOBJS) $(DTRACE_PROBE_OBJ) $(MOZILLA_PROBE_LIBS) $(RESFILE) $(EXTRA_LIBS) $(EXTRA_DSO_LDOPTS) $(LDFLAGS) $(WRAP_LDFLAGS) $(SHARED_LIBRARY_LIBS) $(MOZ_GLUE_LDFLAGS) $(OS_LIBS) $(DEF_FILE) $(SHLIB_LDENDFILE)
+ 	@$(RM) $(DTRACE_PROBE_OBJ)
+ else # ! DTRACE_LIB_DEPENDENT
+-	$(EXPAND_MKSHLIB) $(SHLIB_LDSTARTFILE) $(OBJS) $(LOBJS) $(SUB_SHLOBJS) $(RESFILE) $(LDFLAGS) $(WRAP_LDFLAGS) $(SHARED_LIBRARY_LIBS) $(EXTRA_DSO_LDOPTS) $(MOZ_GLUE_LDFLAGS) $(OS_LIBS) $(EXTRA_LIBS) $(DEF_FILE) $(SHLIB_LDENDFILE)
++	$(EXPAND_MKSHLIB) $(SHLIB_LDSTARTFILE) $(OBJS) $(LOBJS) $(SUB_SHLOBJS) $(RESFILE) $(EXTRA_LIBS) $(EXTRA_DSO_LDOPTS) $(LDFLAGS) $(WRAP_LDFLAGS) $(SHARED_LIBRARY_LIBS) $(MOZ_GLUE_LDFLAGS) $(OS_LIBS) $(DEF_FILE) $(SHLIB_LDENDFILE)
+ endif # DTRACE_LIB_DEPENDENT
+ 	@$(call CHECK_STDCXX,$@)
+ 
+diff --git a/configure.in b/configure.in
+index c9a1ddc..fc105c2 100644
+--- a/configure.in
++++ b/configure.in
+@@ -978,7 +978,8 @@ MOZ_PNG_LIBS='$(call EXPAND_LIBNAME_PATH,mozpng,$(DEPTH)/media/libpng)'
+ MOZ_JS_STATIC_LIBS='$(call EXPAND_LIBNAME_PATH,js_static,$(LIBXUL_DIST)/lib)'
+ MOZ_JS_SHARED_LIBS='$(call EXPAND_LIBNAME_PATH,mozjs,$(LIBXUL_DIST)/lib)'
+ DYNAMIC_XPCOM_LIBS='-L$(LIBXUL_DIST)/bin -lxul -lxpcom_core -lmozalloc'
+-MOZ_FIX_LINK_PATHS='-Wl,-rpath-link,$(LIBXUL_DIST)/bin -Wl,-rpath-link,$(prefix)/lib'
++# MOZ_FIX_LINK_PATHS='-Wl,-rpath-link,$(LIBXUL_DIST)/bin -Wl,-rpath-link,$(prefix)/lib'
++MOZ_FIX_LINK_PATHS='-Wl,-rpath-link,$(LIBXUL_DIST)/bin -Wl,-rpath-link,$(prefix)/lib -Wl,-rpath-link,/opt/loongson3a-cross/tools/mips64el-unknown-linux-gnu/lib -Wl,-rpath-link,/opt/loongson3a-cross/redhat/lib -Wl,-rpath-link,/opt/loongson3a-cross/redhat/usr/lib'
+ XPCOM_FROZEN_LDOPTS='-L$(LIBXUL_DIST)/bin -lxul -lmozalloc'
+ LIBXUL_LIBS='$(XPCOM_FROZEN_LDOPTS)'
+ XPCOM_GLUE_LDOPTS='$(LIBXUL_DIST)/lib/$(LIB_PREFIX)xpcomglue_s.$(LIB_SUFFIX) $(XPCOM_FROZEN_LDOPTS)'
+@@ -9491,7 +9492,7 @@ if test -z "$MOZ_NATIVE_NSPR"; then
+     ac_configure_args="$ac_configure_args --with-nspr-cflags='$NSPR_CFLAGS'"
+     ac_configure_args="$ac_configure_args --with-nspr-libs='$NSPR_LIBS'"
+ fi
+-ac_configure_args="$ac_configure_args --with-dist-dir=../../dist"
++ac_configure_args="$ac_configure_args --with-dist-dir=$dist"
+ ac_configure_args="$ac_configure_args --prefix=$dist"
+ if test "$MOZ_MEMORY"; then
+    ac_configure_args="$ac_configure_args --enable-jemalloc"
+diff --git a/dom/plugins/base/Makefile.in b/dom/plugins/base/Makefile.in
+index 2c3a156..0622715 100644
+--- a/dom/plugins/base/Makefile.in
++++ b/dom/plugins/base/Makefile.in
+@@ -37,6 +37,7 @@ LOCAL_INCLUDES += \
+   -I$(topsrcdir)/xpcom/base/ \
+   -I$(topsrcdir)/gfx/skia/include/core \
+   -I$(topsrcdir)/gfx/skia/include/config \
++  -I$(topsrcdir)/widget/gtk2/compat \
+   $(MOZ_CAIRO_CFLAGS) \
+   $(MOZ_PIXMAN_CFLAGS) \
+   $(NULL)
+diff --git a/dom/plugins/ipc/Makefile.in b/dom/plugins/ipc/Makefile.in
+index 26dd053..e44612d 100644
+--- a/dom/plugins/ipc/Makefile.in
++++ b/dom/plugins/ipc/Makefile.in
+@@ -32,6 +32,7 @@ endif
+ LOCAL_INCLUDES = \
+   -I$(srcdir)/../base \
+   -I$(topsrcdir)/xpcom/base/ \
++  -I$(topsrcdir)/widget/gtk2/compat \
+   $(NULL)
+ 
+ ifeq (WINNT,$(OS_ARCH))
+diff --git a/gfx/2d/Makefile.in b/gfx/2d/Makefile.in
+index c86a089..f728f9f 100644
+--- a/gfx/2d/Makefile.in
++++ b/gfx/2d/Makefile.in
+@@ -15,13 +15,22 @@ MSVC_ENABLE_PGO := 1
+ LIBXUL_LIBRARY	= 1
+ EXPORT_LIBRARY	= 1
+ 
++# gfxSVGGlyphs needs nsDOMParser.h
++LOCAL_INCLUDES += \
++	-I$(topsrcdir)/content/base/public \
++	-I$(topsrcdir)/content/xml/document/src \
++	-I$(topsrcdir)/widget/gtk2/compat \
++	-I$(topsrcdir)/widget/gtk2/compat/gdk \
++	-I$(topsrcdir)/gfx/cairo/cairo/src \
++	$(NULL)
++
+ ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+ CMMSRCS = \
+ 	   QuartzSupport.mm \
+ 	   $(NULL)
+ endif
+ 
+-DEFINES += -DMOZ_GFX -DUSE_CAIRO -DGFX2D_INTERNAL
++DEFINES += -DMOZ_GFX -DUSE_CAIRO -DGFX2D_INTERNAL -DCAIRO_HAS_TEE_SURFACE
+ 
+ ifeq ($(MOZ_WIDGET_TOOLKIT),$(findstring $(MOZ_WIDGET_TOOLKIT),android gtk2 gtk3 gonk qt))
+ DEFINES += -DMOZ_ENABLE_FREETYPE
+diff --git a/gfx/cairo/cairo/src/cairo.h b/gfx/cairo/cairo/src/cairo.h
+index 52d0623..3853ddb 100644
+--- a/gfx/cairo/cairo/src/cairo.h
++++ b/gfx/cairo/cairo/src/cairo.h
+@@ -38,6 +38,7 @@
+ #ifndef CAIRO_H
+ #define CAIRO_H
+ 
++#include "cairo-rename.h"
+ #include "cairo-version.h"
+ #include "cairo-features.h"
+ #include "cairo-deprecated.h"
+diff --git a/gfx/thebes/Makefile.in b/gfx/thebes/Makefile.in
+index 4d5c1e4..a35dfaf 100644
+--- a/gfx/thebes/Makefile.in
++++ b/gfx/thebes/Makefile.in
+@@ -22,6 +22,10 @@ endif # !_MSC_VER
+ LOCAL_INCLUDES += \
+ 	-I$(topsrcdir)/content/base/public \
+ 	-I$(topsrcdir)/content/xml/document/src \
++	-I$(topsrcdir)/gfx/cairo/cairo/src \
++        -I$(topsrcdir)/widget/gtk2/compat \
++        -I$(topsrcdir)/widget/gtk2/compat/gdk \
++	-I$(topsrcdir)/gfx/cairo/cairo/src \
+ 	$(NULL)
+ 
+ ifeq ($(MOZ_WIDGET_TOOLKIT),$(findstring $(MOZ_WIDGET_TOOLKIT),android gtk2 gtk3 gonk qt))
+diff --git a/gfx/thebes/gfxASurface.cpp b/gfx/thebes/gfxASurface.cpp
+index f7d189b..c3eeae5 100644
+--- a/gfx/thebes/gfxASurface.cpp
++++ b/gfx/thebes/gfxASurface.cpp
+@@ -14,7 +14,7 @@
+ #include "gfxImageSurface.h"
+ 
+ #include "nsRect.h"
+-
++#include "cairo-rename.h"
+ #include "cairo.h"
+ #include <algorithm>
+ 
+diff --git a/gfx/thebes/gfxPlatformGtk.cpp b/gfx/thebes/gfxPlatformGtk.cpp
+index 106de1c..911e731 100644
+--- a/gfx/thebes/gfxPlatformGtk.cpp
++++ b/gfx/thebes/gfxPlatformGtk.cpp
+@@ -33,6 +33,7 @@
+ #include "gfxImageSurface.h"
+ #ifdef MOZ_X11
+ #include <gdk/gdkx.h>
++#include <gdk/gdkvisual.h>
+ #include "gfxXlibSurface.h"
+ #include "cairo-xlib.h"
+ #include "mozilla/Preferences.h"
+diff --git a/gfx/thebes/gfxTeeSurface.cpp b/gfx/thebes/gfxTeeSurface.cpp
+index ecf49f3..bdd43a6 100644
+--- a/gfx/thebes/gfxTeeSurface.cpp
++++ b/gfx/thebes/gfxTeeSurface.cpp
+@@ -2,7 +2,7 @@
+  * This Source Code Form is subject to the terms of the Mozilla Public
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+-
++#include "cairo-rename.h"
+ #include "gfxTeeSurface.h"
+ 
+ #include "cairo-tee.h"
+diff --git a/js/public/Utility.h b/js/public/Utility.h
+index 436374e..f778604 100644
+--- a/js/public/Utility.h
++++ b/js/public/Utility.h
+@@ -483,7 +483,7 @@ JS_FLOOR_LOG2W(size_t n)
+ JS_DECLARE_NEW_METHODS(js_new, js_malloc, static JS_ALWAYS_INLINE)
+ 
+ template <class T>
+-static JS_ALWAYS_INLINE void
++static void
+ js_delete(T *p)
+ {
+     if (p) {
+diff --git a/security/nss/coreconf/Linux.mk b/security/nss/coreconf/Linux.mk
+index a586e5e..d4176fe 100644
+--- a/security/nss/coreconf/Linux.mk
++++ b/security/nss/coreconf/Linux.mk
+@@ -1,4 +1,3 @@
+-#
+ # This Source Code Form is subject to the terms of the Mozilla Public
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+@@ -30,6 +29,7 @@ endif
+ 	ANDROID_TARGET=$(ANDROID_PREFIX)-4.4.3
+ 	# should autodetect which linux we are on, currently android only
+ 	# supports linux-x86 prebuilts
++#
+ 	ANDROID_TOOLCHAIN=$(ANDROID_NDK)/toolchains/$(ANDROID_TARGET)/prebuilt/linux-x86
+ 	ANDROID_SYSROOT=$(ANDROID_NDK)/platforms/android-$(OS_TARGET_RELEASE)/arch-$(OS_TEST)
+ 	ANDROID_CC=$(ANDROID_TOOLCHAIN)/bin/$(ANDROID_PREFIX)-gcc
+@@ -56,9 +56,10 @@ ifeq ($(OS_TEST),x86_64)
+ ifeq ($(USE_64),1)
+ 	CPU_ARCH	= x86_64
+ else
+-	OS_REL_CFLAGS	= -Di386
+-	CPU_ARCH	= x86
+-	ARCHFLAG	= -m32
++	#OS_REL_CFLAGS	= -Di386
++	#CPU_ARCH	= x86
++	#ARCHFLAG	= -m32
++	CPU_ARCH	= mips3
+ endif
+ else
+ ifeq ($(OS_TEST),sparc64)
+diff --git a/toolkit/library/Makefile.in b/toolkit/library/Makefile.in
+index 0055b28..44b3b54 100644
+--- a/toolkit/library/Makefile.in
++++ b/toolkit/library/Makefile.in
+@@ -116,7 +116,7 @@ endif
+ 
+ ifeq (Linux,$(OS_ARCH))
+ ifneq (Android,$(OS_TARGET))
+-OS_LIBS += -lrt
++OS_LIBS += -lrt -lX11 -lstdc++ -lXt -lXft -lXext
+ EXTRA_DSO_LDOPTS += -Wl,-version-script,symverscript
+ 
+ symverscript: symverscript.in
+diff --git a/toolkit/xre/Makefile.in b/toolkit/xre/Makefile.in
+index 28621dc..c4e1ee9 100644
+--- a/toolkit/xre/Makefile.in
++++ b/toolkit/xre/Makefile.in
+@@ -146,6 +146,8 @@ LOCAL_INCLUDES += \
+ 
+ CXXFLAGS += $(TK_CFLAGS) $(MOZ_DBUS_CFLAGS) $(MOZ_DBUS_GLIB_CFLAGS)
+ 
++OS_LIBS += -lrt -lX11
++
+ ifdef MOZ_WIDGET_GTK
+ CXXFLAGS += $(MOZ_PANGO_CFLAGS)
+ endif
+diff --git a/widget/gtk2/Makefile.in b/widget/gtk2/Makefile.in
+index 870a4cd..ab13d9a 100644
+--- a/widget/gtk2/Makefile.in
++++ b/widget/gtk2/Makefile.in
+@@ -71,6 +71,7 @@ INCLUDES	+= \
+ 		-I$(topsrcdir)/layout/generic \
+ 		-I$(topsrcdir)/layout/xul/base/src \
+ 		-I$(topsrcdir)/other-licenses/atk-1.0 \
++		-I$(topsrcdir)/widget/gtk2/compat \
+ 		$(NULL)
+ ifdef MOZ_X11
+ INCLUDES   	+= -I$(srcdir)/../shared/x11
+diff --git a/widget/xremoteclient/Makefile.in b/widget/xremoteclient/Makefile.in
+index 1187f76..4a62143 100644
+--- a/widget/xremoteclient/Makefile.in
++++ b/widget/xremoteclient/Makefile.in
+@@ -36,6 +36,7 @@ PROGOBJS = $(PROGCPPSRCS:.cpp=.$(OBJ_SUFFIX))
+ 
+ LIBS            = \
+ 		$(NSPR_LIBS) \
+-		$(XLDFLAGS) $(XLIBS)
++		$(XLDFLAGS) $(XLIBS) \
++		-lX11 -lxcb -lXau -lXdmcp -lXau
+ 
+ include $(topsrcdir)/config/rules.mk
+diff --git a/xpcom/reflect/xptcall/src/md/unix/Makefile.in b/xpcom/reflect/xptcall/src/md/unix/Makefile.in
+index 6290bdc..8da7cd1 100644
+--- a/xpcom/reflect/xptcall/src/md/unix/Makefile.in
++++ b/xpcom/reflect/xptcall/src/md/unix/Makefile.in
+@@ -135,7 +135,7 @@ endif
+ ifeq ($(OS_ARCH),Linux)
+ ifneq (,$(findstring mips, $(OS_TEST)))
+ ifneq (,$(findstring mips64, $(OS_TEST)))
+-ASFILES		:= xptcinvoke_asm_mips64.s xptcstubs_asm_mips64.s
++ASFILES		:= xptcinvoke_asm_mips.s xptcstubs_asm_mips.s
+ else
+ ASFILES		:= xptcinvoke_asm_mips.s xptcstubs_asm_mips.s
+ endif
+diff --git a/xpcom/reflect/xptcall/src/md/unix/moz.build b/xpcom/reflect/xptcall/src/md/unix/moz.build
+index f18de2e..2375f19 100644
+--- a/xpcom/reflect/xptcall/src/md/unix/moz.build
++++ b/xpcom/reflect/xptcall/src/md/unix/moz.build
+@@ -163,8 +163,8 @@ if CONFIG['OS_ARCH'] == 'Linux':
+     if CONFIG['OS_TEST'].find('mips') != -1:
+         if CONFIG['OS_TEST'].find('mips64') != -1:
+             CPP_SOURCES += [
+-                'xptcinvoke_mips64.cpp',
+-                'xptcstubs_mips64.cpp',
++                'xptcinvoke_mips.cpp',
++                'xptcstubs_mips.cpp',
+             ]
+         else:
+             CPP_SOURCES += [
+-- 
+1.8.1.2
+
