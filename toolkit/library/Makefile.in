@@ -116,7 +116,7 @@ endif
 
 ifeq (Linux,$(OS_ARCH))
 ifneq (Android,$(OS_TARGET))
-OS_LIBS += -lrt
+OS_LIBS += -lrt -lX11 -lstdc++ -lXt -lXft -lXext
 EXTRA_DSO_LDOPTS += -Wl,-version-script,symverscript
 
 symverscript: symverscript.in

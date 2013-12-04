@@ -1,4 +1,3 @@
-#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -30,6 +29,7 @@ endif
 	ANDROID_TARGET=$(ANDROID_PREFIX)-4.4.3
 	# should autodetect which linux we are on, currently android only
 	# supports linux-x86 prebuilts
+#
 	ANDROID_TOOLCHAIN=$(ANDROID_NDK)/toolchains/$(ANDROID_TARGET)/prebuilt/linux-x86
 	ANDROID_SYSROOT=$(ANDROID_NDK)/platforms/android-$(OS_TARGET_RELEASE)/arch-$(OS_TEST)
 	ANDROID_CC=$(ANDROID_TOOLCHAIN)/bin/$(ANDROID_PREFIX)-gcc
@@ -56,9 +56,10 @@ ifeq ($(OS_TEST),x86_64)
 ifeq ($(USE_64),1)
 	CPU_ARCH	= x86_64
 else
-	OS_REL_CFLAGS	= -Di386
-	CPU_ARCH	= x86
-	ARCHFLAG	= -m32
+	#OS_REL_CFLAGS	= -Di386
+	#CPU_ARCH	= x86
+	#ARCHFLAG	= -m32
+	CPU_ARCH	= mips3
 endif
 else
 ifeq ($(OS_TEST),sparc64)

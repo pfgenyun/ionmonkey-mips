@@ -38,6 +38,7 @@
 #ifndef CAIRO_H
 #define CAIRO_H
 
+#include "cairo-rename.h"
 #include "cairo-version.h"
 #include "cairo-features.h"
 #include "cairo-deprecated.h"

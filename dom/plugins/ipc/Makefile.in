@@ -32,6 +32,7 @@ endif
 LOCAL_INCLUDES = \
   -I$(srcdir)/../base \
   -I$(topsrcdir)/xpcom/base/ \
+  -I$(topsrcdir)/widget/gtk2/compat \
   $(NULL)
 
 ifeq (WINNT,$(OS_ARCH))
