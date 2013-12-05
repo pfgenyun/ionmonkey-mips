@@ -479,31 +479,7 @@ class Assembler
         return static_cast<Condition>(cond & ~DoubleConditionBits);
     }
 
-	//by weizhenwei, 2013.11.05
-    static inline DoubleCondition DoubleConditionFromCondition(Condition cond) {
-        if ((cond == Equal) || (cond == Zero)) {
-            return DoubleEqual;
-        } else if ((cond == NotEqual) || (cond == NonZero)) {
-            return DoubleNotEqual;
-        } else if ((cond == Above) || (cond == GreaterThan)) {
-            return DoubleGreaterThan;
-        } else if ((cond == AboveOrEqual) || (cond == GreaterThanOrEqual)) {
-            return DoubleGreaterThanOrEqual;
-        } else if ((cond == Below) || (cond == LessThan)) {
-            return DoubleLessThan;
-        } else if ((cond == BelowOrEqual) || (cond == LessThanOrEqual)) {
-            return DoubleLessThanOrEqual;
-        } else if (cond == Parity) {
-            return DoubleUnordered;
-        } else if (cond == NoParity) {
-            return DoubleOrdered;
-        } else {
-            JS_ASSERT(0);
-            //TODO
-            return DoubleOrdered;
-        }
-    }
-	//by weizhenwei, 2013.11.13
+    //by weizhenwei, 2013.11.13
     static inline DoubleCondition InvertDoubleCondition(DoubleCondition cond) {
         if (cond == DoubleOrdered) {
             return DoubleUnordered;
