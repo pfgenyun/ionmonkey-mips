@@ -185,16 +185,16 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.movl(R0.payloadReg(), scratchReg);
         masm.subl(R1.payloadReg(), scratchReg);
 
-	// jump to failure on overflow, by wangqing, 2013-11-22
-	masm.xorInsn(dataTempRegister, cmpTempRegister, cmpTemp2Register);
-	masm.bgez(dataTempRegister, 7);
-	masm.nop();
-	masm.subu(dataTempRegister, cmpTempRegister, cmpTemp2Register);
-	masm.xorInsn(dataTempRegister, dataTempRegister, cmpTempRegister);
-	masm.bgez(dataTempRegister, 3);
-	masm.nop();
-	masm.b(&failure);
-	masm.nop();
+		// jump to failure on overflow, by wangqing, 2013-11-22
+		masm.xorInsn(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.bgez(dataTempRegister, 7);
+		masm.nop();
+		masm.subu(dataTempRegister, cmpTempRegister, cmpTemp2Register);
+		masm.xorInsn(dataTempRegister, dataTempRegister, cmpTempRegister);
+		masm.bgez(dataTempRegister, 3);
+		masm.nop();
+		masm.b(&failure);
+		masm.nop();
 
         masm.movl(scratchReg, R0.payloadReg());
         break;
@@ -207,33 +207,33 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.mflo(cmpTemp2Register);
         masm.sarl(Imm32(0x1f), cmpTemp2Register);
         masm.bne(cmpTempRegister, cmpTemp2Register, &failure);
-	masm.nop();
+		masm.nop();
 
-	masm.beq(scratchReg, zero, &maybeNegZero);
-	masm.nop();
+		masm.beq(scratchReg, zero, &maybeNegZero);
+		masm.nop();
 
         masm.movl(scratchReg, R0.payloadReg());
         break;
       case JSOP_DIV:
         // Prevent division by 0.
-	masm.beq(R1.payloadReg(), zero, &failure);
-	masm.nop();
+		masm.beq(R1.payloadReg(), zero, &failure);
+		masm.nop();
 
         // Prevent negative 0 and -2147483648 / -1.
-	/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
-	masm.movl(R0.payloadReg(), cmpTempRegister);
-	masm.andl(Imm32(0x7fffffff), cmpTempRegister);
-	masm.beq(cmpTempRegister, zero, &failure);
-	masm.nop();
+		/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
+		masm.movl(R0.payloadReg(), cmpTempRegister);
+		masm.andl(Imm32(0x7fffffff), cmpTempRegister);
+		masm.beq(cmpTempRegister, zero, &failure);
+		masm.nop();
 
         // Preserve R0.payloadReg()
-	masm.div(R0.payloadReg(), R1.payloadReg());
+		masm.div(R0.payloadReg(), R1.payloadReg());
 
         // A remainder implies a double result.
         // by weizhenwei, 2013.11.02
         masm.mfhi(cmpTempRegister);
-	masm.bne(cmpTempRegister, zero, &failure);
-	masm.nop();
+		masm.bne(cmpTempRegister, zero, &failure);
+		masm.nop();
 
         // by weizhenwei, 2013.11.05
         masm.mflo(R0.payloadReg());
@@ -241,29 +241,29 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_MOD:
       {
         // x % 0 always results in NaN.
-	masm.beq(R1.payloadReg(), zero, &failure);
-	masm.nop();
+		masm.beq(R1.payloadReg(), zero, &failure);
+		masm.nop();
 
         // Prevent negative 0 and -2147483648 % -1.
-	/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
-	masm.movl(R0.payloadReg(), cmpTempRegister);
-	masm.andl(Imm32(0x7fffffff), cmpTempRegister);
-	masm.beq(cmpTempRegister, zero, &failure);
-	masm.nop();
+		/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
+		masm.movl(R0.payloadReg(), cmpTempRegister);
+		masm.andl(Imm32(0x7fffffff), cmpTempRegister);
+		masm.beq(cmpTempRegister, zero, &failure);
+		masm.nop();
 
-	masm.div(R0.payloadReg(), R1.payloadReg());
+    	masm.div(R0.payloadReg(), R1.payloadReg());
 
         // Fail when we would need a negative remainder.
         Label done;
         masm.mfhi(cmpTempRegister);
-	masm.bne(cmpTempRegister, zero, &done);
-	masm.nop();
+	    masm.bne(cmpTempRegister, zero, &done);
+	    masm.nop();
 
-	masm.bltz(R0.payloadReg(), &failure);
-	masm.nop();
+	    masm.bltz(R0.payloadReg(), &failure);
+	    masm.nop();
 
-	masm.bltz(R1.payloadReg(), &failure);
-	masm.nop();
+	    masm.bltz(R1.payloadReg(), &failure);
+	    masm.nop();
 
         masm.bindBranch(&done);
 
@@ -309,8 +309,8 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // by wangqing. 2013-11-22
         if (allowDouble_) {
             Label toUint;
-	    masm.bltz(R0.payloadReg(),&toUint);
-	    masm.nop();
+	        masm.bltz(R0.payloadReg(),&toUint);
+	        masm.nop();
 
             // Box and return.
             masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
@@ -320,8 +320,8 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
             masm.convertUInt32ToDouble(R0.payloadReg(), ScratchFloatReg);
             masm.boxDouble(ScratchFloatReg, R0);
         } else {
-	    masm.bltz(R0.payloadReg(),&revertRegister);
-	    masm.nop();
+	        masm.bltz(R0.payloadReg(),&revertRegister);
+	        masm.nop();
             masm.tagValue(JSVAL_TYPE_INT32, R0.payloadReg(), R0);
         }
         break;
@@ -341,8 +341,8 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.movl(R0.payloadReg(), scratchReg);
         masm.orl(R1.payloadReg(), scratchReg);
         //add by QuQiuwen;
-	masm.bltz(scratchReg, &failure);
-	masm.nop();
+	    masm.bltz(scratchReg, &failure);
+	    masm.nop();
 
         // Result is +0.
         masm.xorl(R0.payloadReg(), R0.payloadReg());
@@ -383,11 +383,11 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         break;
       case JSOP_NEG:
         // Guard against 0 and MIN_INT, both result in a double.
-	/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
-	masm.movl(R0.payloadReg(), cmpTempRegister);
-	masm.andl(Imm32(0x7fffffff), cmpTempRegister);
-	masm.beq(cmpTempRegister, zero, &failure);
-	masm.nop();
+		/* rewrite testl(reg, imm), avoid use cmpTemp2Register by wangqing, 2013-11-22*/
+	    masm.movl(R0.payloadReg(), cmpTempRegister);
+		masm.andl(Imm32(0x7fffffff), cmpTempRegister);
+		masm.beq(cmpTempRegister, zero, &failure);
+		masm.nop();
         masm.negl(R0.payloadReg());
         break;
       default:

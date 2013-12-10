@@ -742,7 +742,7 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
             	if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
                 	return false;
 	    	}else{
-			masm.movl(Imm32(ToInt32(rhs)), cmpTempRegister);
+			        masm.movl(Imm32(ToInt32(rhs)), cmpTempRegister);
                 	masm.mul_opt(ToRegister(lhs), cmpTempRegister, ToRegister(lhs));
 	    	}
 	   }
@@ -750,7 +750,7 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
 	// by wangqing, 2013-11-29
 	// Optimization the mul instruction.
 	if(mul->canOverflow()){
-             	masm.imull(ToOperand(rhs), ToRegister(lhs));
+           	masm.imull(ToOperand(rhs), ToRegister(lhs));
 
         	//overflow check, by weizhenwei, 2013.11.14
       	  	masm.mfhi(cmpTempRegister);
@@ -759,10 +759,10 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
 
         	// Bailout on overflow
       		//see See MIPS Run Linux Chinese 2rd, Page 139. overflow check logic
-                if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
-                   return false;
+            if (mul->canOverflow() && !bailoutIf(Assembler::NotEqual, ins->snapshot()))
+                return false;
 	}else{
-             	masm.imull_opt(ToOperand(rhs), ToRegister(lhs));
+            masm.imull_opt(ToOperand(rhs), ToRegister(lhs));
 	}
 
         if (mul->canBeNegativeZero()) {
