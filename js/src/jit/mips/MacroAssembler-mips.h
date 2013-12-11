@@ -1521,12 +1521,14 @@ class MacroAssemblerMIPS : public Assembler
 
             if (ifNaN == Assembler::NaN_IsFalse)
             	ASSERT(0);// test Parity!
+			// by wangqing, 2013-12-11
+			// Parity-->DoubleUnorder
             j(Assembler::Parity, &ifFalse);
             movl(Imm32(1), dest);
             j(cond, &end);
             if (ifNaN == Assembler::NaN_IsTrue)
             	ASSERT(0);// test Parity!
-            (Assembler::Parity, &end);
+            j(Assembler::Parity, &end);
               
             bind(&ifFalse);
             xorl(dest, dest);

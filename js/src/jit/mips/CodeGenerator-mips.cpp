@@ -875,7 +875,10 @@ CodeGeneratorMIPS::visitDivPowTwoI(LDivPowTwoI *ins)
     if (shift != 0) {
         if (!ins->mir()->isTruncated()) {
             // If the remainder is != 0, bailout since this must be a double.
-            masm.testl(lhs, Imm32(UINT32_MAX >> (32 - shift)));
+            // Overwrite testl, by wangqing, 2013-12-11
+			masm.movl(Imm32(UINT32_MAX >> (32 - shift)), cmpTempRegister);
+			masm.andInsn(cmpTempRegister, lhs, cmpTempRegister);
+			masm.movl(zero, cmpTemp2Register);
             if (!bailoutIf(Assembler::NonZero, ins->snapshot()))
                 return false;
         }
@@ -956,7 +959,7 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
     // Handle negative 0.
     if (!mir->isTruncated() && mir->canBeNegativeZero()) {
         Label nonzero;
-	// by wangqing, 2013-11-25
+		// by wangqing, 2013-11-25
         masm.bne(lhs, zero, &nonzero);
         masm.nop();
         masm.cmpl(rhs, Imm32(0));
@@ -970,7 +973,7 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
 
     if (!mir->isTruncated()) {
         // If the remainder is > 0, bailout since this must be a double.
-	//masm.cmpl(remainder, zero); // by wangqing, 2013-11-27 testl--->cmpl
+	    //masm.cmpl(remainder, zero); // by wangqing, 2013-11-27 testl--->cmpl
         //by weizhenwei, 2013.11.28
         masm.mfhi(cmpTempRegister);
         masm.movl(zero, cmpTemp2Register);
@@ -1048,7 +1051,6 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
     Label negative;
 
     // Switch based on sign of the lhs.
-//    masm.branchTest32(Assembler::Signed, lhs, lhs, &negative);
     masm.bltz(lhs, &negative);
     masm.nop();
     // If lhs >= 0 then remainder = lhs % rhs. The remainder must be positive.
@@ -1057,7 +1059,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         // by weizhenwei, 2013.11.28
         masm.idivmod(lhs, rhs);
         masm.b(&done);
-	masm.nop();
+	    masm.nop();
     }
 
     // Otherwise, we have to beware of two special cases:
@@ -1066,13 +1068,13 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
 
         // Prevent an integer overflow exception from -2147483648 % -1
         Label notmin;
-	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
+    	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
         masm.bne(lhs, cmpTempRegister, &notmin);
         masm.nop();
 
         // by wangqing, 2013-11-27
         if (ins->mir()->isTruncated()) {
-	    masm.movl(Imm32(-1), cmpTempRegister);
+	    	masm.movl(Imm32(-1), cmpTempRegister);
             masm.bne(rhs, cmpTempRegister, &notmin);
             masm.nop();
             //by weizhenwei, 2013.11.28
@@ -1188,7 +1190,7 @@ CodeGeneratorMIPS::visitShiftI(LShiftI *ins)
             masm.shrl_cl(lhs, cl);
             if (ins->mir()->toUrsh()->canOverflow()) {
                 // x >>> 0 can overflow.
-		masm.cmpl(lhs, zero); // by wangqing, 2013-11-27, testl--->cmpl
+				masm.cmpl(lhs, zero); // by wangqing, 2013-11-27, testl--->cmpl
                 if (!bailoutIf(Assembler::Signed, ins->snapshot()))
                     return false;
             }
@@ -1416,7 +1418,7 @@ CodeGeneratorMIPS::visitFloor(LFloor *lir)
         return false;
 
     masm.b(&end);
-            masm.nop();
+    masm.nop();
 
     // Input is negative, but isn't -0.
     // Negative values go on a comparatively expensive path, since no
@@ -1909,7 +1911,7 @@ CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
             masm.cmp32(lhs.payloadReg(), Imm32(rhs->toConstant()->toBoolean()));
         else
             masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
-            masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
+        masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
 	    masm.b(&done);
 	    masm.nop();
     }
