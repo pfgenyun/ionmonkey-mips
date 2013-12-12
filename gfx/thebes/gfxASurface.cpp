@@ -14,7 +14,6 @@
 #include "gfxImageSurface.h"
 
 #include "nsRect.h"
-#include "cairo-rename.h"
 #include "cairo.h"
 #include <algorithm>
 

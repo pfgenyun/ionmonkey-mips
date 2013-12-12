@@ -33,7 +33,6 @@
 #include "gfxImageSurface.h"
 #ifdef MOZ_X11
 #include <gdk/gdkx.h>
-#include <gdk/gdkvisual.h>
 #include "gfxXlibSurface.h"
 #include "cairo-xlib.h"
 #include "mozilla/Preferences.h"

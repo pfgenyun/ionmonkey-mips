@@ -56,10 +56,9 @@ ifeq ($(OS_TEST),x86_64)
 ifeq ($(USE_64),1)
 	CPU_ARCH	= x86_64
 else
-	#OS_REL_CFLAGS	= -Di386
-	#CPU_ARCH	= x86
-	#ARCHFLAG	= -m32
-	CPU_ARCH	= mips3
+	OS_REL_CFLAGS	= -Di386
+	CPU_ARCH	= x86
+	ARCHFLAG	= -m32
 endif
 else
 ifeq ($(OS_TEST),sparc64)

@@ -483,7 +483,7 @@ JS_FLOOR_LOG2W(size_t n)
 JS_DECLARE_NEW_METHODS(js_new, js_malloc, static JS_ALWAYS_INLINE)
 
 template <class T>
-static void
+static JS_ALWAYS_INLINE void
 js_delete(T *p)
 {
     if (p) {

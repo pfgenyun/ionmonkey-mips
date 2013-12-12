@@ -71,7 +71,6 @@ INCLUDES	+= \
 		-I$(topsrcdir)/layout/generic \
 		-I$(topsrcdir)/layout/xul/base/src \
 		-I$(topsrcdir)/other-licenses/atk-1.0 \
-		-I$(topsrcdir)/widget/gtk2/compat \
 		$(NULL)
 ifdef MOZ_X11
 INCLUDES   	+= -I$(srcdir)/../shared/x11
