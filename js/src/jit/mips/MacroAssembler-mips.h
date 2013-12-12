@@ -1496,6 +1496,10 @@ class MacroAssemblerMIPS : public Assembler
 
         return false;
     }
+    void setCCC(Condition cond, const Register &lhs, const Register &rhs, const Register &dest)
+    {
+        setCC(cond, lhs, rhs, dest);
+    }
 
     void emitSet(Assembler::Condition cond, const Register &dest,
                  Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond) {
