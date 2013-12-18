@@ -96,7 +96,8 @@ Assembler::InvertCondition(Condition cond)
 //edit by Quqiuwen,do not support PF
 void Assembler::setCC(Condition cond,const Register &r)
 {
-    mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),cmpTempRegister.code(),cmpTemp2Register.code(),r.code());
+    mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),
+			cmpTempRegister.code(), cmpTemp2Register.code(), r.code());
 }
 
 //hwj 1028

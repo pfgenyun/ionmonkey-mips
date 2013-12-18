@@ -3979,8 +3979,8 @@ CopyStringChars(MacroAssembler &masm, Register to, Register from, Register len, 
     //edit by QuQiuwen
 #if defined(JS_CPU_MIPS)
     masm.cmpl(len,zero);
-    masm.j(Assembler::NonZero, &start);
 #endif
+    masm.j(Assembler::NonZero, &start);
 }
 
 IonCode *

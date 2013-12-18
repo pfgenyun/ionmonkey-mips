@@ -133,8 +133,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         // If the register we're defining is a single byte register,
         // take advantage of the setCC instruction
         Label setDest;
-        masm.movl(Imm32(1), dest);
-        masm.branchDoubleLocal(cond, lhs, rhs, &setDest); //by weizhenwei, 2013.11.27
+        masm.branchDoubleLocal(cond, lhs, rhs, &setDest); // by weizhenwei, 2013.11.27
+        masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
         masm.xorl(dest, dest);
         masm.bindBranch(&setDest);
 
@@ -160,8 +160,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
             masm.bc1t(&ifFalse);
             masm.nop();
         }
-        masm.movl(Imm32(1), dest);
         masm.branchDoubleLocal(cond, lhs, rhs, &end);
+        masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
         if (ifNaN == Assembler::NaN_IsTrue) {
             //DoubleUnordered check, by weizhenwei, 2013.11.27
             masm.cud(lhs, rhs);
@@ -190,7 +190,7 @@ CodeGeneratorMIPS::visitTestIAndBranch(LTestIAndBranch *test)
     const LAllocation *opd = test->input();
 
     // Test the operand
-	masm.cmpl(ToRegister(opd), zero);
+    masm.cmpl(ToRegister(opd), zero);
     emitBranch(Assembler::NonZero, test->ifTrue(), test->ifFalse());
     return true;
 }
@@ -210,7 +210,7 @@ CodeGeneratorMIPS::visitTestDAndBranch(LTestDAndBranch *test)
     //
     // NaN is falsey, so comparing against 0 and then using the Z flag is
     // enough to determine which branch to take.
-	//by weizhenwei, 2013.11.05
+    // by weizhenwei, 2013.11.05
     masm.zerod(ScratchFloatReg);
     emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
             ScratchFloatReg, test->ifTrue(), test->ifFalse());
@@ -263,8 +263,15 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
 bool
 CodeGeneratorMIPS::visitNotI(LNotI *ins)
 {
-    masm.cmpl(ToRegister(ins->input()), Imm32(0));
-    masm.emitSet(Assembler::Equal, ToRegister(ins->output()));
+    // masm.cmpl(ToRegister(ins->input()), Imm32(0));
+    // masm.emitSet(Assembler::Equal, ToRegister(ins->output()));
+    Label end;
+    Register input = ToRegister(ins->input());
+    Register output = ToRegister(ins->output());
+    masm.beq(input, zero, &end);
+    masm.addiu(output, zero, ImmWord(1)); // use delay slot;
+    masm.xorl(output, output);
+    masm.bind(&end);
     return true;
 }
 
@@ -1912,8 +1919,8 @@ CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
         else
             masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
         masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
-	    masm.b(&done);
-	    masm.nop();
+        masm.b(&done);
+        masm.nop();
     }
     masm.bindBranch(&notBoolean);
     {
@@ -1965,7 +1972,7 @@ CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
         masm.cmp32(lhs.payloadReg(), rhs.payloadReg());
         masm.emitSet(cond, output);
         masm.b(&done);
-		masm.nop();
+        masm.nop();
     }
     masm.bindBranch(&notEqual);
     {

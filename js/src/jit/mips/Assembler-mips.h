@@ -1858,6 +1858,7 @@ class Assembler
         movl(imm,cmpTemp2Register);
     }
     void setCC(Condition cond, const Register &r);
+
      //edit by QuQiuwen
     void testb(const Register &lhs, const Register &rhs) {
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));//SingleBytesRegs:t6,t7,t8,s0...s7,v0

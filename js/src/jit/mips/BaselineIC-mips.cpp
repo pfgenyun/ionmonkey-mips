@@ -72,8 +72,8 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
     Register dest = R0.scratchReg();
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
-    masm.addiu(dest, zero, 1);
     masm.branchDoubleLocal(cond, FloatReg0, FloatReg1, &isTrue);
+    masm.addiu(dest, zero, 1);  // use delay slot;
     masm.xorl(dest, dest);
     masm.bindBranch(&isTrue);
 
@@ -81,12 +81,12 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
     // Check for NaN, if needed.
     Assembler::NaNCond nanCond = Assembler::NaNCondFromDoubleCondition(cond);
     if (nanCond != Assembler::NaN_HandledByCond) {
-	  // check DoubleOrdered, by wangqing, 2013-11-28
-	  masm.cud(FloatReg0, FloatReg1);
-	  masm.bc1f(&notNaN);
-	  masm.nop();
-      masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
-      masm.bindBranch(&notNaN);
+        // check DoubleOrdered, by wangqing, 2013-11-28
+        masm.cud(FloatReg0, FloatReg1);
+        masm.bc1f(&notNaN);
+        masm.nop();
+        masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
+        masm.bindBranch(&notNaN);
     }
 
     masm.tagValue(JSVAL_TYPE_BOOLEAN, dest, R0);

@@ -1161,7 +1161,9 @@ class MacroAssemblerMIPS : public Assembler
             bc1t(label);
         }
 
-        masm.nop();
+        // nop is used to take delay slot;
+        // slot is taken by useful instruction at invoke place;
+        // masm.nop();
     }
 
     void move32(const Imm32 &imm, const Register &dest) {
