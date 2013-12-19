@@ -5,6 +5,7 @@
 
 #include "TestBase.h"
 
+#include <stdio.h>
 #include <sstream>
 
 using namespace std;
