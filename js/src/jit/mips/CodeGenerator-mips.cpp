@@ -232,8 +232,14 @@ bool
 CodeGeneratorMIPS::visitCompare(LCompare *comp)
 {
     MCompare *mir = comp->mir();
-    emitCompare(mir->compareType(), comp->left(), comp->right());
-    masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()), ToRegister(comp->output()));
+
+    if (comp->right()->isConstant()){
+        masm.movl(Imm32(ToInt32(comp->right())), cmpTempRegister);
+    }else{
+        masm.movl(ToOperand(comp->right()),cmpTempRegister);
+    }
+
+    masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()), ToRegister(comp->left()), cmpTempRegister, ToRegister(comp->output()));
     return true;
 }
 
@@ -263,15 +269,8 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
 bool
 CodeGeneratorMIPS::visitNotI(LNotI *ins)
 {
-    // masm.cmpl(ToRegister(ins->input()), Imm32(0));
-    // masm.emitSet(Assembler::Equal, ToRegister(ins->output()));
-    Label end;
-    Register input = ToRegister(ins->input());
-    Register output = ToRegister(ins->output());
-    masm.beq(input, zero, &end);
-    masm.addiu(output, zero, ImmWord(1)); // use delay slot;
-    masm.xorl(output, output);
-    masm.bind(&end);
+    masm.emitSet(Assembler::Equal, ToRegister(ins->input()), zero, ToRegister(ins->output()));
+
     return true;
 }
 
@@ -1914,11 +1913,13 @@ CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
     masm.bne(lhs.typeReg(), cmpTempRegister, &notBoolean);
     masm.nop();
     {
-        if (rhs->isConstant())
-            masm.cmp32(lhs.payloadReg(), Imm32(rhs->toConstant()->toBoolean()));
-        else
-            masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
-        masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
+        if (rhs->isConstant()){
+            masm.movl(Imm32(rhs->toConstant()->toBoolean()), cmpTempRegister);
+            masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), lhs.payloadReg(), cmpTempRegister, output);
+        }else{
+            masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), lhs.payloadReg(), ToRegister(rhs), output);
+        } 
+
         masm.b(&done);
         masm.nop();
     }
@@ -1969,8 +1970,7 @@ CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
     masm.bne(lhs.typeReg(), rhs.typeReg(), &notEqual);
     masm.nop();
     {
-        masm.cmp32(lhs.payloadReg(), rhs.payloadReg());
-        masm.emitSet(cond, output);
+        masm.emitSet(cond, lhs.payloadReg(), rhs.payloadReg(), output);
         masm.b(&done);
         masm.nop();
     }

@@ -1508,35 +1508,75 @@ class MacroAssemblerMIPS : public Assembler
             movzxbl(dest, dest);
 
             if (ifNaN != Assembler::NaN_HandledByCond) {
-                Label noNaN;
             	ASSERT(0);// test Parity!
-                j(Assembler::NoParity, &noNaN);
                 if (ifNaN == Assembler::NaN_IsTrue)
                     movl(Imm32(1), dest);
                 else
                     xorl(dest, dest);
-                bind(&noNaN);
             }
         } else {
             Label end;
-            Label ifFalse;
 
             if (ifNaN == Assembler::NaN_IsFalse)
-            	ASSERT(0);// test Parity!
-			// by wangqing, 2013-12-11
-			// Parity-->DoubleUnorder
-            j(Assembler::Parity, &ifFalse);
+            	ASSERT(0);
+
             movl(Imm32(1), dest);
             j(cond, &end);
             if (ifNaN == Assembler::NaN_IsTrue)
             	ASSERT(0);// test Parity!
-            j(Assembler::Parity, &end);
               
-            bind(&ifFalse);
             xorl(dest, dest);
-
             bind(&end);
         }
+    }
+
+    // by wangqing, 2013-12-19
+    void emitSet(Assembler::Condition cond, const Register &lhs,
+                 const Register &rhs, const Register &dest){
+        Label end;
+
+        if (cond == Assembler::Equal){
+            beq(lhs, rhs, &end); 
+        }
+        if (cond == Assembler::NotEqual){
+            bne(lhs, rhs, &end);
+        }
+        if (cond == Assembler::LessThan){
+            slt(cmpTempRegister, lhs, rhs);
+            bgtz(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::LessThanOrEqual){
+            slt(cmpTempRegister,rhs, lhs);
+            blez(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::GreaterThan){
+            slt(cmpTempRegister,rhs, lhs);
+            bgtz(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::GreaterThanOrEqual){
+            slt(cmpTempRegister,lhs, rhs);
+            blez(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::Below){
+            sltu(cmpTempRegister,lhs, rhs);
+            bgtz(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::BelowOrEqual){
+            sltu(cmpTempRegister,rhs, lhs);
+            blez(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::Above){
+            sltu(cmpTempRegister,rhs, lhs);
+            bgtz(cmpTempRegister, &end);
+        }
+        if (cond == Assembler::AboveOrEqual){
+            sltu(cmpTempRegister,lhs, rhs);
+            blez(cmpTempRegister, &end);
+        }
+
+        addiu(dest, zero, ImmWord(1)); // use delay slot;
+        xorl(dest, dest);
+        bindBranch(&end);
     }
 
     // Emit a JMP that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
