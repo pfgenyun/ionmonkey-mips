@@ -134,7 +134,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         // take advantage of the setCC instruction
         Label setDest;
         masm.branchDoubleLocal(cond, lhs, rhs, &setDest); // by weizhenwei, 2013.11.27
-        masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
+        //masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
+        masm.ori(dest, zero, 1);  // use delay slot;
         masm.xorl(dest, dest);
         masm.bindBranch(&setDest);
 
@@ -146,7 +147,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
             masm.nop();
 
             if (ifNaN == Assembler::NaN_IsTrue)
-                masm.movl(Imm32(1), dest);
+                //masm.movl(Imm32(1), dest);
+                masm.ori(dest, zero, 1);
             else
                 masm.xorl(dest, dest);
             masm.bindBranch(&noNaN);
@@ -161,7 +163,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
             masm.nop();
         }
         masm.branchDoubleLocal(cond, lhs, rhs, &end);
-        masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
+        //masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
+        masm.ori(dest, zero, 1);  // use delay slot;
         if (ifNaN == Assembler::NaN_IsTrue) {
             //DoubleUnordered check, by weizhenwei, 2013.11.27
             masm.cud(lhs, rhs);
@@ -235,11 +238,17 @@ CodeGeneratorMIPS::visitCompare(LCompare *comp)
 
     if (comp->right()->isConstant()){
         masm.movl(Imm32(ToInt32(comp->right())), cmpTempRegister);
-    }else{
+        masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()),
+                ToRegister(comp->left()), cmpTempRegister, ToRegister(comp->output()));
+    }else if (comp->right()->isRegister()){
+        masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()),
+                ToRegister(comp->left()), ToRegister(comp->right()), ToRegister(comp->output()));
+    } else {
         masm.movl(ToOperand(comp->right()),cmpTempRegister);
+        masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()),
+                ToRegister(comp->left()), cmpTempRegister, ToRegister(comp->output()));
     }
 
-    masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()), ToRegister(comp->left()), cmpTempRegister, ToRegister(comp->output()));
     return true;
 }
 
@@ -269,7 +278,14 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
 bool
 CodeGeneratorMIPS::visitNotI(LNotI *ins)
 {
-    masm.emitSet(Assembler::Equal, ToRegister(ins->input()), zero, ToRegister(ins->output()));
+    Label end;
+    Register input = ToRegister(ins->input());
+    Register output = ToRegister(ins->output());
+//    masm.emitSet(Assembler::Equal, input, zero, output);
+    masm.beq(input, zero, &end);
+    masm.ori(output, zero, 1); // use delay slot;
+    masm.xorl(output, output);
+    masm.bindBranch(&end);
 
     return true;
 }
@@ -1976,7 +1992,12 @@ CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
     }
     masm.bindBranch(&notEqual);
     {
-        masm.move32(Imm32(cond == Assembler::NotEqual), output);
+        //masm.move32(Imm32(cond == Assembler::NotEqual), output);
+        if (cond == Assembler::NotEqual) {
+            masm.ori(output, zero, 1);
+        } else {
+            masm.xorl(output, output);
+        }
     }
 
     masm.bindBranch(&done);

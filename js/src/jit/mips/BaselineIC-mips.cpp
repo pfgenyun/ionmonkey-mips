@@ -73,7 +73,8 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 
     Assembler::DoubleCondition cond = JSOpToDoubleCondition(op);
     masm.branchDoubleLocal(cond, FloatReg0, FloatReg1, &isTrue);
-    masm.addiu(dest, zero, 1);  // use delay slot;
+    //masm.addiu(dest, zero, 1);  // use delay slot;
+    masm.ori(dest, zero, 1);  // use delay slot;
     masm.xorl(dest, dest);
     masm.bindBranch(&isTrue);
 
@@ -85,7 +86,12 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
         masm.cud(FloatReg0, FloatReg1);
         masm.bc1f(&notNaN);
         masm.nop();
-        masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
+        //masm.mov(Imm32(nanCond == Assembler::NaN_IsTrue), dest);
+        if (nanCond == Assembler::NaN_IsTrue) {
+            masm.ori(dest, zero, 1);
+        } else {
+            masm.xorl(dest, dest);
+        }
         masm.bindBranch(&notNaN);
     }
 

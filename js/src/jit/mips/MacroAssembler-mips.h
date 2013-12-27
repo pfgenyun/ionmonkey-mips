@@ -1535,48 +1535,54 @@ class MacroAssemblerMIPS : public Assembler
                  const Register &rhs, const Register &dest){
         Label end;
 
-        if (cond == Assembler::Equal){
-            beq(lhs, rhs, &end); 
-        }
-        if (cond == Assembler::NotEqual){
-            bne(lhs, rhs, &end);
-        }
-        if (cond == Assembler::LessThan){
-            slt(cmpTempRegister, lhs, rhs);
-            bgtz(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::LessThanOrEqual){
-            slt(cmpTempRegister,rhs, lhs);
-            blez(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::GreaterThan){
-            slt(cmpTempRegister,rhs, lhs);
-            bgtz(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::GreaterThanOrEqual){
-            slt(cmpTempRegister,lhs, rhs);
-            blez(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::Below){
-            sltu(cmpTempRegister,lhs, rhs);
-            bgtz(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::BelowOrEqual){
-            sltu(cmpTempRegister,rhs, lhs);
-            blez(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::Above){
-            sltu(cmpTempRegister,rhs, lhs);
-            bgtz(cmpTempRegister, &end);
-        }
-        if (cond == Assembler::AboveOrEqual){
-            sltu(cmpTempRegister,lhs, rhs);
-            blez(cmpTempRegister, &end);
-        }
+        if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
+            mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),
+                    lhs.code(), rhs.code(), dest.code());
+        } else {
+            if (cond == Assembler::Equal){
+                beq(lhs, rhs, &end); 
+            }
+            if (cond == Assembler::NotEqual){
+                bne(lhs, rhs, &end);
+            }
+            if (cond == Assembler::LessThan){
+                slt(cmpTempRegister, lhs, rhs);
+                bgtz(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::LessThanOrEqual){
+                slt(cmpTempRegister,rhs, lhs);
+                blez(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::GreaterThan){
+                slt(cmpTempRegister,rhs, lhs);
+                bgtz(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::GreaterThanOrEqual){
+                slt(cmpTempRegister,lhs, rhs);
+                blez(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::Below){
+                sltu(cmpTempRegister,lhs, rhs);
+                bgtz(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::BelowOrEqual){
+                sltu(cmpTempRegister,rhs, lhs);
+                blez(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::Above){
+                sltu(cmpTempRegister,rhs, lhs);
+                bgtz(cmpTempRegister, &end);
+            }
+            if (cond == Assembler::AboveOrEqual){
+                sltu(cmpTempRegister,lhs, rhs);
+                blez(cmpTempRegister, &end);
+            }
 
-        addiu(dest, zero, ImmWord(1)); // use delay slot;
-        xorl(dest, dest);
-        bindBranch(&end);
+            //addiu(dest, zero, ImmWord(1)); // use delay slot;
+            ori(dest, zero, 1); // use delay slot;
+            xorl(dest, dest);
+            bindBranch(&end);
+        }
     }
 
     // Emit a JMP that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
