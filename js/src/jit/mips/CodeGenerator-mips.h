@@ -81,6 +81,11 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
         const FloatRegister &rhs, const Register &dest,
         Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond);
 
+    //by weizhenwei, 2013.12.11
+    void emitSet(Assembler::Condition cond, const Register &lhs,
+        const Register &rhs, const Register &dest);
+    void emitSet(Assembler::Condition cond, const Register &dest);
+
     bool emitTableSwitchDispatch(MTableSwitch *mir, const Register &index, const Register &base);
 
   public:

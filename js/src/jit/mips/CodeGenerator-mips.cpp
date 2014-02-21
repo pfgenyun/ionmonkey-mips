@@ -114,7 +114,6 @@ CodeGeneratorMIPS::emitBranch(Assembler::DoubleCondition cond,
         masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifFalse->label());
     }
 
-
     if (isNextBlock(ifFalse)) {
         masm.branchDouble(cond, lhs, rhs, ifTrue->label());
     } else {
@@ -179,6 +178,46 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
     }
 }
 
+//by weizhenwei, 2013.12.11
+void CodeGeneratorMIPS::emitSet(Assembler::Condition cond, const Register &lhs,
+    const Register &rhs, const Register &dest)
+{
+    if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
+        // If the register we're defining is a single byte register,
+        // take advantage of the setCC instruction
+        //setCC(cond, dest);
+        //movzxbl(dest, dest);
+        masm.setCCC(cond, lhs, rhs, dest);
+
+    } else {
+        Label end;
+        masm.movl(Imm32(1), dest);
+        masm.cmpl(lhs, rhs);
+        masm.j(cond, &end);
+
+        masm.xorl(dest, dest);
+        masm.bind(&end);
+    }
+}
+
+//by weizhenwei, 2013.12.12
+void CodeGeneratorMIPS::emitSet(Assembler::Condition cond, const Register &dest)
+{
+    if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
+        // If the register we're defining is a single byte register,
+        // take advantage of the setCC instruction
+        masm.setCC(cond, dest);
+//        movzxbl(dest, dest);
+    } else {
+        Label end;
+
+        masm.movl(Imm32(1), dest);
+        masm.j(cond, &end);
+        masm.xorl(dest, dest);
+        masm.bind(&end);
+    }
+}
+
 bool
 CodeGeneratorMIPS::visitDouble(LDouble *ins)
 {
@@ -215,8 +254,22 @@ CodeGeneratorMIPS::visitTestDAndBranch(LTestDAndBranch *test)
     // enough to determine which branch to take.
     // by weizhenwei, 2013.11.05
     masm.zerod(ScratchFloatReg);
-    emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
-            ScratchFloatReg, test->ifTrue(), test->ifFalse());
+    //emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
+    //        ScratchFloatReg, test->ifTrue(), test->ifFalse());
+    //by weizhenwei, 2013.12.11
+    LBlock *ifTrue = test->ifTrue()->lir();
+    LBlock *ifFalse = test->ifFalse()->lir();
+    FloatRegister lhs = ToFloatRegister(opd);
+    FloatRegister rhs = ScratchFloatReg;
+
+    masm.branchDouble(Assembler::DoubleUnordered, lhs, rhs, ifFalse->label());
+    if (isNextBlock(ifFalse)) {
+        masm.branchDouble(Assembler::DoubleNotEqual, lhs, rhs, ifTrue->label());
+    } else {
+        masm.branchDouble(Assembler::DoubleEqualOrUnordered, lhs, rhs, ifFalse->label());
+        if (!isNextBlock(ifTrue))
+            masm.jmp(ifTrue->label());
+    }
 
     return true;
 }
@@ -258,7 +311,19 @@ CodeGeneratorMIPS::visitCompareAndBranch(LCompareAndBranch *comp)
     MCompare *mir = comp->mir();
     emitCompare(mir->compareType(), comp->left(), comp->right());
     Assembler::Condition cond = JSOpToCondition(mir->compareType(), comp->jsop());
-    emitBranch(cond, comp->ifTrue(), comp->ifFalse());
+    //emitBranch(cond, comp->ifTrue(), comp->ifFalse());
+
+    //by weizhenwei, 2013.12.11
+    LBlock *ifTrue = comp->ifTrue()->lir();
+    LBlock *ifFalse = comp->ifFalse()->lir();
+    if (isNextBlock(ifFalse)) {
+        masm.j(cond, ifTrue->label());
+    } else {
+        masm.j(Assembler::InvertCondition(cond), ifFalse->label());
+        if (!isNextBlock(ifTrue))
+            masm.jmp(ifTrue->label());
+    }
+
     return true;
 }
 
@@ -312,7 +377,6 @@ CodeGeneratorMIPS::visitCompareDAndBranch(LCompareDAndBranch *comp)
 //  by weizhenwei, 2013.11.07
     emitBranch(cond, lhs, rhs, comp->ifTrue(), comp->ifFalse(),
             Assembler::NaNCondFromDoubleCondition(cond));
-        
       
     return true;
 }
@@ -732,8 +796,8 @@ CodeGeneratorMIPS::visitMulI(LMulI *ins)
         int32_t constant = ToInt32(rhs);
         if (mul->canBeNegativeZero() && constant <= 0) {
             Assembler::Condition bailoutCond = (constant == 0) ? Assembler::Signed : Assembler::Equal;
-			// by wangqing, 2013-11-27 testl--->cmpl
-			masm.cmpl(ToRegister(lhs), zero);
+            // by wangqing, 2013-11-27 testl--->cmpl
+            masm.cmpl(ToRegister(lhs), zero);
             if (!bailoutIf(bailoutCond, ins->snapshot()))
                     return false;
         }
@@ -898,9 +962,9 @@ CodeGeneratorMIPS::visitDivPowTwoI(LDivPowTwoI *ins)
         if (!ins->mir()->isTruncated()) {
             // If the remainder is != 0, bailout since this must be a double.
             // Overwrite testl, by wangqing, 2013-12-11
-			masm.movl(Imm32(UINT32_MAX >> (32 - shift)), cmpTempRegister);
-			masm.andInsn(cmpTempRegister, lhs, cmpTempRegister);
-			masm.movl(zero, cmpTemp2Register);
+            masm.movl(Imm32(UINT32_MAX >> (32 - shift)), cmpTempRegister);
+            masm.andInsn(cmpTempRegister, lhs, cmpTempRegister);
+            masm.movl(zero, cmpTemp2Register);
             if (!bailoutIf(Assembler::NonZero, ins->snapshot()))
                 return false;
         }
@@ -981,7 +1045,7 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
     // Handle negative 0.
     if (!mir->isTruncated() && mir->canBeNegativeZero()) {
         Label nonzero;
-		// by wangqing, 2013-11-25
+	// by wangqing, 2013-11-25
         masm.bne(lhs, zero, &nonzero);
         masm.nop();
         masm.cmpl(rhs, Imm32(0));
@@ -995,7 +1059,7 @@ CodeGeneratorMIPS::visitDivI(LDivI *ins)
 
     if (!mir->isTruncated()) {
         // If the remainder is > 0, bailout since this must be a double.
-	    //masm.cmpl(remainder, zero); // by wangqing, 2013-11-27 testl--->cmpl
+	//masm.cmpl(remainder, zero); // by wangqing, 2013-11-27 testl--->cmpl
         //by weizhenwei, 2013.11.28
         masm.mfhi(cmpTempRegister);
         masm.movl(zero, cmpTemp2Register);
@@ -1023,7 +1087,7 @@ CodeGeneratorMIPS::visitModPowTwoI(LModPowTwoI *ins)
     {
         masm.andl(Imm32((1 << shift) - 1), lhs);
         masm.b(&done);
-	    masm.nop();
+        masm.nop();
     }
     // Negative numbers need a negate, bitmask, negate
     {
@@ -1073,6 +1137,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
     Label negative;
 
     // Switch based on sign of the lhs.
+//    masm.branchTest32(Assembler::Signed, lhs, lhs, &negative);
     masm.bltz(lhs, &negative);
     masm.nop();
     // If lhs >= 0 then remainder = lhs % rhs. The remainder must be positive.
@@ -1081,7 +1146,7 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
         // by weizhenwei, 2013.11.28
         masm.idivmod(lhs, rhs);
         masm.b(&done);
-	    masm.nop();
+	masm.nop();
     }
 
     // Otherwise, we have to beware of two special cases:
@@ -1090,13 +1155,13 @@ CodeGeneratorMIPS::visitModI(LModI *ins)
 
         // Prevent an integer overflow exception from -2147483648 % -1
         Label notmin;
-    	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
+	masm.movl(Imm32(INT32_MIN), cmpTempRegister);
         masm.bne(lhs, cmpTempRegister, &notmin);
         masm.nop();
 
         // by wangqing, 2013-11-27
         if (ins->mir()->isTruncated()) {
-	    	masm.movl(Imm32(-1), cmpTempRegister);
+	    masm.movl(Imm32(-1), cmpTempRegister);
             masm.bne(rhs, cmpTempRegister, &notmin);
             masm.nop();
             //by weizhenwei, 2013.11.28
@@ -1189,7 +1254,7 @@ CodeGeneratorMIPS::visitShiftI(LShiftI *ins)
                 masm.shrl(Imm32(shift), lhs);
             } else if (ins->mir()->toUrsh()->canOverflow()) {
                 // x >>> 0 can overflow.
-				masm.cmpl(lhs, zero); // by wangqing , 2013-11-27, testl--->cmpl
+		masm.cmpl(lhs, zero); // by wangqing , 2013-11-27, testl--->cmpl
                 if (!bailoutIf(Assembler::Signed, ins->snapshot()))
                     return false;
             }
@@ -1212,7 +1277,7 @@ CodeGeneratorMIPS::visitShiftI(LShiftI *ins)
             masm.shrl_cl(lhs, cl);
             if (ins->mir()->toUrsh()->canOverflow()) {
                 // x >>> 0 can overflow.
-				masm.cmpl(lhs, zero); // by wangqing, 2013-11-27, testl--->cmpl
+		masm.cmpl(lhs, zero); // by wangqing, 2013-11-27, testl--->cmpl
                 if (!bailoutIf(Assembler::Signed, ins->snapshot()))
                     return false;
             }
@@ -1966,7 +2031,20 @@ CodeGeneratorMIPS::visitCompareBAndBranch(LCompareBAndBranch *lir)
         masm.cmp32(lhs.payloadReg(), Imm32(rhs->toConstant()->toBoolean()));
     else
         masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
-    emitBranch(JSOpToCondition(mir->compareType(), mir->jsop()), lir->ifTrue(), lir->ifFalse());
+
+    //emitBranch(JSOpToCondition(mir->compareType(), mir->jsop()), lir->ifTrue(), lir->ifFalse());
+    //by weizhenwei, 2013.12.11
+    Assembler::Condition cond = JSOpToCondition(mir->compareType(), mir->jsop());
+    LBlock *ifTrue = lir->ifTrue()->lir();
+    LBlock *ifFalse = lir->ifFalse()->lir();
+    if (isNextBlock(ifFalse)) {
+        masm.j(cond, ifTrue->label());
+    } else {
+        masm.j(Assembler::InvertCondition(cond), ifFalse->label());
+        if (!isNextBlock(ifTrue))
+            masm.jmp(ifTrue->label());
+    }
+
     return true;
 }
 
@@ -2024,7 +2102,18 @@ CodeGeneratorMIPS::visitCompareVAndBranch(LCompareVAndBranch *lir)
     masm.cmp32(lhs.typeReg(), rhs.typeReg());
     masm.j(Assembler::NotEqual, notEqual);
     masm.cmp32(lhs.payloadReg(), rhs.payloadReg());
-    emitBranch(cond, lir->ifTrue(), lir->ifFalse());
+    //emitBranch(cond, lir->ifTrue(), lir->ifFalse());
+
+    //by weizhenwei, 2013.12.11
+    LBlock *ifTrue = lir->ifTrue()->lir();
+    LBlock *ifFalse = lir->ifFalse()->lir();
+    if (isNextBlock(ifFalse)) {
+        masm.j(cond, ifTrue->label());
+    } else {
+        masm.j(Assembler::InvertCondition(cond), ifFalse->label());
+        if (!isNextBlock(ifTrue))
+            masm.jmp(ifTrue->label());
+    }
 
     return true;
 }
