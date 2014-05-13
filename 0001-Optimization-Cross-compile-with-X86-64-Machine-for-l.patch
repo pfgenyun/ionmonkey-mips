@@ -1,26 +1,26 @@
-From 1c76ca794ab9e6c07388fa2a4b94611116d60d77 Mon Sep 17 00:00:00 2001
+From 62a8e638ce2adb21945333e000283efd3d2e98f5 Mon Sep 17 00:00:00 2001
 From: huangwenjun <huangwenjun-hf@loongson.com>
-Date: Wed, 4 Dec 2013 15:25:56 +0800
+Date: Thu, 19 Dec 2013 09:22:42 +0800
 Subject: [PATCH] Optimization:Cross compile with X86-64 Machine for loongson3A
 
 ---
  config/rules.mk                  |  6 +++---
- configure.in                     |  3 +--
+ configure.in                     |  2 +-
  dom/plugins/base/Makefile.in     |  1 +
  dom/plugins/ipc/Makefile.in      |  1 +
- gfx/2d/Makefile.in               | 11 ++++++++++-
+ gfx/2d/Makefile.in               | 12 +++++++++++-
  gfx/cairo/cairo/src/cairo.h      |  1 +
  gfx/thebes/Makefile.in           |  4 ++++
- gfx/thebes/gfxASurface.cpp       |  2 +-
+ gfx/thebes/gfxASurface.cpp       |  1 +
  gfx/thebes/gfxPlatformGtk.cpp    |  1 +
- gfx/thebes/gfxTeeSurface.cpp     |  2 +-
+ gfx/thebes/gfxTeeSurface.cpp     |  1 +
  js/public/Utility.h              |  2 +-
- security/nss/coreconf/Linux.mk   |  9 +++++----
+ security/nss/coreconf/Linux.mk   |  7 ++++---
  toolkit/library/Makefile.in      |  2 +-
  toolkit/xre/Makefile.in          |  2 ++
  widget/gtk2/Makefile.in          |  1 +
- widget/xremoteclient/Makefile.in |  3 ++-
- 16 files changed, 36 insertions(+), 15 deletions(-)
+ widget/xremoteclient/Makefile.in |  3 +++
+ 16 files changed, 37 insertions(+), 10 deletions(-)
 
 diff --git a/config/rules.mk b/config/rules.mk
 index f64edab..4fca1ef 100644
@@ -49,7 +49,7 @@ index f64edab..4fca1ef 100644
  	@$(call CHECK_STDCXX,$@)
  
 diff --git a/configure.in b/configure.in
-index 62d8144..65433de 100644
+index 4855987..65433de 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -978,7 +978,7 @@ MOZ_PNG_LIBS='$(call EXPAND_LIBNAME_PATH,mozpng,$(DEPTH)/media/libpng)'
@@ -61,14 +61,6 @@ index 62d8144..65433de 100644
  XPCOM_FROZEN_LDOPTS='-L$(LIBXUL_DIST)/bin -lxul -lmozalloc'
  LIBXUL_LIBS='$(XPCOM_FROZEN_LDOPTS)'
  XPCOM_GLUE_LDOPTS='$(LIBXUL_DIST)/lib/$(LIB_PREFIX)xpcomglue_s.$(LIB_SUFFIX) $(XPCOM_FROZEN_LDOPTS)'
-@@ -9491,7 +9491,6 @@ if test -z "$MOZ_NATIVE_NSPR"; then
-     ac_configure_args="$ac_configure_args --with-nspr-cflags='$NSPR_CFLAGS'"
-     ac_configure_args="$ac_configure_args --with-nspr-libs='$NSPR_LIBS'"
- fi
--#ac_configure_args="$ac_configure_args --with-dist-dir=../../dist"
- ac_configure_args="$ac_configure_args --with-dist-dir=$dist"
- ac_configure_args="$ac_configure_args --prefix=$dist"
- if test "$MOZ_MEMORY"; then
 diff --git a/dom/plugins/base/Makefile.in b/dom/plugins/base/Makefile.in
 index 2c3a156..0622715 100644
 --- a/dom/plugins/base/Makefile.in
@@ -94,21 +86,22 @@ index 26dd053..e44612d 100644
  
  ifeq (WINNT,$(OS_ARCH))
 diff --git a/gfx/2d/Makefile.in b/gfx/2d/Makefile.in
-index c86a089..f728f9f 100644
+index c86a089..4576741 100644
 --- a/gfx/2d/Makefile.in
 +++ b/gfx/2d/Makefile.in
-@@ -15,13 +15,22 @@ MSVC_ENABLE_PGO := 1
+@@ -15,13 +15,23 @@ MSVC_ENABLE_PGO := 1
  LIBXUL_LIBRARY	= 1
  EXPORT_LIBRARY	= 1
  
++ 
 +# gfxSVGGlyphs needs nsDOMParser.h
 +LOCAL_INCLUDES += \
-+	-I$(topsrcdir)/content/base/public \
-+	-I$(topsrcdir)/content/xml/document/src \
-+	-I$(topsrcdir)/widget/gtk2/compat \
-+	-I$(topsrcdir)/widget/gtk2/compat/gdk \
-+	-I$(topsrcdir)/gfx/cairo/cairo/src \
-+	$(NULL)
++     -I$(topsrcdir)/content/base/public \
++     -I$(topsrcdir)/content/xml/document/src \
++     -I$(topsrcdir)/widget/gtk2/compat \
++     -I$(topsrcdir)/widget/gtk2/compat/gdk \
++     -I$(topsrcdir)/gfx/cairo/cairo/src \
++     $(NULL)
 +
  ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
  CMMSRCS = \
@@ -134,7 +127,7 @@ index 52d0623..3853ddb 100644
  #include "cairo-features.h"
  #include "cairo-deprecated.h"
 diff --git a/gfx/thebes/Makefile.in b/gfx/thebes/Makefile.in
-index 4d5c1e4..a35dfaf 100644
+index 4d5c1e4..1c73ca7 100644
 --- a/gfx/thebes/Makefile.in
 +++ b/gfx/thebes/Makefile.in
 @@ -22,6 +22,10 @@ endif # !_MSC_VER
@@ -142,21 +135,20 @@ index 4d5c1e4..a35dfaf 100644
  	-I$(topsrcdir)/content/base/public \
  	-I$(topsrcdir)/content/xml/document/src \
 +	-I$(topsrcdir)/gfx/cairo/cairo/src \
-+        -I$(topsrcdir)/widget/gtk2/compat \
-+        -I$(topsrcdir)/widget/gtk2/compat/gdk \
++	-I$(topsrcdir)/widget/gtk2/compat \
++	-I$(topsrcdir)/widget/gtk2/compat/gdk \
 +	-I$(topsrcdir)/gfx/cairo/cairo/src \
  	$(NULL)
  
  ifeq ($(MOZ_WIDGET_TOOLKIT),$(findstring $(MOZ_WIDGET_TOOLKIT),android gtk2 gtk3 gonk qt))
 diff --git a/gfx/thebes/gfxASurface.cpp b/gfx/thebes/gfxASurface.cpp
-index f7d189b..c3eeae5 100644
+index 4cea140..c3eeae5 100644
 --- a/gfx/thebes/gfxASurface.cpp
 +++ b/gfx/thebes/gfxASurface.cpp
-@@ -14,7 +14,7 @@
+@@ -14,6 +14,7 @@
  #include "gfxImageSurface.h"
  
  #include "nsRect.h"
--
 +#include "cairo-rename.h"
  #include "cairo.h"
  #include <algorithm>
@@ -174,14 +166,13 @@ index 106de1c..911e731 100644
  #include "cairo-xlib.h"
  #include "mozilla/Preferences.h"
 diff --git a/gfx/thebes/gfxTeeSurface.cpp b/gfx/thebes/gfxTeeSurface.cpp
-index ecf49f3..bdd43a6 100644
+index 6016990..bdd43a6 100644
 --- a/gfx/thebes/gfxTeeSurface.cpp
 +++ b/gfx/thebes/gfxTeeSurface.cpp
-@@ -2,7 +2,7 @@
+@@ -2,6 +2,7 @@
   * This Source Code Form is subject to the terms of the Mozilla Public
   * License, v. 2.0. If a copy of the MPL was not distributed with this
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
--
 +#include "cairo-rename.h"
  #include "gfxTeeSurface.h"
  
@@ -200,22 +191,9 @@ index 436374e..f778604 100644
  {
      if (p) {
 diff --git a/security/nss/coreconf/Linux.mk b/security/nss/coreconf/Linux.mk
-index a586e5e..d4176fe 100644
+index 0b58470..d4176fe 100644
 --- a/security/nss/coreconf/Linux.mk
 +++ b/security/nss/coreconf/Linux.mk
-@@ -1,4 +1,3 @@
--#
- # This Source Code Form is subject to the terms of the Mozilla Public
- # License, v. 2.0. If a copy of the MPL was not distributed with this
- # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-@@ -30,6 +29,7 @@ endif
- 	ANDROID_TARGET=$(ANDROID_PREFIX)-4.4.3
- 	# should autodetect which linux we are on, currently android only
- 	# supports linux-x86 prebuilts
-+#
- 	ANDROID_TOOLCHAIN=$(ANDROID_NDK)/toolchains/$(ANDROID_TARGET)/prebuilt/linux-x86
- 	ANDROID_SYSROOT=$(ANDROID_NDK)/platforms/android-$(OS_TARGET_RELEASE)/arch-$(OS_TEST)
- 	ANDROID_CC=$(ANDROID_TOOLCHAIN)/bin/$(ANDROID_PREFIX)-gcc
 @@ -56,9 +56,10 @@ ifeq ($(OS_TEST),x86_64)
  ifeq ($(USE_64),1)
  	CPU_ARCH	= x86_64
@@ -269,18 +247,19 @@ index 870a4cd..ab13d9a 100644
  ifdef MOZ_X11
  INCLUDES   	+= -I$(srcdir)/../shared/x11
 diff --git a/widget/xremoteclient/Makefile.in b/widget/xremoteclient/Makefile.in
-index 1187f76..4a62143 100644
+index b6543ee..bb44c48 100644
 --- a/widget/xremoteclient/Makefile.in
 +++ b/widget/xremoteclient/Makefile.in
-@@ -36,6 +36,7 @@ PROGOBJS = $(PROGCPPSRCS:.cpp=.$(OBJ_SUFFIX))
+@@ -35,6 +35,9 @@ PROGCPPSRCS = \
+ PROGOBJS = $(PROGCPPSRCS:.cpp=.$(OBJ_SUFFIX))
  
  LIBS            = \
- 		$(NSPR_LIBS) \
--		$(XLDFLAGS) $(XLIBS)
++		$(NSPR_LIBS) \
 +		$(XLDFLAGS) $(XLIBS) \
-+		-lX11 -lxcb -lXau -lXdmcp -lXau
++		-lX11 -lxcb -lXau -lXdmcp -lXau \
+ 		$(NSPR_LIBS)\
+ 		$(XLDFLAGS) $(XLIBS)
  
- include $(topsrcdir)/config/rules.mk
 -- 
 1.8.1.2
 

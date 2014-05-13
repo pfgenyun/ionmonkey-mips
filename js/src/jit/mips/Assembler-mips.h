@@ -1859,9 +1859,6 @@ class Assembler
     }
     void setCC(Condition cond, const Register &r);
 
-    //by weizhenwei, 2013.12.11
-    void setCC(Condition cond, const Register &lhs, const Register &rhs, const Register &dest);
-
      //edit by QuQiuwen
     void testb(const Register &lhs, const Register &rhs) {
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));//SingleBytesRegs:t6,t7,t8,s0...s7,v0

@@ -132,8 +132,9 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
         // If the register we're defining is a single byte register,
         // take advantage of the setCC instruction
         Label setDest;
-        masm.movl(Imm32(1), dest);
-        masm.branchDoubleLocal(cond, lhs, rhs, &setDest); //by weizhenwei, 2013.11.27
+        masm.branchDoubleLocal(cond, lhs, rhs, &setDest); // by weizhenwei, 2013.11.27
+        //masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
+        masm.ori(dest, zero, 1);  // use delay slot;
         masm.xorl(dest, dest);
         masm.bindBranch(&setDest);
 
@@ -145,7 +146,8 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
             masm.nop();
 
             if (ifNaN == Assembler::NaN_IsTrue)
-                masm.movl(Imm32(1), dest);
+                //masm.movl(Imm32(1), dest);
+                masm.ori(dest, zero, 1);
             else
                 masm.xorl(dest, dest);
             masm.bindBranch(&noNaN);
@@ -159,8 +161,9 @@ CodeGeneratorMIPS::emitSet(Assembler::DoubleCondition cond, const FloatRegister 
             masm.bc1t(&ifFalse);
             masm.nop();
         }
-        masm.movl(Imm32(1), dest);
         masm.branchDoubleLocal(cond, lhs, rhs, &end);
+        //masm.addiu(dest, zero, ImmWord(1));  // use delay slot;
+        masm.ori(dest, zero, 1);  // use delay slot;
         if (ifNaN == Assembler::NaN_IsTrue) {
             //DoubleUnordered check, by weizhenwei, 2013.11.27
             masm.cud(lhs, rhs);
@@ -230,18 +233,7 @@ CodeGeneratorMIPS::visitTestIAndBranch(LTestIAndBranch *test)
 
     // Test the operand
     masm.cmpl(ToRegister(opd), zero);
-    //emitBranch(Assembler::NonZero, test->ifTrue(), test->ifFalse());
-    //by weizhenwei, 2013.12.11
-    LBlock *ifTrue = test->ifTrue()->lir();
-    LBlock *ifFalse = test->ifFalse()->lir();
-    if (isNextBlock(ifFalse)) {
-        masm.j(Assembler::NonZero, ifTrue->label());
-    } else {
-        masm.j(Assembler::Zero, ifFalse->label());
-        if (!isNextBlock(ifTrue))
-            masm.jmp(ifTrue->label());
-    }
-
+    emitBranch(Assembler::NonZero, test->ifTrue(), test->ifFalse());
     return true;
 }
 
@@ -260,7 +252,7 @@ CodeGeneratorMIPS::visitTestDAndBranch(LTestDAndBranch *test)
     //
     // NaN is falsey, so comparing against 0 and then using the Z flag is
     // enough to determine which branch to take.
-	//by weizhenwei, 2013.11.05
+    // by weizhenwei, 2013.11.05
     masm.zerod(ScratchFloatReg);
     //emitBranch(Assembler::DoubleNotEqual, ToFloatRegister(opd),
     //        ScratchFloatReg, test->ifTrue(), test->ifFalse());
@@ -296,10 +288,20 @@ bool
 CodeGeneratorMIPS::visitCompare(LCompare *comp)
 {
     MCompare *mir = comp->mir();
-    emitCompare(mir->compareType(), comp->left(), comp->right());
-    //masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()), ToRegister(comp->output()));
-    //by weizhenwei, 2013.12.11
-    emitSet(JSOpToCondition(mir->compareType(), comp->jsop()), ToRegister(comp->output()));
+
+    if (comp->right()->isConstant()){
+        masm.movl(Imm32(ToInt32(comp->right())), cmpTempRegister);
+        masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()),
+                ToRegister(comp->left()), cmpTempRegister, ToRegister(comp->output()));
+    }else if (comp->right()->isRegister()){
+        masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()),
+                ToRegister(comp->left()), ToRegister(comp->right()), ToRegister(comp->output()));
+    } else {
+        masm.movl(ToOperand(comp->right()),cmpTempRegister);
+        masm.emitSet(JSOpToCondition(mir->compareType(), comp->jsop()),
+                ToRegister(comp->left()), cmpTempRegister, ToRegister(comp->output()));
+    }
+
     return true;
 }
 
@@ -341,11 +343,14 @@ CodeGeneratorMIPS::visitCompareD(LCompareD *comp)
 bool
 CodeGeneratorMIPS::visitNotI(LNotI *ins)
 {
-    //masm.cmpl(ToRegister(ins->input()), Imm32(0));
-    //masm.emitSet(Assembler::Equal, ToRegister(ins->output()));
-    //by weizhenwei, 2013.12.11
-    emitSet(Assembler::Equal, ToRegister(ins->input()), zero,
-            ToRegister(ins->output()));
+    Label end;
+    Register input = ToRegister(ins->input());
+    Register output = ToRegister(ins->output());
+//    masm.emitSet(Assembler::Equal, input, zero, output);
+    masm.beq(input, zero, &end);
+    masm.ori(output, zero, 1); // use delay slot;
+    masm.xorl(output, output);
+    masm.bindBranch(&end);
 
     return true;
 }
@@ -1989,16 +1994,15 @@ CodeGeneratorMIPS::visitCompareB(LCompareB *lir)
     masm.bne(lhs.typeReg(), cmpTempRegister, &notBoolean);
     masm.nop();
     {
-        if (rhs->isConstant())
-            masm.cmp32(lhs.payloadReg(), Imm32(rhs->toConstant()->toBoolean()));
-        else
-            masm.cmp32(lhs.payloadReg(), ToRegister(rhs));
+        if (rhs->isConstant()){
+            masm.movl(Imm32(rhs->toConstant()->toBoolean()), cmpTempRegister);
+            masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), lhs.payloadReg(), cmpTempRegister, output);
+        }else{
+            masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), lhs.payloadReg(), ToRegister(rhs), output);
+        } 
 
-            //by weizhenwei, 2013.12.11
-            //masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
-            emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
-	    masm.b(&done);
-	    masm.nop();
+        masm.b(&done);
+        masm.nop();
     }
     masm.bindBranch(&notBoolean);
     {
@@ -2060,16 +2064,18 @@ CodeGeneratorMIPS::visitCompareV(LCompareV *lir)
     masm.bne(lhs.typeReg(), rhs.typeReg(), &notEqual);
     masm.nop();
     {
-        //masm.cmp32(lhs.payloadReg(), rhs.payloadReg());
-        //masm.emitSet(cond, output);
-        //by weizhenwei, 2013.12.11
-        emitSet(cond, lhs.payloadReg(), rhs.payloadReg(), output);
+        masm.emitSet(cond, lhs.payloadReg(), rhs.payloadReg(), output);
         masm.b(&done);
         masm.nop();
     }
     masm.bindBranch(&notEqual);
     {
-        masm.move32(Imm32(cond == Assembler::NotEqual), output);
+        //masm.move32(Imm32(cond == Assembler::NotEqual), output);
+        if (cond == Assembler::NotEqual) {
+            masm.ori(output, zero, 1);
+        } else {
+            masm.xorl(output, output);
+        }
     }
 
     masm.bindBranch(&done);

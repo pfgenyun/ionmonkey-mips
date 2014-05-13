@@ -100,13 +100,6 @@ void Assembler::setCC(Condition cond,const Register &r)
 			cmpTempRegister.code(), cmpTemp2Register.code(), r.code());
 }
 
-//by weizhenwei, 2013.12.11
-void Assembler::setCC(Condition cond, const Register &lhs, const Register &rhs, const Register &dest)
-{
-    mcss.set32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond),
-            lhs.code(), rhs.code(), dest.code());
-}
-
 //hwj 1028
 void
 Assembler::trace(JSTracer *trc)
