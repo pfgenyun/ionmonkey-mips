@@ -233,8 +233,11 @@ EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
     // The update IC will store 0 or 1 in R1.scratchReg() reflecting if the
     // value in R0 type-checked properly or not.
     Label success;
-    masm.cmp32(R1.scratchReg(), Imm32(1));
-    masm.j(Assembler::Equal, &success);
+//    masm.cmp32(R1.scratchReg(), Imm32(1));
+//    masm.j(Assembler::Equal, &success);
+	masm.movl(Imm32(1), cmpTempRegister);
+	masm.beq(R1.scratchReg(), cmpTempRegister, &success);
+	masm.nop();
 
     // If the IC failed, then call the update fallback function.
     EmitEnterStubFrame(masm, R1.scratchReg());
@@ -253,7 +256,7 @@ EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
     EmitLeaveStubFrame(masm);
 
     // Success at end.
-    masm.bind(&success);
+    masm.bindBranch(&success);
 }
 
 template <typename AddrType>

@@ -24,7 +24,7 @@ namespace jit {
 class BailoutStack
 {
     uintptr_t frameClassId_;
-    uintptr_t padding;  //NOTE:this is deleted in ff24
+    uintptr_t padding;  
     double    fpregs_[FloatRegisters::Total];
     uintptr_t regs_[Registers::Total];
     union {

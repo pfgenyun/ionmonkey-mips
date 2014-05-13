@@ -35,7 +35,7 @@ PROGCPPSRCS = \
 PROGOBJS = $(PROGCPPSRCS:.cpp=.$(OBJ_SUFFIX))
 
 LIBS            = \
-		$(NSPR_LIBS) \
+		$(NSPR_LIBS)\
 		$(XLDFLAGS) $(XLIBS)
 
 include $(topsrcdir)/config/rules.mk

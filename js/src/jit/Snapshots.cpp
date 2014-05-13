@@ -173,17 +173,19 @@ static const uint32_t NUNBOX32_REG_REG     = 3;
 #endif
 
 static const uint32_t MAX_TYPE_FIELD_VALUE = 7;
-/*
+
+//xsb:by TBD...who is TBD
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64) || defined(JS_CPU_ARM)
 static const uint32_t MAX_REG_FIELD_VALUE  = 31;
 static const uint32_t ESC_REG_FIELD_INDEX  = 31;
 static const uint32_t ESC_REG_FIELD_CONST  = 30;
 static const uint32_t MIN_REG_FIELD_ESC    = 30;
-*/
-//xsb:by TBD...who is TBD
+#elif defined(JS_CPU_MIPS)
 static const uint32_t MAX_REG_FIELD_VALUE  = 63;
 static const uint32_t ESC_REG_FIELD_INDEX  = 63;
 static const uint32_t ESC_REG_FIELD_CONST  = 62;
-static const uint32_t MIN_REG_FIELD_ESC    = 62;
+static const uint32_t MIN_REG_FIELD_ESC    = 62;//mips
+#endif
 
 SnapshotReader::Slot
 SnapshotReader::readSlot()

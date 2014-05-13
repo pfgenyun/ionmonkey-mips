@@ -31,9 +31,9 @@ ABIArgGenerator::next(MIRType type)
     return current_;
 }
 
-const Register ABIArgGenerator::NonArgReturnVolatileReg0 = s4;//ecx;
-const Register ABIArgGenerator::NonArgReturnVolatileReg1 = s6;//edx;
-const Register ABIArgGenerator::NonVolatileReg =s3;// ebx;
+const Register ABIArgGenerator::NonArgReturnVolatileReg0 = s4;
+const Register ABIArgGenerator::NonArgReturnVolatileReg1 = s6;
+const Register ABIArgGenerator::NonVolatileReg =s3;
 	
 	
 static void
@@ -43,20 +43,6 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
         size_t offset = reader.readUnsigned();
         void *ptr = JSC::MIPSAssembler::getPointer(buffer + offset);
 
-/*#ifdef JS_PUNBOX64
-        // All pointers on x64 will have the top bits cleared. If those bits
-        // are not cleared, this must be a Value.
-        uintptr_t *word = reinterpret_cast<uintptr_t *>(ptr);
-        if (*word >> JSVAL_TAG_SHIFT) {
-            jsval_layout layout;
-            layout.asBits = *word;
-            Value v = IMPL_TO_JSVAL(layout);
-            gc::MarkValueUnbarriered(trc, &v, "ion-masm-value");
-            JS_ASSERT(*word == JSVAL_TO_IMPL(v).asBits);
-            continue;
-        }
-#endif
-*/
         // No barrier needed since these are constants.
         gc::MarkGCThingUnbarriered(trc, reinterpret_cast<void **>(&ptr), "ion-masm-ptr");
     }
@@ -127,7 +113,6 @@ Assembler::trace(JSTracer *trc)
     }
     if (dataRelocations_.length()) {
         CompactBufferReader reader(dataRelocations_);
-       // ::(trc, masm.buffer(), reader);
         ::TraceDataRelocations(trc, masm.buffer(), reader);
     }
 }
@@ -135,8 +120,6 @@ void
 Assembler::processCodeLabels(uint8_t *rawCode)
 {
     for (size_t i = 0; i < codeLabels_.length(); i++) {
-     //   CodeLabel *label = codeLabels_[i];
-     //   Bind(code, label->dest(), code->raw() + label->src()->offset());
         CodeLabel label = codeLabels_[i];
         Bind(rawCode, label.dest(), rawCode + label.src()->offset());
     }
@@ -217,23 +200,20 @@ Assembler::executableCopy(uint8_t *buffer)
 void
 Assembler::retn(Imm32 n) {
     // Remove the size of the return address which is included in the frame.
-//okm   masm.ret(n.value - sizeof(void *));
     pop(ra);
     mcss.ret((n.value - sizeof(void *)));
-    //mcss.ret((n.value));
 }
 
 //hwj
 void 
 Assembler::call(Label *label) {
-    mcss.offsetFromPCToV0(sizeof(int*)*9);//1insns^M
-    mcss.push(mRegisterID(v0.code()));//2insns^M
+    mcss.offsetFromPCToV0(sizeof(int*)*9);//1insns
+    mcss.push(mRegisterID(v0.code()));//2insns
     jmp(label);//6insns
 }
 //hwj
 void 
 Assembler::call(const Register &reg) {
-//ok    mcss.call(reg.code());
 	if(reg != t9)
 	{
 	    move(t9,reg);
@@ -324,9 +304,6 @@ Assembler::ma_callIon(const Register r)
     // When the stack is 8 byte aligned,
     // we want to decrement sp by 8, and write pc+8 into the new sp.
     // when we return from this call, sp will be its present value minus 4.
-    //as_dtr(IsStore, 32, PreIndex, pc, DTRAddr(sp, DtrOffImm(-8)));
-    //as_blx(r);
-//ok
     mcss.offsetFromPCToV0(sizeof(int*)*8);//1insns
     mcss.sub32(mTrustedImm32(4), sp.code());//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
@@ -338,8 +315,6 @@ Assembler::ma_callIonNoPush(const Register r)
 {
     // Since we just write the return address into the stack, which is
     // popped on return, the net effect is removing 4 bytes from the stack
-    //as_dtr(IsStore, 32, Offset, pc, DTRAddr(sp, DtrOffImm(0)));
-//ok    //as_blx(r);
     mcss.offsetFromPCToV0(sizeof(int*)*8);//1insns
     mcss.add32(mTrustedImm32(4), sp.code());//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
@@ -353,8 +328,6 @@ Assembler::ma_callIonHalfPush(const Register r)
     // The stack is unaligned by 4 bytes.
     // We push the pc to the stack to align the stack before the call, when we
     // return the pc is poped and the stack is restored to its unaligned state.
-    //ma_push(pc);
-    //as_blx(r);
     mcss.offsetFromPCToV0(sizeof(int*)*7);//1insns
     mcss.push(mRegisterID(v0.code()));//2insns
     JmpSrc src = mcss.call(r.code()).m_jmp;//4insns
@@ -365,8 +338,6 @@ Assembler::JmpSrc
 Assembler::ma_call(void *dest) // KEEP EMPTY
 {
     JS_NOT_REACHED("no use!");
-    //ma_mov(Imm32((uint32)dest), CallReg);
-    //as_blx(CallReg);
 }
 
 static unsigned int* __getpc(void)
@@ -381,11 +352,6 @@ static unsigned int* __getpc(void)
 //hwj
 void
 Assembler::patchWrite_NearCall(CodeLocationLabel startLabel, CodeLocationLabel target){
-    /*uint8_t *start = startLabel.raw();
-   *start = 0xE8;
-   ptrdiff_t offset = target - startLabel - patchWrite_NearCallSize();
-   JS_ASSERT(int32_t(offset) == offset);
-   *((int32_t *) (start + 1)) = offset;*/
     uint32_t *start = (uint32_t*)startLabel.raw();
     uint32_t returnAddress=((uint32_t) start)+8*4;
     uint32_t *to = (uint32_t*)target.raw();
@@ -401,8 +367,6 @@ Assembler::patchWrite_NearCall(CodeLocationLabel startLabel, CodeLocationLabel t
     *(start + 4) = 0x3c190000 | tohg;   //lui t9, hg
     *(start + 5) = 0x37390000 | tolw; //ori t9 t9,hw
     *(start + 6) = 0x0320f809;  //jalr t9
-
-    //*(start + 7) = 0x0c000000 | (((reinterpret_cast<intptr_t>(to)) >> 2) & 0x3ffffff);//jal
     *(start + 7) = 0x00000000;  //nop
 }
 void

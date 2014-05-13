@@ -37,10 +37,6 @@ static const int32 INVALID_STACK_SLOT       = -1;
 static const int32 NUNBOX32_TYPE_OFFSET         = 4;
 static const int32 NUNBOX32_PAYLOAD_OFFSET      = 0;
 
-////
-// These offsets are related to bailouts.
-////
-
 // by wangqing, 2013-11-12.
 // size of each bailout table entry.
 // On mips, we use call (13 instructions)
@@ -57,19 +53,17 @@ public:
                                        "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
                                        "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
                                        "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
-        
         return Names[code];
     }
 
     static const Code StackPointer = JSC::MIPSRegisters::sp; 
     static const Code Invalid = JSC::MIPSRegisters::invalid_reg;
 
-    static const uint32 Total = 32; //TBD:must be smaller than MIN_REG_FIELD_ESC(30), defined in Snapshots.cpp
+    static const uint32 Total = 32; 
     static const uint32 Allocatable = 11; 
 
-    //static const uint32 AllMask = (1 << Total) - 1;
+	// in mips, we have 32 registers
     static const uint32 AllMask = 0xffffffff;
-    //static const uint32 ArgRegMask = 0x1f;
     static const uint32 ArgRegMask = 0;
 
     static const uint32 VolatileMask =
@@ -92,12 +86,6 @@ public:
         VolatileMask |         // = arguments
         (1 << JSC::MIPSRegisters::v0) | // = outReg
         (1 << JSC::MIPSRegisters::v1);  // = argBase
-    /*
-    static const uint32 WrapperMask =
-        VolatileMask |         // = arguments
-        (1 << JSC::MIPSRegisters::a2) | // = outReg
-        (1 << JSC::MIPSRegisters::a3);  // = argBase
-    */
 #if 0
     static const uint32 WrapperMask =
         VolatileMask |         // = arguments

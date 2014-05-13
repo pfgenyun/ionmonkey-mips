@@ -429,16 +429,16 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
     // If we reach here the value is a double.
     masm.unboxDouble(value, fr);
     cond = masm.testDoubleTruthy(false, fr);
-
+    //parameter false means cond == Zero,
+    //so branchDouble(Assembler::DoubleEqual directly.
     //by weizhenwei, 2013.11.08
 #if defined(JS_CPU_MIPS)
-    if (cond == Assembler::NonZero) {
-	masm.branchDouble(Assembler::DoubleNotEqual,
-		ScratchFloatReg, fr, ifFalsy);
-    } else if (cond == Assembler::Zero) {
-	masm.branchDouble(Assembler::DoubleEqual,
-		ScratchFloatReg, fr, ifFalsy);
-    }
+    //by weizhenwei, 2013.11.18, add check about NaN.
+    masm.branchDouble(Assembler::DoubleUnordered, 
+            ScratchFloatReg, fr, ifFalsy);
+    //by weizhenwei, 2013.11.08
+    masm.branchDouble(Assembler::DoubleEqual,
+            ScratchFloatReg, fr, ifFalsy);
 #else
     masm.j(cond, ifFalsy);
 #endif
@@ -3342,11 +3342,20 @@ CodeGenerator::visitAbsI(LAbsI *ins)
     JS_ASSERT(input == ToRegister(ins->output()));
     masm.test32(input, input);
     masm.j(Assembler::GreaterThanOrEqual, &positive);
+// by wangqing, 2013-11-19
+// for neg32 only INT_MIN will overflow
+#ifdef JS_CPU_MIPS
+	masm.movl(input, cmpTempRegister);
+	masm.movl(Imm32(0x80000000), cmpTemp2Register);
+#endif
     masm.neg32(input);
+#ifdef JS_CPU_MIPS
+    if (ins->snapshot() && !bailoutIf(Assembler::Equal, ins->snapshot()))
+#else
     if (ins->snapshot() && !bailoutIf(Assembler::Overflow, ins->snapshot()))
+#endif
         return false;
     masm.bind(&positive);
-
     return true;
 }
 

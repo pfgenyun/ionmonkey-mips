@@ -120,7 +120,10 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     virtual bool visitGuardObjectType(LGuardObjectType *guard);
     virtual bool visitGuardClass(LGuardClass *guard);
     virtual bool visitEffectiveAddress(LEffectiveAddress *ins);
-    virtual bool visitAsmJSDivOrMod(LAsmJSDivOrMod *ins);
+    //divide AsmJSDivOrMod into AsmJSDiv and AsmJSMod
+    //by weizhenwei, 2013.11.28
+    virtual bool visitAsmJSDiv(LAsmJSDiv *ins);
+    virtual bool visitAsmJSMod(LAsmJSMod *ins);
     virtual bool visitAsmJSPassStackArg(LAsmJSPassStackArg *ins);
 
     bool visitNegI(LNegI *lir);
@@ -133,7 +136,6 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     bool visitOutOfLineTableSwitch(OutOfLineTableSwitch *ool);
     bool generateInvalidateEpilogue();
 
-//following is copy from CodeGenerator-x86.h
 protected:
     ValueOperand ToValue(LInstruction *ins, size_t pos);
     ValueOperand ToOutValue(LInstruction *ins);

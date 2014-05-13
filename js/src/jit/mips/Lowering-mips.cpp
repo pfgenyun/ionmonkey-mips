@@ -12,7 +12,6 @@
 using namespace js;
 using namespace js::jit;
 
-//from shared
 LTableSwitch *
 LIRGeneratorMIPS::newLTableSwitch(const LAllocation &in, const LDefinition &inputCopy,
                                        MTableSwitch *tableswitch)
@@ -78,12 +77,11 @@ LIRGeneratorMIPS::lowerForShift(LInstructionHelper<1, 2, 0> *ins, MDefinition *m
 {
     ins->setOperand(0, useRegisterAtStart(lhs));
 
-    // shift operator should be constant or in register ecx
-    // x86 can't shift a non-ecx register
     if (rhs->isConstant())
         ins->setOperand(1, useOrConstant(rhs));
     else
-        ins->setOperand(1, useFixed(rhs,t8/* ecx*/));
+        //by weizhenwei, 2013.11.28
+        ins->setOperand(1, useRegister(rhs));
 
     return defineReuseInput(ins, mir, 0);
 }
@@ -147,10 +145,11 @@ LIRGeneratorMIPS::lowerDivI(MDiv *div)
         }
     }
 
-    LDivI *lir = new LDivI(useFixed(div->lhs(),t6/* eax*/), useRegister(div->rhs()), tempFixed(t7/*edx*/));
+    //by weizhenwei, 2013.11.28
+    LDivI *lir = new LDivI(useRegisterAtStart(div->lhs()), useRegister(div->rhs()));
     if (div->fallible() && !assignSnapshot(lir))
         return false;
-    return defineFixed(lir, div, LAllocation(AnyRegister(t6/*eax*/)));
+    return defineReuseInput(lir, div, 0);
 }
 
 bool
@@ -167,10 +166,13 @@ LIRGeneratorMIPS::lowerModI(MMod *mod)
             return defineReuseInput(lir, mod, 0);
         }
     }
-    LModI *lir = new LModI(useRegister(mod->lhs()), useRegister(mod->rhs()), tempFixed(t6/*eax*/));
+
+    //by weizhenwei, 2013.11.28
+    LModI *lir = new LModI(useRegisterAtStart(mod->lhs()), useRegister(mod->rhs()));
     if (mod->fallible() && !assignSnapshot(lir))
         return false;
-    return defineFixed(lir, mod, LAllocation(AnyRegister(t7/*edx*/)));
+
+    return defineReuseInput(lir, mod, 0);
 }
 
 bool
@@ -186,19 +188,17 @@ LIRGeneratorMIPS::visitAsmJSNeg(MAsmJSNeg *ins)
 bool
 LIRGeneratorMIPS::visitAsmJSUDiv(MAsmJSUDiv *div)
 {
-    LAsmJSDivOrMod *lir = new LAsmJSDivOrMod(useFixed(div->lhs(), t6/*eax*/),
-                                             useRegister(div->rhs()),
-                                             tempFixed(t7/*edx*/));
-    return defineFixed(lir, div, LAllocation(AnyRegister(t6/*eax*/)));
+//by weizhenwei, 2013.11.28
+    LAsmJSDiv *lir = new LAsmJSDiv(useRegisterAtStart(div->lhs()), useRegister(div->rhs()));
+    return defineReuseInput(lir, div, 0);
 }
 
 bool
 LIRGeneratorMIPS::visitAsmJSUMod(MAsmJSUMod *mod)
 {
-    LAsmJSDivOrMod *lir = new LAsmJSDivOrMod(useFixed(mod->lhs(), t6/*eax*/),
-                                             useRegister(mod->rhs()),
-                                             LDefinition::BogusTemp());
-    return defineFixed(lir, mod, LAllocation(AnyRegister(t7/*edx*/)));
+//by weizhenwei, 2013.11.28
+    LAsmJSMod *lir = new LAsmJSMod(useRegisterAtStart(mod->lhs()), useRegister(mod->rhs()));
+    return defineReuseInput(lir, mod, 0);
 }
 
 bool
@@ -211,12 +211,10 @@ LIRGeneratorMIPS::lowerUrshD(MUrsh *mir)
     JS_ASSERT(rhs->type() == MIRType_Int32);
     JS_ASSERT(mir->type() == MIRType_Double);
 
-#ifdef JS_CPU_X64
-    JS_ASSERT(ecx == rcx);
-#endif
-
     LUse lhsUse = useRegisterAtStart(lhs);
-    LAllocation rhsAlloc = rhs->isConstant() ? useOrConstant(rhs) : useFixed(rhs, t8/*ecx*/);
+
+    //by weizhenwei, 2013.11.28
+    LAllocation rhsAlloc = rhs->isConstant() ? useOrConstant(rhs) : useRegister(rhs);
 
     LUrshD *lir = new LUrshD(lhsUse, rhsAlloc, tempCopy(lhs, 0));
     return define(lir, mir);
@@ -252,8 +250,6 @@ LIRGeneratorMIPS::lowerTruncateDToInt32(MTruncateToInt32 *ins)
     return define(new LTruncateDToInt32(useRegister(opd), maybeTemp), ins);
 }
 
-
-//following is from x86
 bool
 LIRGeneratorMIPS::useBox(LInstruction *lir, size_t n, MDefinition *mir,
                         LUse::Policy policy, bool useAtStart)
@@ -415,9 +411,11 @@ LIRGeneratorMIPS::visitStoreTypedArrayElement(MStoreTypedArrayElement *ins)
     LAllocation index = useRegisterOrConstant(ins->index());
     LAllocation value;
 
-    // For byte arrays, the value has to be in a byte register on x86.
+    // For byte arrays, the value has to be in a byte register on mips.
     if (ins->isByteArray())
-        value = useFixed(ins->value(), t6/*eax*/);
+        //value = useFixed(ins->value(), t6);
+        //by weizhenwei, 2013.11.28
+        value = useRegister(ins->value());
     else
         value = useRegisterOrNonDoubleConstant(ins->value());
     return add(new LStoreTypedArrayElement(elements, index, value), ins);
@@ -440,9 +438,11 @@ LIRGeneratorMIPS::visitStoreTypedArrayElementHole(MStoreTypedArrayElementHole *i
     LAllocation index = useRegisterOrConstant(ins->index());
     LAllocation value;
 
-    // For byte arrays, the value has to be in a byte register on x86.
+    // For byte arrays, the value has to be in a byte register on mips.
     if (ins->isByteArray())
-        value = useFixed(ins->value(), t6/*eax*/);
+        //value = useFixed(ins->value(), t6);
+        //by weizhenwei, 2013.11.28
+        value = useRegister(ins->value());
     else
         value = useRegisterOrNonDoubleConstant(ins->value());
     return add(new LStoreTypedArrayElementHole(elements, length, index, value), ins);
@@ -462,13 +462,10 @@ LIRGeneratorMIPS::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
     LAsmJSStoreHeap *lir;
     switch (ins->viewType()) {
       case ArrayBufferView::TYPE_INT8: case ArrayBufferView::TYPE_UINT8:
-        // It's a trap! On x86, the 1-byte store can only use one of
-        // {al,bl,cl,dl,ah,bh,ch,dh}. That means if the register allocator
-        // gives us one of {edi,esi,ebp,esp}, we're out of luck. (The formatter
-        // will assert on us.) Ideally, we'd just ask the register allocator to
-        // give us one of {al,bl,cl,dl}. For now, just useFixed(al).
-        lir = new LAsmJSStoreHeap(useRegister(ins->ptr()),
-                                  useFixed(ins->value(), t6/*eax*/));
+//        lir = new LAsmJSStoreHeap(useRegister(ins->ptr()),
+//                                  useFixed(ins->value(), t6));
+        //byw weizhenwei, 2013.11.28
+        lir = new LAsmJSStoreHeap(useRegister(ins->ptr()), useRegister(ins->value()));
         break;
       case ArrayBufferView::TYPE_INT16: case ArrayBufferView::TYPE_UINT16:
       case ArrayBufferView::TYPE_INT32: case ArrayBufferView::TYPE_UINT32:
@@ -493,8 +490,11 @@ LIRGeneratorMIPS::visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStati
     switch (ins->viewType()) {
       case ArrayBufferView::TYPE_INT8: case ArrayBufferView::TYPE_UINT8:
       case ArrayBufferView::TYPE_UINT8_CLAMPED:
+        //lir = new LStoreTypedArrayElementStatic(useRegister(ins->ptr()),
+        //                                        useFixed(ins->value(), t6));
+        //by weizhenwei, 2013.11.28
         lir = new LStoreTypedArrayElementStatic(useRegister(ins->ptr()),
-                                                useFixed(ins->value(), t6/*eax*/));
+                                                useRegister(ins->value()));
         break;
       case ArrayBufferView::TYPE_INT16: case ArrayBufferView::TYPE_UINT16:
       case ArrayBufferView::TYPE_INT32: case ArrayBufferView::TYPE_UINT32:
@@ -517,9 +517,6 @@ LIRGeneratorMIPS::visitAsmJSLoadFuncPtr(MAsmJSLoadFuncPtr *ins)
 LGetPropertyCacheT *
 LIRGeneratorMIPS::newLGetPropertyCacheT(MGetPropertyCache *ins)
 {
-    // Since x86 doesn't have a scratch register and we need one for the
-    // indirect jump for dispatch-style ICs, we need a temporary in the case
-    // of a double output type as we can't get a scratch from the output.
     LDefinition scratch;
     if (ins->type() == MIRType_Double)
         scratch = temp();

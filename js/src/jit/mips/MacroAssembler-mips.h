@@ -79,10 +79,6 @@ class MacroAssemblerMIPS : public Assembler
         return Assembler::oom() || !enoughMemory_;
     }
 
-    /////////////////////////////////////////////////////////////////
-    // X86-specific interface.
-    /////////////////////////////////////////////////////////////////
-
     Operand ToPayload(Operand base) {
         return base;
     }
@@ -119,9 +115,6 @@ class MacroAssemblerMIPS : public Assembler
             movl(src.payloadReg(), dest.payloadReg());
     }
 
-    /////////////////////////////////////////////////////////////////
-    // X86/X64-common interface.
-    /////////////////////////////////////////////////////////////////
     void storeValue(ValueOperand val, Operand dest) {
         movl(val.payloadReg(), ToPayload(dest));
         movl(val.typeReg(), ToType(dest));
@@ -442,14 +435,13 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(lhs, rhs);
     }
     void testPtr(Register lhs, Register rhs) {
-        testl(lhs, rhs);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		andInsn(cmpTempRegister, lhs, rhs);
+		movl(zero, cmpTemp2Register);
     }
 
     Condition testNegativeZero(const FloatRegister &reg, const Register &scratch);
 
-    /////////////////////////////////////////////////////////////////
-    // Common interface.
-    /////////////////////////////////////////////////////////////////
     void reserveStack(uint32_t amount) {
         if (amount)
             subl(Imm32(amount), StackPointer);
@@ -539,11 +531,16 @@ class MacroAssemblerMIPS : public Assembler
         j(cond, label);
     }
     void branchTestPtr(Condition cond, Register lhs, Register rhs, Label *label) {
-        testl(lhs, rhs);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		andInsn(cmpTempRegister, lhs, rhs);
+		movl(zero, cmpTemp2Register);
         j(cond, label);
     }
     void branchTestPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        testl(lhs, imm);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		movl(imm, cmpTempRegister);
+		andInsn(cmpTempRegister, lhs, cmpTempRegister);
+		movl(zero, cmpTemp2Register);
         j(cond, label);
     }
     void branchTestPtr(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
@@ -673,7 +670,6 @@ class MacroAssemblerMIPS : public Assembler
             branch32(NotEqual, val.payloadReg(), Imm32(static_cast<int32_t>(why)), label);
         }
     }
-    //It is different with x86!
     // Note: this function clobbers the source register.
     void boxDouble(const FloatRegister &src, const ValueOperand &dest) {
         fastStoreDouble(src, dest.payloadReg(), dest.typeReg());
@@ -698,12 +694,10 @@ class MacroAssemblerMIPS : public Assembler
     void unboxBoolean(const Address &src, const Register &dest) {
         movl(payloadOf(src), dest);
     }
-    //It is different with x86!
     void unboxDouble(const ValueOperand &src, const FloatRegister &dest) {
         JS_ASSERT(dest != ScratchFloatReg);
         fastLoadDouble(src.payloadReg(), src.typeReg(), dest);
     }
-    //It is different with x86!
     //xsb:fixme
     void unboxDouble(const Operand &payload, const Operand &type,
                      const Register &scratch, const FloatRegister &dest) {
@@ -713,13 +707,18 @@ class MacroAssemblerMIPS : public Assembler
     
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
         if (dest.isFloat()) {
+			// by wangqing, 2013-12-02
             Label notInt32, end;
-            branchTestInt32(Assembler::NotEqual, src, &notInt32);
+			movl(ImmTag(JSVAL_TAG_INT32), cmpTempRegister);
+			bne(src.typeReg(), cmpTempRegister, &notInt32);
+			nop();
+
             cvtsi2sd(src.payloadReg(), dest.fpu());
-            jump(&end);
-            bind(&notInt32);
+            b(&end);
+			nop();
+            bindBranch(&notInt32);
             unboxDouble(src, dest.fpu());
-            bind(&end);
+            bindBranch(&end);
         } else {
             if (src.payloadReg() != dest.gpr())
                 movl(src.payloadReg(), dest.gpr());
@@ -770,8 +769,7 @@ class MacroAssemblerMIPS : public Assembler
         movsd(dp, dest);
     }
 
-    //It is different with x86!
-//xsb:fixme
+	//xsb:fixme
     void branchTruncateDouble(const FloatRegister &src, const Register &dest, Label *fail) {
         cvttsd2si(src, dest);
         cmpl(dest, Imm32(0x7fffffff));
@@ -779,11 +777,11 @@ class MacroAssemblerMIPS : public Assembler
     }
 
     Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
-        testl(operand.payloadReg(), operand.payloadReg());
+		cmpl(operand.payloadReg(), zero);
         return truthy ? NonZero : Zero;
     }
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
-        testl(operand.payloadReg(), operand.payloadReg());
+		cmpl(operand.payloadReg(), zero);
         j(truthy ? NonZero : Zero, label);
     }
     Condition testStringTruthy(bool truthy, const ValueOperand &value) {
@@ -798,12 +796,17 @@ class MacroAssemblerMIPS : public Assembler
 
     void loadInt32OrDouble(const Operand &operand, const FloatRegister &dest) {
         Label notInt32, end;
-        branchTestInt32(Assembler::NotEqual, operand, &notInt32);
+		// by wangqing, 2013-12-02
+        cmpl(ToType(operand), ImmTag(JSVAL_TAG_INT32));
+		bne(cmpTempRegister, cmpTemp2Register, &notInt32);
+		nop();
+
         cvtsi2sd(ToPayload(operand), dest);
-        jump(&end);
-        bind(&notInt32);
+        b(&end);
+		nop();
+        bindBranch(&notInt32);
         movsd(operand, dest);
-        bind(&end);
+        bindBranch(&end);
     }
 
     template <typename T>
@@ -859,29 +862,36 @@ class MacroAssemblerMIPS : public Assembler
 
     void inc64(AbsoluteAddress dest) {
         addl(Imm32(1), Operand(dest));
+		// by wangqing, 2013-12-02
         Label noOverflow;
-      //add by QuQiuwen
-        cmpl(Operand(dest),zero);
-        j(NonZero, &noOverflow);
-        addl(Imm32(1), Operand(dest.offset(4)));
-        bind(&noOverflow);
-    }
+		movl(Operand(dest), cmpTempRegister);
+		bne(cmpTempRegister, zero, &noOverflow);
+		nop();
 
+        addl(Imm32(1), Operand(dest.offset(4)));
+        bindBranch(&noOverflow);
+    }
 
     // If source is a double, load it into dest. If source is int32,
     // convert it to double. Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
+    	// by wangqing, 2013-12-02
         Label isDouble, done;
-        branchTestDouble(Assembler::Equal, source.typeReg(), &isDouble);
+		movl(ImmTag(JSVAL_TAG_CLEAR), cmpTempRegister);
+		sltu(cmpTempRegister, source.typeReg(), cmpTempRegister);
+		bgtz(cmpTempRegister, &isDouble);
+		nop();
+
         branchTestInt32(Assembler::NotEqual, source.typeReg(), failure);
 
         convertInt32ToDouble(source.payloadReg(), dest);
-        jump(&done);
+        b(&done);
+		nop();
 
-        bind(&isDouble);
+        bindBranch(&isDouble);
         unboxDouble(source, dest);
 
-        bind(&done);
+        bindBranch(&done);
     }
 
     // Setup a call to C/C++ code, given the number of general arguments it
@@ -944,20 +954,16 @@ class MacroAssemblerMIPS : public Assembler
         movl(StackPointer, Operand(pt, offsetof(PerThreadData, ionTop)));
     }
 
-    //It is different with x86!
     void enterOsr(Register calleeToken, Register code) {
         push(Imm32(0)); // num actual args.
         push(calleeToken);
         push(Imm32(MakeFrameDescriptor(0, IonFrame_Osr)));
-//ok    //arm : ma_callIonHalfPush
-//ok    call(code);
         ma_callIonHalfPush(code);
         #if ! defined (JS_CPU_MIPS)
         addl(Imm32(sizeof(uintptr_t) * 2), sp);
         #endif
     }
 
-    // See CodeGeneratorX86 calls to noteAsmJSGlobalAccess.
     void patchAsmJSGlobalAccess(unsigned offset, uint8_t *code, unsigned codeBytes,
                                 unsigned globalDataOffset)
     {
@@ -967,7 +973,7 @@ class MacroAssemblerMIPS : public Assembler
         ((int32_t *)nextInsn)[-1] = uintptr_t(target);
     }
 
-  protected://x86
+  protected:
     // Bytes pushed onto the frame by the callee; includes frameDepth_. This is
     // needed to compute offsets to stack slots while temporary space has been
     // reserved for unexpected spills or C++ function calls. It is maintained
@@ -975,7 +981,7 @@ class MacroAssemblerMIPS : public Assembler
     // use StudlyCaps (for example, Push, Pop).
     uint32_t framePushed_;
 
-  public://x86
+  public:
     MacroAssemblerMIPS()
       : inCall_(false),
         framePushed_(0),
@@ -983,27 +989,103 @@ class MacroAssemblerMIPS : public Assembler
     {
     }
 
-    void compareDouble(DoubleCondition cond, const FloatRegister &lhs, const FloatRegister &rhs) {
-		ASSERT(0);//by weizhenwei, 2013.11.05
-        if (cond & DoubleConditionBitInvert)
-            ucomisd(rhs, lhs);
-        else
-            ucomisd(lhs, rhs);
+    //by weizhenwei, 2013.11.27
+    mJump branchTrue(bool branchTrue)
+    {
+        masm.appendJump();
+        if (branchTrue) {
+            masm.bc1t();
+        } else {
+            masm.bc1f();
+
+        }
+        masm.nop();
+
+        //insertRelaxationWords(); replaced by following, weizhenwei, 2013.11.22
+        /* We need four words for relaxation. */
+        masm.beq(mRegisterID(zero.code()), mRegisterID(zero.code()), 3); // Jump over nops;
+        masm.nop();
+        masm.nop();
+        masm.nop();
+
+        return mJump(masm.newJmpSrc());
     }
-    //It is different with x86!
+
+    //by weizhenwei, 2013.11.27
+    mJump branchDouble(DoubleCondition cond, mFPRegisterID left, mFPRegisterID right)
+    {
+        if (cond == DoubleUnordered) {
+            masm.cud(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleOrdered) {
+            masm.cud(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleEqual) {
+            masm.ceqd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleNotEqual) {
+            masm.ceqd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThan) {
+            masm.cngtd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThanOrEqual) {
+            masm.cnged(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleLessThan) {
+            masm.cltd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleLessThanOrEqual) {
+            masm.cled(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleEqualOrUnordered) {
+            masm.cueqd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleNotEqualOrUnordered) {
+            masm.ceqd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThanOrUnordered) {
+            masm.coled(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleGreaterThanOrEqualOrUnordered) {
+            masm.coltd(left, right);
+            return branchTrue(false); // false
+        }
+        if (cond == DoubleLessThanOrUnordered) {
+            masm.cultd(left, right);
+            return branchTrue(true);
+        }
+        if (cond == DoubleLessThanOrEqualOrUnordered) {
+            masm.culed(left, right);
+            return branchTrue(true);
+        }
+
+        ASSERT(0);
+        return branchTrue(true);
+    }
+
     void branchDouble(DoubleCondition cond, const FloatRegister &lhs,
                       const FloatRegister &rhs, Label *label)
     {
+        JmpSrc j;
 
         //by weizhenwei, 2013.10.29
-        JmpSrc j;
         if (cond & DoubleConditionBitInvert) {
-            j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond),
-                    rhs.code(), lhs.code()).getJmpSrc();
-        } else {
-            j = mcss.branchDouble(static_cast<JSC::MacroAssemblerMIPS::DoubleCondition>(cond),
-                    lhs.code(), rhs.code()).getJmpSrc();
+            JS_ASSERT(0);
         }
+
+        j = branchDouble(cond, mFPRegisterID(lhs.code()), mFPRegisterID(rhs.code())).getJmpSrc();
 
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -1013,8 +1095,73 @@ class MacroAssemblerMIPS : public Assembler
             JmpSrc prev = JmpSrc(label->use(j.offset()));
             masm.setNextJump(j, prev);
         }
+    }
 
-    //    return j;
+    //by weizhenwei, 2013.11.27
+    void branchDoubleLocal(DoubleCondition cond, const FloatRegister &lhs,
+                      const FloatRegister &rhs, Label *label)
+    {
+        mFPRegisterID left = mFPRegisterID(lhs.code());
+        mFPRegisterID right = mFPRegisterID(rhs.code());
+
+        if (cond == DoubleUnordered) {
+            masm.cud(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleOrdered) {
+            masm.cud(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleEqual) {
+            masm.ceqd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleNotEqual) {
+            masm.ceqd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThan) {
+            masm.cngtd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThanOrEqual) {
+            masm.cnged(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleLessThan) {
+            masm.cltd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleLessThanOrEqual) {
+            masm.cled(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleEqualOrUnordered) {
+            masm.cueqd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleNotEqualOrUnordered) {
+            masm.ceqd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThanOrUnordered) {
+            masm.coled(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleGreaterThanOrEqualOrUnordered) {
+            masm.coltd(left, right);
+            bc1f(label); //false
+        }
+        if (cond == DoubleLessThanOrUnordered) {
+            masm.cultd(left, right);
+            bc1t(label);
+        }
+        if (cond == DoubleLessThanOrEqualOrUnordered) {
+            masm.culed(left, right);
+            bc1t(label);
+        }
+
+        masm.nop();
     }
 
     void move32(const Imm32 &imm, const Register &dest) {
@@ -1023,12 +1170,15 @@ class MacroAssemblerMIPS : public Assembler
         else
             movl(imm, dest);
     }
+
     void move32(const Imm32 &imm, const Operand &dest) {
         movl(imm, dest);
     }
+
     void and32(const Imm32 &imm, const Register &dest) {
         andl(imm, dest);
     }
+
     void and32(const Imm32 &imm, const Address &dest) {
         andl(imm, Operand(dest));
     }
@@ -1045,7 +1195,9 @@ class MacroAssemblerMIPS : public Assembler
         cmpl(lhs, rhs);
     }
     void test32(const Register &lhs, const Register &rhs) {
-        testl(lhs, rhs);
+	    // overwrite testl, by wangqing, 2013-12-02 
+		andInsn(cmpTempRegister, lhs, rhs);
+		movl(zero, cmpTemp2Register);
     }
     void test32(const Address &addr, Imm32 imm) {
         testl(Operand(addr), imm);
@@ -1162,9 +1314,7 @@ class MacroAssemblerMIPS : public Assembler
         cvtsi2sd(Operand(src), dest);
     }
     Condition testDoubleTruthy(bool truthy, const FloatRegister &reg) {
-//        xorpd(ScratchFloatReg, ScratchFloatReg);
-//        ucomisd(ScratchFloatReg, reg);
-		  zerod(ScratchFloatReg);
+		zerod(ScratchFloatReg);
         return truthy ? NonZero : Zero;
     }
     void load8ZeroExtend(const Address &src, const Register &dest) {
@@ -1230,12 +1380,9 @@ class MacroAssemblerMIPS : public Assembler
     void storeDouble(FloatRegister src, const Operand &dest) {
         movsd(src, dest);
     }
-    //It is different with x86!
     void zeroDouble(FloatRegister reg) {
         zerod(reg);
     }
-    //It is different with x86!
-    //xsb:fixme 
 	// by wangqing ,2013-11-06 make the FLoatRegister negated.
     void negateDouble(FloatRegister reg) {
 	    negd(reg, reg); 
@@ -1256,21 +1403,16 @@ class MacroAssemblerMIPS : public Assembler
         cvtsd2ss(src, dest);
     }
     void loadFloatAsDouble(const Register &src, FloatRegister dest) {
-//        movd(src, dest);
 		movss(src, dest);  // by wangqing, 2013-11-08
-//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const Address &src, FloatRegister dest) {
         movss(Operand(src), dest);
-//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
         movss(Operand(src), dest);
-//        cvtss2sd(dest, dest);
     }
     void loadFloatAsDouble(const Operand &src, FloatRegister dest) {
         movss(src, dest);
-//        cvtss2sd(dest, dest);
     }
     void storeFloat(FloatRegister src, const Address &dest) {
         movss(src, Operand(dest));
@@ -1288,52 +1430,57 @@ class MacroAssemblerMIPS : public Assembler
         cvttsd2si(src, dest);
         cvtsi2sd(dest, ScratchFloatReg);
 		//by weizhenwei, 2013.11.05
-//        ucomisd(src, ScratchFloatReg);
-//        j(Assembler::Parity, fail);
-//        j(Assembler::NotEqual, fail);
 		branchDouble(Assembler::DoubleUnordered, src, ScratchFloatReg, fail);
 		branchDouble(Assembler::DoubleNotEqual, src, ScratchFloatReg, fail);
 
         // Check for -0
         if (negativeZeroCheck) {
+		    // by wangqing, 2013-12-02
             Label notZero;
-            testl(dest, dest);
-            j(Assembler::NonZero, &notZero);
+			bne(dest, zero, &notZero);
+			nop();
 
-                // bit 0 = sign of low double
-                // bit 1 = sign of high double
-                // move double's high 32 to dest and get its sign bit
-                mfc1(dest, js::jit::FloatRegister::FromCode(src.code() + 1));
-                shrl(Imm32(0x1f), dest);
+            // bit 0 = sign of low double
+            // bit 1 = sign of high double
+            // move double's high 32 to dest and get its sign bit
+            mfc1(dest, js::jit::FloatRegister::FromCode(src.code() + 1));
+            shrl(Imm32(0x1f), dest);
 
-                //add by QuQiuwen
-                cmpl(dest,zero);
-                j(Assembler::NonZero, fail);
+            //add by QuQiuwen
+            cmpl(dest,zero);
+            j(Assembler::NonZero, fail);
 
-            bind(&notZero);
+            bindBranch(&notZero);
         }
     }
 
     void clampIntToUint8(Register src, Register dest) {
+		// by wangqing, 2013-11-02
         Label inRange, done;
-        branchTest32(Assembler::Zero, src, Imm32(0xffffff00), &inRange);
+		movl(Imm32(0xffffff00), cmpTempRegister);
+		andl(src, cmpTempRegister);
+		beq(cmpTempRegister, zero, &inRange);
+		nop();
         {
             Label negative;
-            branchTest32(Assembler::Signed, src, src, &negative);
+			bltz(src, &negative);
+			nop();
             {
                 movl(Imm32(255), dest);
-                jump(&done);
+                b(&done);
+				nop();
             }
-            bind(&negative);
+            bindBranch(&negative);
             {
                 xorl(dest, dest);
-                jump(&done);
+                b(&done);
+				nop();
             }
         }
-        bind(&inRange);
+        bindBranch(&inRange);
         if (src != dest)
             movl(src, dest);
-        bind(&done);
+        bindBranch(&done);
     }
 
     bool maybeInlineDouble(uint64_t u, const FloatRegister &dest) {
@@ -1343,25 +1490,13 @@ class MacroAssemblerMIPS : public Assembler
         // up to two shifts.
 
         if (u == 0) {
-            xorpd(dest, dest);
-            return true;
-        }
-
-        int tz = js_bitscan_ctz64(u);
-        int lz = js_bitscan_clz64(u);
-        if (u == (~uint64_t(0) << (lz + tz) >> lz)) {
-            pcmpeqw(dest, dest);
-            if (tz != 0)
-                psllq(Imm32(lz + tz), dest);
-            if (lz != 0)
-                psrlq(Imm32(lz), dest);
+			zerod(dest);
             return true;
         }
 
         return false;
     }
 
-    //It is different with x86!
     void emitSet(Assembler::Condition cond, const Register &dest,
                  Assembler::NaNCond ifNaN = Assembler::NaN_HandledByCond) {
         if (GeneralRegisterSet(Registers::SingleByteRegs).has(dest)) {
@@ -1373,7 +1508,7 @@ class MacroAssemblerMIPS : public Assembler
             if (ifNaN != Assembler::NaN_HandledByCond) {
                 Label noNaN;
             	ASSERT(0);// test Parity!
-               j(Assembler::NoParity, &noNaN);
+                j(Assembler::NoParity, &noNaN);
                 if (ifNaN == Assembler::NaN_IsTrue)
                     movl(Imm32(1), dest);
                 else
@@ -1386,12 +1521,14 @@ class MacroAssemblerMIPS : public Assembler
 
             if (ifNaN == Assembler::NaN_IsFalse)
             	ASSERT(0);// test Parity!
-                j(Assembler::Parity, &ifFalse);
+			// by wangqing, 2013-12-11
+			// Parity-->DoubleUnorder
+            j(Assembler::Parity, &ifFalse);
             movl(Imm32(1), dest);
             j(cond, &end);
             if (ifNaN == Assembler::NaN_IsTrue)
             	ASSERT(0);// test Parity!
-               j(Assembler::Parity, &end);
+            j(Assembler::Parity, &end);
               
             bind(&ifFalse);
             xorl(dest, dest);
@@ -1443,7 +1580,7 @@ class MacroAssemblerMIPS : public Assembler
         Push(Imm32(descriptor));
         call(target);
     }
-    //It is different with x86!
+
     void callIon(const Register &callee){
          ma_callIonHalfPush(callee);
     }
@@ -1463,9 +1600,9 @@ class MacroAssemblerMIPS : public Assembler
 
 typedef MacroAssemblerMIPS MacroAssemblerSpecific;
 
-} // namespace ion
+} // namespace jit
 } // namespace js
 
-#endif // jsion_macro_assembler_x86_h__
+#endif // js_jit_macro_assembler_mips_h__
 
 

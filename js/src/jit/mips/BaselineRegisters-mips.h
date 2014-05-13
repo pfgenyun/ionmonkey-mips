@@ -14,8 +14,7 @@
 namespace js {
 namespace jit {
 
-// by wangqing, fp-->s2
-//static const Register BaselineFrameReg = fp;
+// by wangqing
 static const Register BaselineFrameReg = fp;//1031
 static const Register BaselineStackReg = sp;
 
@@ -24,10 +23,6 @@ static const Register BaselineStackReg = sp;
 static const ValueOperand R0(t7, t8);
 static const ValueOperand R1(s1, s0);
 static const ValueOperand R2(s3, s4);
-/*
-static const ValueOperand R1(s3, s4);
-static const ValueOperand R2(s0, s1);
-*/
 
 // BaselineTailCallReg and BaselineStubReg reuse
 // registers from R2.
@@ -40,7 +35,6 @@ static const Register ExtractTemp1        = InvalidReg;
 // FloatReg0 must be equal to ReturnFloatReg.
 static const FloatRegister FloatReg0      = f0;
 static const FloatRegister FloatReg1      = f4;//hwj 1031
-//static const FloatRegister FloatReg1      = f2;
 
 } // namespace jit
 } // namespace js

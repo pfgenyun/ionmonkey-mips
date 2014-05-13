@@ -92,21 +92,19 @@ static const MOZ_CONSTEXPR FloatRegister InvalidFloatReg = { JSC::MIPSRegisters:
 
 static const MOZ_CONSTEXPR Register JSReturnReg_Type = t7;
 static const MOZ_CONSTEXPR Register JSReturnReg_Data = t8;
-//static const MOZ_CONSTEXPR Register StackPointer = sp;
 static const MOZ_CONSTEXPR Register StackPointer = sp;
-static const MOZ_CONSTEXPR Register FramePointer = fp;//xsb
-//static const MOZ_CONSTEXPR Register FramePointer=InvalidReg;
+static const MOZ_CONSTEXPR Register FramePointer = fp;//by xsb
 static const MOZ_CONSTEXPR Register ReturnReg = v0;
 static const MOZ_CONSTEXPR FloatRegister ReturnFloatReg = {JSC::MIPSRegisters::f0};
 static const MOZ_CONSTEXPR FloatRegister ScratchFloatReg = {JSC::MIPSRegisters::f2};
-static const MOZ_CONSTEXPR Register ArgumentsRectifierReg = s5;//esi/s0;
-static const MOZ_CONSTEXPR Register CallTempReg0 = s1;//edi;
-static const MOZ_CONSTEXPR Register CallTempReg1 = s2;//eax;
-static const MOZ_CONSTEXPR Register CallTempReg2 = s3;//ebx;
-static const MOZ_CONSTEXPR Register CallTempReg3 = s4;//ecx;
-static const MOZ_CONSTEXPR Register CallTempReg4 = s5;//esi;
-static const MOZ_CONSTEXPR Register CallTempReg5 = s6;//edx;
-static const MOZ_CONSTEXPR Register CallTempReg6 = s7;//ebp;
+static const MOZ_CONSTEXPR Register ArgumentsRectifierReg = s5;
+static const MOZ_CONSTEXPR Register CallTempReg0 = s1;
+static const MOZ_CONSTEXPR Register CallTempReg1 = s2;
+static const MOZ_CONSTEXPR Register CallTempReg2 = s3;
+static const MOZ_CONSTEXPR Register CallTempReg3 = s4;
+static const MOZ_CONSTEXPR Register CallTempReg4 = s5;
+static const MOZ_CONSTEXPR Register CallTempReg5 = s6;
+static const MOZ_CONSTEXPR Register CallTempReg6 = s7;
 static const MOZ_CONSTEXPR Register immTempRegister  = t0;
 static const MOZ_CONSTEXPR Register dataTempRegister = t1;
 static const MOZ_CONSTEXPR Register addrTempRegister = t2;
@@ -140,8 +138,8 @@ class ABIArgGenerator
     static const Register NonVolatileReg;
 };
 
-static const MOZ_CONSTEXPR Register OsrFrameReg = t7;//edx;
-static const MOZ_CONSTEXPR Register PreBarrierReg =t7;// edx;
+static const MOZ_CONSTEXPR Register OsrFrameReg = t7;;
+static const MOZ_CONSTEXPR Register PreBarrierReg =t7;
 
 // GCC stack is aligned on 16 bytes, but we don't maintain the invariant in
 // jitted code.
@@ -183,8 +181,9 @@ class Operand
     };
 
     Kind kind_ : 4;
-//    int32_t index_ : 5;// TangZL set it 6
-    int32_t index_ : 6;  // fixme: by wangqing
+	// by wangqing
+	// in mips, we have 32 registers, so set index_ = 6
+    int32_t index_ : 6; 
     Scale scale_ : 3;
     int32_t base_; 
     int32_t disp_;
@@ -277,23 +276,13 @@ class Operand
 } // namespace jit
 } // namespace js
 
-//#include "jit/shared/Assembler-x86-shared.h"
-
 namespace js {
 namespace jit {
 
 static inline void
 PatchJump(CodeLocationJump jump, CodeLocationLabel label)
 {
-#ifdef DEBUG
-    // Assert that we're overwriting a jump instruction, either:
-    //   0F 80+cc <imm32>, or
-    //   E9 <imm32>
-    unsigned char *x = (unsigned char *)jump.raw() - 5;
- //   JS_ASSERT(((*x >= 0x80 && *x <= 0x8F) && *(x - 1) == 0x0F) || (*x == 0xE9));
-#endif
- //   JSC::MIPSAssembler::setRel32(jump.raw(), label.raw());
- JSC::MacroAssemblerMIPS::repatchJump(JSC::CodeLocationJump(jump.raw()), JSC::CodeLocationLabel(label.raw()));
+ 	JSC::MacroAssemblerMIPS::repatchJump(JSC::CodeLocationJump(jump.raw()), JSC::CodeLocationLabel(label.raw()));
 }
 
 // Return operand from a JS -> JS call.
@@ -301,7 +290,6 @@ static const ValueOperand JSReturnOperand = ValueOperand(JSReturnReg_Type, JSRet
 
 class Assembler
 {
-	//this is from Assembler-x86-shared.h
   protected:
     struct RelativePatch {
         int32_t offset;
@@ -332,11 +320,9 @@ class Assembler
         if (ptr.value)
             dataRelocations_.writeUnsigned(masm.currentOffset());
     }
-    //this is new in ff24
     void writePrebarrierOffset(CodeOffsetLabel label) {
         preBarriers_.writeUnsigned(label.offset());
     }
-    //end
       
   protected:
     JSC::MacroAssemblerMIPS mcss;
@@ -359,6 +345,8 @@ class Assembler
     typedef JSC::MIPSAssembler::JmpSrc JmpSrc;
     typedef JSC::MIPSAssembler::JmpDst JmpDst;
       
+    typedef JSC::MIPSRegisters::FPCCID mFPCCID; //by weizhenwei, 2013.11.27
+    typedef JSC::MacroAssembler::Jump mJump;    //by weizhenwei, 2013.11.27
       
     void writeRelocation(JmpSrc src) {
         jumpRelocations_.writeUnsigned(src.offset());
@@ -417,7 +405,6 @@ class Assembler
         DoubleLessThanOrUnordered = JSC::MacroAssemblerMIPS::DoubleLessThanOrUnordered,
         DoubleLessThanOrEqualOrUnordered = JSC::MacroAssemblerMIPS::DoubleLessThanOrEqualOrUnordered 
     };
-//this is new in ff24
   enum NaNCond {
         NaN_HandledByCond,
         NaN_IsTrue,
@@ -425,7 +412,6 @@ class Assembler
     };
 
 
-//this is new in ff24
     // If the primary condition returned by ConditionFromDoubleCondition doesn't
     // handle NaNs properly, return NaN_IsFalse if the comparison should be
     // overridden to return false on NaN, NaN_IsTrue if it should be overridden
@@ -465,7 +451,6 @@ class Assembler
     Assembler()
       : masm(mcss.assembler()),
         m_assembler(mcss.assembler()),
-      //  dataBytesNeeded_(0),
         enoughMemory_(true)
     {
     }
@@ -479,53 +464,23 @@ class Assembler
         return static_cast<Condition>(cond & ~DoubleConditionBits);
     }
 
-	//by weizhenwei, 2013.11.05
-    static inline DoubleCondition DoubleConditionFromCondition(Condition cond) {
-        if ((cond == Equal) || (cond == Zero)) {
-            return DoubleEqual;
-        } else if ((cond == NotEqual) || (cond == NonZero)) {
-            return DoubleNotEqual;
-        } else if ((cond == Above) || (cond == GreaterThan)) {
-            return DoubleGreaterThan;
-        } else if ((cond == AboveOrEqual) || (cond == GreaterThanOrEqual)) {
-            return DoubleGreaterThanOrEqual;
-        } else if ((cond == Below) || (cond == LessThan)) {
-            return DoubleLessThan;
-        } else if ((cond == BelowOrEqual) || (cond == LessThanOrEqual)) {
-            return DoubleLessThanOrEqual;
-        } else if (cond == Parity) {
-            return DoubleUnordered;
-        } else if (cond == NoParity) {
-            return DoubleOrdered;
-        } else {
-            JS_ASSERT(0);
-            //TODO
-            return DoubleOrdered;
-        }
-    }
-	//by weizhenwei, 2013.11.13
+    //by weizhenwei, 2013.11.13
     static inline DoubleCondition InvertDoubleCondition(DoubleCondition cond) {
         if (cond == DoubleOrdered) {
             return DoubleUnordered;
         } else if (cond == DoubleUnordered) {
             return DoubleOrdered;
         } else if (cond == DoubleEqual) {
-            //return DoubleNotEqual;
             return DoubleNotEqualOrUnordered;
         } else if (cond == DoubleNotEqual) {
-            //return DoubleEqual;
             return DoubleEqualOrUnordered;
         } else if (cond == DoubleGreaterThan) {
-            //return DoubleLessThanOrEqual;
             return DoubleLessThanOrEqualOrUnordered;
         } else if (cond == DoubleGreaterThanOrEqual) {
-            //return DoubleLessThan;
             return DoubleLessThanOrUnordered;
         } else if (cond == DoubleLessThan) {
-            //return DoubleGreaterThanOrEqual;
             return DoubleGreaterThanOrEqualOrUnordered;
         } else if (cond == DoubleLessThanOrEqual) {
-            //return DoubleGreaterThan;
             return DoubleGreaterThanOrUnordered;
         } else if (cond == DoubleEqualOrUnordered) {
             return DoubleNotEqual;
@@ -541,7 +496,6 @@ class Assembler
             return DoubleGreaterThan;
         } else {
             JS_ASSERT(0);
-            //TODO
             return DoubleOrdered;
         }
     }
@@ -596,16 +550,6 @@ class Assembler
                dataRelocationTableBytes() +
                preBarrierTableBytes();
     }
-  	
-//   using AssemblerMIPSShared::movl;
-//   using AssemblerMIPSShared::j;
-//   using AssemblerMIPSShared::jmp;
-//   using AssemblerMIPSShared::movsd;
-//   using AssemblerMIPSShared::retarget;
-//   using AssemblerMIPSShared::cmpl;
-//   using AssemblerMIPSShared::call;
-//   using AssemblerMIPSShared::push;
-
 
     // The buffer is about to be linked, make sure any constant pools or excess
     // bookkeeping has been flushed to the instruction stream.
@@ -620,10 +564,7 @@ class Assembler
     // Actual assembly emitting functions.
 
     void push(const ImmGCPtr &ptr) {
-    //    push(Imm32(ptr.value));
-    //    writeDataRelocation(ptr);
-
-        /* OK
+        /* 
          * author: wangqing
          * date: 2013-10-26
          *
@@ -649,12 +590,7 @@ class Assembler
     }
 
     CodeOffsetLabel pushWithPatch(const ImmWord &word) {
-//        CodeOffsetLabel label = CodeOffsetLabel(size());
-//        push(Imm32(word.value));
-//        return label;
-//        return masm.currentOffset();
-
-        /* OK
+        /* 
          * author: wangqing
          * date: 2010-10-18
          * 
@@ -674,10 +610,7 @@ class Assembler
     }
 
     CodeOffsetLabel movWithPatch(const ImmWord &word, const Register &dest) {
-//        movl(Imm32(word.value), dest);
-//        return masm.currentOffset();
-
-        /* OK 
+        /*  
          * author: wangqing
          * date: 2013-10-21
          *
@@ -700,10 +633,7 @@ class Assembler
     }
 
     void movl(const ImmGCPtr &ptr, const Register &dest) {
-//         mcss.move(mTrustedImmPtr(reinterpret_cast<const void*>(ptr.value)), dest.code());
-//         writeDataRelocation(ptr);
-        
-        /* OK
+        /* 
          * author: wangqing
          * date: 2013-10-26
          *
@@ -720,11 +650,7 @@ class Assembler
     void movl(const ImmGCPtr &ptr, const Operand &dest) {
            switch (dest.kind()) {
           case Operand::REG:
-//ok          masm.movl_i32r(ptr.value, dest.reg());
-//            mcss.move(mTrustedImm32(ptr.value), dest.reg());
-//            writeDataRelocation(ptr);
-
-            /* OK
+            /* 
              * author: wangqing
              * date: 2013-10-26
              *
@@ -737,11 +663,7 @@ class Assembler
             writeDataRelocation(ptr);
             break;
           case Operand::REG_DISP:
-//ok          masm.movl_i32m(ptr.value, dest.disp(), dest.base());
-//            mcss.store32(mTrustedImm32(ptr.value), mImplicitAddress(mAddress(dest.base(), dest.disp())));
-//            writeDataRelocation(ptr);
-
-            /* OK
+            /* 
              * author: wangqing
              * date: 2013-10-26
              *
@@ -762,10 +684,7 @@ class Assembler
             sw(immTempRegister, addrTempRegister, 0);
             break;
           case Operand::SCALE:
-//ok          masm.movl_i32m(ptr.value, dest.disp(), dest.base(), dest.index(), dest.scale());
-//            mcss.store32(mTrustedImm32(ptr.value), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
-//            writeDataRelocation(ptr);
-            /* OK
+            /* 
              * author: wangqing
              * date:2013-10-26
              *
@@ -795,7 +714,6 @@ class Assembler
     }
 //wangce
     void movl(ImmWord imm, Register dest) {
-    	//ok        masm.movl_i32r(imm.value, dest.code());
         mcss.move(mTrustedImm32(imm.value), dest.code());
     }
 //wangce
@@ -815,7 +733,6 @@ class Assembler
         movl(src, dest);
     }
 //wangce
-    //NOTE*:This is new in ff24
     void mov(Imm32 imm, const Operand &dest) {
         movl(imm, dest);
     }
@@ -824,7 +741,6 @@ class Assembler
         JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
-        // masm.movl_i32r(label->prev(), dest.code());
        int offset = label->prev();
        lui(dest, offset >> 16);
        ori(dest.code(), dest.code(), offset&0x0000ffff);       
@@ -834,20 +750,17 @@ class Assembler
     void mov(const Register &src, const Register &dest) {
         movl(src, dest);
     }
-    //NOTE*:this is differrent in ff24 ,need to update!!
     void lea(const Operand &src, const Register &dest) {
             return leal(src, dest);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Register src, ImmWord ptr) {
         movl(src,cmpTempRegister);
         movl(ptr,cmpTemp2Register);
     }
     void cmpl(const Register src, ImmGCPtr ptr) {
         movl(src,cmpTempRegister);
-//      movl(ptr,cmpTemp2Register);
-//      writeDataRelocation(ptr);
-        /* OK
+        /* 
          * author: wangqing
          * date: 2013-10-26
          *
@@ -859,17 +772,15 @@ class Assembler
          ori(cmpTemp2Register, cmpTemp2Register, (uint32_t)ptr.value & 0x0000ffff);
          writeDataRelocation(ptr);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Register &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Operand &op, ImmGCPtr imm) {
         movl(op,cmpTempRegister);
-//      movl(imm,cmpTemp2Register);
-//      writeDataRelocation(imm);
-        /* OK
+        /* 
          * author: wangqing
          * date: 2013-10-26
          *
@@ -881,14 +792,8 @@ class Assembler
          ori(cmpTemp2Register, cmpTemp2Register, (uint32_t)imm.value & 0x0000ffff);
          writeDataRelocation(imm);
     }
-       //NOTE*:This is new in ff24. 
     CodeOffsetLabel cmplWithPatch(const Register &lhs, Imm32 rhs) {
-//   masm.cmpl_ir_force32(rhs.value, lhs.code());
-     //   mcss.move(lhs.code(),cmpTempRegister.code());
-     //   mcss.move(mTrustedImm32(rhs.value),cmpTemp2Register.code());
-     //   return masm.currentOffset();
-
-       /* OK
+       /* 
         * author: wangqing
         * date: 2010-10-23
         *
@@ -905,7 +810,6 @@ class Assembler
     }
     //hwj
     void jmp(void *target, Relocation::Kind reloc = Relocation::HARDCODED) {
-     //  JmpSrc src = masm.jmp();
          JmpSrc src = mcss.jump().m_jmp;
          int to = (int)target;
          lui(t9, to>>16);
@@ -1034,7 +938,6 @@ class Assembler
         addCodeLabel(cl);//1031
     }
 
-   //NOTE*:This is new in ff24.
        // Emit a CALL or CMP (nop) instruction. ToggleCall can be used to patch
     // this instruction. 
     // 8 ins
@@ -1067,7 +970,6 @@ class Assembler
         JS_ASSERT((size() - offset.offset()) == ToggledCallSize());
         return offset;
     }
-   //NOTE*:This is new in ff24! This is need to update!
     static size_t ToggledCallSize() {
         // Size of a call instruction.
     	return 32; //8*4
@@ -1099,20 +1001,13 @@ class Assembler
     }
 
     void movsd(const double *dp, const FloatRegister &dest) {
-    //    JS_ASSERT(HasSSE2());
-   //     masm.movsd_mr((const void *)dp, dest.code());
-   mcss.loadDouble(reinterpret_cast<const void *>(dp), dest.code());
+   		mcss.loadDouble(reinterpret_cast<const void *>(dp), dest.code());
     }
 
 
-   //NOTE*:following  is new in ff24 
     // Move a 32-bit immediate into a register where the immediate can be
     // patched.
     CodeOffsetLabel movlWithPatch(Imm32 imm, Register dest) {
-  //      masm.movl_i32r(imm.value, dest.code());
-  //      mcss.move(mTrustedImm32(imm.value), dest.code());
-  //      return masm.currentOffset();
-
         /*
          * author: wangqing
          * date: 2010-10-23
@@ -1129,11 +1024,7 @@ class Assembler
 
     // Load from *addr where addr can be patched.
     CodeOffsetLabel movlWithPatch(void *addr, Register dest) {
-      //  masm.movl_mr(addr, dest.code());
-      //  mcss.load32(addr,dest.code());
-      //  return masm.currentOffset();
-
-        /* OK
+        /* 
          * author: wangqing
          * date: 2010-10-23
          *
@@ -1149,12 +1040,7 @@ class Assembler
 
     }
     CodeOffsetLabel movsdWithPatch(void *addr, FloatRegister dest) {
-  //   JS_ASSERT(HasSSE2());
-  //      masm.movsd_mr(addr, dest.code());
-  //      mcss.loadDouble(addr,dest.code());
-  //      return masm.currentOffset();
-
-        /* OK
+        /* 
          * author: wangqing
          * date: 2010-10-23
          *
@@ -1174,10 +1060,6 @@ class Assembler
 
     // Store to *addr where addr can be patched
     CodeOffsetLabel movlWithPatch(Register src, void *addr) {
-     //   masm.movl_rm(src.code(), addr);
-     //   mcss.store32(src.code(), addr);
-     //   return masm.currentOffset();
-        
         /* OK
          * author: wangqing
          * date: 2010-10-23
@@ -1195,20 +1077,14 @@ class Assembler
 
     }
     CodeOffsetLabel movsdWithPatch(FloatRegister dest, void *addr) {
-  //      JS_ASSERT(HasSSE2());
-  //      masm.movsd_rm(dest.code(), addr);
- //  ASSERT(0);  
-// mcss.storeDouble(dest.code(), addr);
-  //      return masm.currentOffset();
-
-	/* OK
+	    /* 
          * author: wangqing
          * date: 2010-10-23
          *
          * lui addrTemp, addr >> 16
          * ori addrTemp, addrTemp, addr & 0x0000ffff
          * swc1 dest, addrTemp, 0
-	 * swc1 dest+1, addrTemp, 4
+	     * swc1 dest+1, addrTemp, 4
          */
         
         CodeOffsetLabel label = CodeOffsetLabel(size());
@@ -1222,12 +1098,7 @@ class Assembler
 
     // Load from *(base + disp32) where disp32 can be patched.
     CodeOffsetLabel movxblWithPatch(Address src, Register dest) {
-//   masm.movxbl_mr_disp32(src.offset, src.base.code(), dest.code());//movxbl in x86
-//         movxbl(Operand(src),dest);
-//         return masm.currentOffset();
-
          /*
-          * OK
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1245,12 +1116,7 @@ class Assembler
 
     }
     CodeOffsetLabel movzblWithPatch(Address src, Register dest) {
-  //      masm.movzbl_mr_disp32(src.offset, src.base.code(), dest.code());
-  //  	 movzbl(Operand(src),dest);
-  //       return masm.currentOffset();
-       
-         /* OK
-          *
+         /* 
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1268,12 +1134,7 @@ class Assembler
 
     }
     CodeOffsetLabel movxwlWithPatch(Address src, Register dest) {
-        //  masm.movxwl_mr_disp32(src.offset, src.base.code(), dest.code());
-        //  movxwl(Operand(src),dest);
-        //  return masm.currentOffset();
-
-         /* OK
-          *
+         /* 
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1291,12 +1152,7 @@ class Assembler
 
     }
     CodeOffsetLabel movzwlWithPatch(Address src, Register dest) {
-      //  masm.movzwl_mr_disp32(src.offset, src.base.code(), dest.code());
-      //  movzwl(Operand(src),dest);
-      //  return masm.currentOffset();
-
-         /* OK
-          *
+         /* 
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1314,11 +1170,7 @@ class Assembler
 
     }
     CodeOffsetLabel movlWithPatch(Address src, Register dest) {
-        //   masm.movl_mr_disp32(src.offset, src.base.code(), dest.code());
-        //   movl(Operand(src),dest);
-        //   return masm.currentOffset();
          /* 
-          * OK
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1336,12 +1188,7 @@ class Assembler
 
     }
     CodeOffsetLabel movssWithPatch(Address src, FloatRegister dest) {
-    //    JS_ASSERT(HasSSE2());
-    //    masm.movss_mr_disp32(src.offset, src.base.code(), dest.code());
-    //   movss(Operand(src),dest);
-    //   return masm.currentOffset();
          /*
-          * OK
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1360,12 +1207,7 @@ class Assembler
 
     }
     CodeOffsetLabel movsdWithPatch(Address src, FloatRegister dest) {
-    //   JS_ASSERT(HasSSE2());
-    //    masm.movsd_mr_disp32(src.offset, src.base.code(), dest.code());
-//   		movsd(Operand(src),dest);
-//   		return masm.currentOffset();
          /*
-          * OK
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1388,14 +1230,7 @@ class Assembler
 
     // Store to *(base + disp32) where disp32 can be patched.
     CodeOffsetLabel movbWithPatch(Register src, Address dest) {
-      //  masm.movb_rm_disp32(src.code(), dest.offset, dest.base.code());
-//        ASSERT(0);
-      //	movv(src,Operand(dest));
-//        return masm.currentOffset();
-//ok            masm.movb_rm(src.code(), dest.disp(), dest.base());
-//            mcss.store8(src.code(), mAddress(dest1.base(), dest1.disp()));
          /*
-          * OK
           * author: wangqing
           * date: 2013-23
           *
@@ -1413,14 +1248,7 @@ class Assembler
 
     }
     CodeOffsetLabel movwWithPatch(Register src, Address dest) {
-         // masm.movw_rm_disp32(src.code(), dest.offset, dest.base.code());
-//          movw(src,Operand(dest));
-//          return masm.currentOffset();
-
-//ok            masm.movw_rm(src.code(), dest.disp(), dest.base());
-//            mcss.store16(src.code(), mAddress(dest1.base(), dest1.disp()));
          /* 
-          * OK
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1438,14 +1266,7 @@ class Assembler
 
     }
     CodeOffsetLabel movlWithPatch(Register src, Address dest) {
-   //     masm.movl_rm_disp32(src.code(), dest.offset, dest.base.code());
-   //  		movl(src,Operand(dest));
-   //	     return masm.currentOffset();
-         
-     //       masm.movl_rm(src.code(), dest.disp(), dest.base());
-     //   mcss.store32(src.code(), mAddress(dest1.base(), dest1.disp()));
          /*
-          * OK
           * author : wangqing
           * date: 2013-10-23
           *
@@ -1463,13 +1284,7 @@ class Assembler
 
     }
     CodeOffsetLabel movssWithPatch(FloatRegister src, Address dest) {
-      //  JS_ASSERT(HasSSE2());
-      //  masm.movss_rm_disp32(src.code(), dest.offset, dest.base.code());
-   	  //   movss(src,Operand(dest));
-      //   return masm.currentOffset();
-
-           
-         /* OK
+         /* 
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1487,13 +1302,7 @@ class Assembler
 
     }
     CodeOffsetLabel movsdWithPatch(FloatRegister src, Address dest) {
-     //  JS_ASSERT(HasSSE2());
-    //    masm.movsd_rm_disp32(src.code(), dest.offset, dest.base.code());
-    //    		movsd(src,Operand(dest));
-     //     return masm.currentOffset();
-
-//ok            masm.movsd_rm(src.code(), dest.disp(), dest.base());
-         /* OK
+         /* 
           * author: wangqing
           * date: 2013-10-23
           *
@@ -1514,14 +1323,7 @@ class Assembler
 
     // Load from *(addr + index*scale) where addr can be patched.
     CodeOffsetLabel movlWithPatch(void *addr, Register index, Scale scale, Register dest) {
-   //      masm.movl_mr(addr, index.code(), scale, dest.code());
-   //   ASSERT(0);
-   //		 mov(mImmPtr(addr),addrTempRegister);
-    //mBaseIndex need to review!          
-       //  mcss.load32(mBaseIndex(addrTempRegister, index, mScale(scale)), dest.code());
-   //         return masm.currentOffset();
         /*
-         * OK
          * author: wangqing * date: 2013-10-23
          *	
              sll     addrTemp, address.index, address.scale
@@ -1540,33 +1342,28 @@ class Assembler
 	return label;
 
     }
-    // folloing is from Assembler-x86-shared.h
    public:
     void align(int alignment) {
         masm.align(alignment);
     }
 
     //hwj
-    //NOTE*:this function is new in ff24
     void writeCodePointer(AbsoluteLabel *label) {
         JS_ASSERT(!label->bound());
         // Thread the patch list through the unpatched address word in the
         // instruction stream.
-        //masm.jumpTablePointer(label->prev());
         masm.emitInst(label->prev());
         label->setPrev(masm.size());
         // for JumpTable
         label->setType(1);
     }
-    //NOTE*:this function is new in ff24
     void writeDoubleConstant(double d, Label *label) {
         label->bind(masm.size());
         masm.doubleConstant(d);
     }
 //wangce
     void movl(const Imm32 &imm32, const Register &dest) {
-   //     masm.movl_i32r(imm32.value, dest.code());
-    mcss.move(mTrustedImm32(imm32.value), dest.code());
+    	mcss.move(mTrustedImm32(imm32.value), dest.code());
     }
 //wangce
     void movl(const Register &src, const Register &dest) {
@@ -1577,23 +1374,17 @@ class Assembler
     void movl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-     //       masm.movl_rr(src.reg(), dest.code());
-          mcss.move(src.reg(), dest.code());
+          	mcss.move(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-    //         masm.movl_mr(src.disp(), src.base(), dest.code());
-     mcss.load32(mAddress(src.base(), src.disp()), dest.code());
+     		mcss.load32(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-    //        masm.movl_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
-       mcss.load32(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
+       		mcss.load32(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
-//#ifdef JS_CPU_X86
           case Operand::ADDRESS:
-      //      masm.movl_mr(src.address(), dest.code());
-         mcss.load32(src.address(), dest.code());
+         	mcss.load32(src.address(), dest.code());
             break;
-//#endif
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
@@ -1602,23 +1393,17 @@ class Assembler
     void movl(const Register &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG:
-       //     masm.movl_rr(src.code(), dest.reg());
-         mcss.move(src.code(),dest.reg());
+         	mcss.move(src.code(),dest.reg());
             break;
           case Operand::REG_DISP:
-     //       masm.movl_rm(src.code(), dest.disp(), dest.base());
-        mcss.store32(src.code(), mAddress(dest.base(), dest.disp()));
+       		mcss.store32(src.code(), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-      //      masm.movl_rm(src.code(), dest.disp(), dest.base(), dest.index(), dest.scale());
-        mcss.store32(src.code(), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
+        	mcss.store32(src.code(), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
-//#ifdef JS_CPU_X86
           case Operand::ADDRESS:
-     //      masm.movl_rm(src.code(), dest.address());
-        mcss.store32(src.code(), dest.address());
+        	mcss.store32(src.code(), dest.address());
             break;
-//#endif
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
@@ -1627,15 +1412,12 @@ class Assembler
         void movl(const Imm32 &imm32, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG:
-//ok            masm.movl_i32r(imm32.value, dest.reg());
             mcss.move(mTrustedImm32(imm32.value), dest.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.movl_i32m(imm32.value, dest.disp(), dest.base());
             mcss.store32(mTrustedImm32(imm32.value), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movl_i32m(imm32.value, dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.store32(mTrustedImm32(imm32.value), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
@@ -1646,22 +1428,18 @@ class Assembler
 
 
     void movsd(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.movsd_rr(src.code(), dest.code());
             mcss.moveDouble(src.code(), dest.code());
     }
 //wangce
     void movsd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::FPREG:
-//ok            masm.movsd_rr(src.fpu(), dest.code());
             mcss.moveDouble(src.fpu(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.movsd_mr(src.disp(), src.base(), dest.code());
             mcss.loadDouble(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.movsd_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.loadDouble(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
@@ -1672,15 +1450,12 @@ class Assembler
   void movsd(const FloatRegister &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::FPREG:
-//ok            masm.movsd_rr(src.code(), dest.fpu());
             mcss.moveDouble(src.code(), dest.fpu());
             break;
           case Operand::REG_DISP:
-//ok            masm.movsd_rm(src.code(), dest.disp(), dest.base());
             mcss.storeDouble(src.code(), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movsd_rm(src.code(), dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.storeDouble(src.code(), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
@@ -1691,11 +1466,9 @@ class Assembler
     void movss(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movss_mr(src.disp(), src.base(), dest.code());
             mcss.loadFloat(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.movss_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.loadFloat(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
@@ -1712,64 +1485,29 @@ class Assembler
     void movss(const FloatRegister &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movss_rm(src.code(), dest.disp(), dest.base());
             mcss.storeFloat(src.code(), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movss_rm(src.code(), dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.storeFloat(src.code(), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
-    /* 
-    void movdqa(const Operand &src, const FloatRegister &dest) {
-        JS_ASSERT(HasSSE2());
-        switch (src.kind()) {
-          case Operand::REG_DISP:
-            masm.movdqa_mr(src.disp(), src.base(), dest.code());
-            break;
-          case Operand::SCALE:
-            masm.movdqa_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
-    }
-    void movdqa(const FloatRegister &src, const Operand &dest) {
-        JS_ASSERT(HasSSE2());
-        switch (dest.kind()) {
-          case Operand::REG_DISP:
-            masm.movdqa_rm(src.code(), dest.disp(), dest.base());
-            break;
-          case Operand::SCALE:
-            masm.movdqa_rm(src.code(), dest.disp(), dest.base(), dest.index(), dest.scale());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }
-    }
-    */
-    
-     void cvtss2sd(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.cvtss2sd_rr(src.code(), dest.code());
+
+    void cvtss2sd(const FloatRegister &src, const FloatRegister &dest) {
         mcss.convertFloatToDouble(src.code(), dest.code());
     }
     void cvtsd2ss(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.cvtsd2ss_rr(src.code(), dest.code());
         mcss.convertDoubleToFloat(src.code(), dest.code());
     }
 //wangce
-
     void movzbl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movzbl_mr(src.disp(), src.base(), dest.code());
             mcss.load8ZeroExtend(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.movzbl_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.load8ZeroExtend(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
@@ -1780,11 +1518,9 @@ class Assembler
     void movxbl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movxbl_mr(src.disp(), src.base(), dest.code());
             mcss.load8SignExtend(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.movxbl_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.load8SignExtend(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
@@ -1795,11 +1531,9 @@ class Assembler
     void movb(const Register &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movb_rm(src.code(), dest.disp(), dest.base());
             mcss.store8(src.code(), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movb_rm(src.code(), dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.store8(src.code(), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
@@ -1810,11 +1544,9 @@ class Assembler
     void movb(const Imm32 &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movb_i8m(src.value, dest.disp(), dest.base());
             mcss.store8(mTrustedImm32(src.value), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movb_i8m(src.value, dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.store8(mTrustedImm32(src.value), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
@@ -1825,11 +1557,9 @@ class Assembler
     void movzwl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movzwl_mr(src.disp(), src.base(), dest.code());
             mcss.load16ZeroExtend(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.movzwl_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.load16ZeroExtend(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
@@ -1840,11 +1570,9 @@ class Assembler
        void movw(const Register &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movw_rm(src.code(), dest.disp(), dest.base());
             mcss.store16(src.code(), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movw_rm(src.code(), dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.store16(src.code(), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
@@ -1855,11 +1583,9 @@ class Assembler
     void movw(const Imm32 &src, const Operand &dest) {
         switch (dest.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movw_i16m(src.value, dest.disp(), dest.base());
             mcss.store16(mTrustedImm32(src.value), mAddress(dest.base(), dest.disp()));
             break;
           case Operand::SCALE:
-//ok            masm.movw_i16m(src.value, dest.disp(), dest.base(), dest.index(), dest.scale());
             mcss.store16(mTrustedImm32(src.value), mBaseIndex(dest.base(), dest.index(), mScale(dest.scale()), dest.disp()));
             break;
           default:
@@ -1870,11 +1596,9 @@ class Assembler
     void movxwl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
-//ok            masm.movxwl_mr(src.disp(), src.base(), dest.code());
             mcss.load16SignExtend(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.movxwl_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.load16SignExtend(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
@@ -1882,16 +1606,13 @@ class Assembler
         }
     }
     
-    //NOTE*:This is new in ff24, it has the same define with lea() in old edit;
     void leal(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG_DISP:
-      //     masm.leal_mr(src.disp(), src.base(), dest.code());
-         mcss.lea(mAddress(src.base(), src.disp()), dest.code());
+         	mcss.lea(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-        //    masm.leal_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
-         mcss.lea(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
+         	mcss.lea(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
@@ -1913,9 +1634,9 @@ class Assembler
         }
         return j;
     }
+	
     //hwj
     JmpSrc jmpSrc(Label *label) {
-        //ok JmpSrc j = masm.jmp();
         JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -1927,13 +1648,8 @@ class Assembler
         }
         return j;
     }
-/*//no used
-    // Comparison of EAX against the address given by a Label.
-    JmpSrc cmpSrc(Label *label) ;
-*/
     //hwj
     JmpSrc jSrc(Condition cond, RepatchLabel *label) {
-        //JmpSrc j = masm.jCC(static_cast<JSC::X86Assembler::Condition>(cond));
        JmpSrc j = mcss.branch32(static_cast<JSC::MacroAssemblerMIPS::Condition>(cond), cmpTempRegister.code(), cmpTemp2Register.code()).getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -1945,7 +1661,6 @@ class Assembler
     }
     //hwj
     JmpSrc jmpSrc(RepatchLabel *label) {
-        //JmpSrc j = masm.jmp();
         JmpSrc j = mcss.jump().getJmpSrc();
         if (label->bound()) {
             // The jump can be immediately patched to the correct destination.
@@ -1964,29 +1679,24 @@ class Assembler
     void j(Condition cond, RepatchLabel *label) { jSrc(cond, label); }
     void jmp(RepatchLabel *label) { jmpSrc(label); }
 
-   void jmp(const Operand &op){
+   	void jmp(const Operand &op){
         switch (op.kind()) {
-            case Operand::REG_DISP:
-                mcss.jump(mAddress(op.base(), op.disp()));
-                break;
-            case Operand::SCALE:
-//ok            masm.jmp_m(op.disp(), op.base(), op.index(), op.scale());
-            mcss.jump(mBaseIndex(op.base(), op.index(), mScale(op.scale()), op.disp()));
+          case Operand::REG_DISP:
+            mcss.jump(mAddress(op.base(), op.disp()));
+            break;
+          case Operand::SCALE:
+           	mcss.jump(mBaseIndex(op.base(), op.index(), mScale(op.scale()), op.disp()));
             break;
           case Operand::REG:
-//ok            masm.jmp_r(op.reg());
             mcss.jump(op.reg());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
-    // no used
- //   void cmpEAX(Label *label) { cmpSrc(label); }
  //   hwj
     void bind(Label *label) {
         JSC::MacroAssembler::Label jsclabel;
-        //JSC::MIPSAssembler::JmpDest dst(masm.label());
         JSC::MIPSAssembler::JmpDst dst(masm.label());
         if (label->used()) {
             bool more;
@@ -2002,6 +1712,24 @@ class Assembler
         }
         label->bind(dst.offset());
     }
+	
+	// by wangqing, 2013-11-20 
+    void bindBranch(Label *label) {
+        JSC::MacroAssembler::Label jsclabel;
+        JSC::MIPSAssembler::JmpDst dst(masm.label());
+        if (label->used()) {
+            bool more;
+            JSC::MIPSAssembler::JmpSrc jmp(label->offset());
+            do {
+                JSC::MIPSAssembler::JmpSrc next;
+                more = masm.nextBranch(jmp, &next);
+                masm.linkBranch(jmp, dst);
+                jmp = next;
+            } while (more);
+        }
+        label->bind(dst.offset());
+    }
+
     //hwj
     void bind(RepatchLabel *label) {
         JSC::MacroAssembler::Label jsclabel;
@@ -2046,8 +1774,6 @@ class Assembler
         if (label->used()&&(label->getType())) {//1 jump table
             intptr_t src = label->offset();
             do {
-                //intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
-                //JSC::MIPSAssembler::setPointer(raw + src, address);
 				intptr_t next =*((intptr_t*)(raw + src-4));//date:1108
 				*((int*)(raw + src-4)) = (int)address;
                 src = next;
@@ -2057,8 +1783,6 @@ class Assembler
             intptr_t src = label->offset();
             do {
                 //hwj   //wangqing
-                //intptr_t next = reinterpret_cast<intptr_t>(JSC::MIPSAssembler::getPointer(raw + src));
-                //raw+codeLabel.dest()->offset  <--->raw+codeLabel.src()-->offset
                 int* ptrLuiIns = (int*)(raw+src-8);//hwj date:1030
                 int* ptrOriIns = (int*)(raw+src-4);//hwj date:1030
                 
@@ -2078,7 +1802,6 @@ class Assembler
     }
 
     void ret() {
-//ok        masm.ret();
         pop(ra);
         mcss.ret();
     }
@@ -2104,63 +1827,62 @@ class Assembler
     JmpSrc ma_call(void *dest);
 
     void breakpoint() {
-    //    masm.int3();
       mcss.breakpoint();
     }
     // The below cmpl methods switch the lhs and rhs when it invokes the
     // macroassembler to conform with intel standard.  When calling this
     // function put the left operand on the left as you would expect.
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Register &lhs, const Operand &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Register &src, Imm32 imm) {
         movl(src,cmpTempRegister);
         movl(imm,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Operand &op, Imm32 imm) {
         movl(op,cmpTempRegister);
         movl(imm,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Operand &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void cmpl(const Operand &op, ImmWord imm) {
         movl(op,cmpTempRegister);
         movl(imm,cmpTemp2Register);
     }
     void setCC(Condition cond, const Register &r);
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void testb(const Register &lhs, const Register &rhs) {
         JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(lhs));//SingleBytesRegs:t6,t7,t8,s0...s7,v0
-        JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(rhs));//?
+        JS_ASSERT(GeneralRegisterSet(Registers::SingleByteRegs).has(rhs));
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
         andl(cmpTemp2Register,cmpTempRegister);
         movl(zero,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void testl(const Register &lhs, const Register &rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
         andl(cmpTemp2Register,cmpTempRegister);
         movl(zero,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void testl(const Register &lhs, Imm32 rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
         andl(cmpTemp2Register,cmpTempRegister);
         movl(zero,cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
-   void testl(const Operand &lhs, Imm32 rhs) {
+     //edit by QuQiuwen
+    void testl(const Operand &lhs, Imm32 rhs) {
         movl(lhs,cmpTempRegister);
         movl(rhs,cmpTemp2Register);
         andl(cmpTemp2Register,cmpTempRegister);
@@ -2168,245 +1890,239 @@ class Assembler
     }
 
     void addl(Imm32 imm, const Register &dest) {
-//ok        masm.addl_ir(imm.value, dest.code());
-       mcss.add32(mTrustedImm32(imm.value), dest.code());
+        mcss.add32(mTrustedImm32(imm.value), dest.code());
     }
+
     void addl(Imm32 imm, const Operand &op) {
         switch (op.kind()) {
           case Operand::REG:
-//ok            masm.addl_ir(imm.value, op.reg());
             mcss.add32(mTrustedImm32(imm.value), op.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.addl_im(imm.value, op.disp(), op.base());
             mcss.add32(mTrustedImm32(imm.value), mAddress(op.base(), op.disp()));
             break;
-//#ifdef JS_CPU_X86
           case Operand::ADDRESS:
-//ok            masm.addl_im(imm.value, op.address());
             mcss.load32(op.address(), dataTempRegister.code());
             mcss.add32(mTrustedImm32(imm.value), dataTempRegister.code());
             mcss.store32(dataTempRegister.code(), op.address());
             break;
-//#endif
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void subl(Imm32 imm, const Register &dest) {
-//ok        masm.subl_ir(imm.value, dest.code());
         mcss.sub32(mTrustedImm32(imm.value), dest.code());
     }
+
     void subl(Imm32 imm, const Operand &op) {
         switch (op.kind()) {
           case Operand::REG:
-//ok            masm.subl_ir(imm.value, op.reg());
             mcss.sub32(mTrustedImm32(imm.value), op.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.subl_im(imm.value, op.disp(), op.base());
             mcss.sub32(mTrustedImm32(imm.value), mAddress(op.base(), op.disp()));
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void addl(const Register &src, const Register &dest) {
-//ok        masm.addl_rr(src.code(), dest.code());
         mcss.add32(src.code(), dest.code());
     }
+
     void subl(const Register &src, const Register &dest) {
-//ok        masm.subl_rr(src.code(), dest.code());
         mcss.sub32(src.code(), dest.code());
     }
+
     void subl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.subl_rr(src.reg(), dest.code());
             mcss.sub32(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.subl_mr(src.disp(), src.base(), dest.code());
             mcss.sub32(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void orl(const Register &reg, const Register &dest) {
-//ok        masm.orl_rr(reg.code(), dest.code());
         mcss.or32(reg.code(), dest.code());
     }
+
     void orl(Imm32 imm, const Register &reg) {
-//ok        masm.orl_ir(imm.value, reg.code());
         mcss.or32(mTrustedImm32(imm.value), reg.code());
     }
+
     void orl(Imm32 imm, const Operand &op) {
         switch (op.kind()) {
           case Operand::REG:
-//ok            masm.orl_ir(imm.value, op.reg());
             mcss.or32(mTrustedImm32(imm.value), op.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.orl_im(imm.value, op.disp(), op.base());
             mcss.or32(mTrustedImm32(imm.value), mAddress(op.base(), op.disp()));
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void xorl(const Register &src, const Register &dest) {
-//ok        masm.xorl_rr(src.code(), dest.code());
          mcss.xor32(src.code(), dest.code());
     }
+
     void xorl(Imm32 imm, const Register &reg) {
-//ok        masm.xorl_ir(imm.value, reg.code());
         mcss.xor32(mTrustedImm32(imm.value), reg.code());
     }
     void xorl(Imm32 imm, const Operand &op) {
         switch (op.kind()) {
           case Operand::REG:
-//ok            masm.xorl_ir(imm.value, op.reg());
             mcss.xor32(mTrustedImm32(imm.value), op.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.xorl_im(imm.value, op.disp(), op.base());
             mcss.xor32(mTrustedImm32(imm.value), mAddress(op.base(), op.disp()));
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
-    //NOTE*:this is new in ff24;
+
     void andl(const Register &src, const Register &dest) {
-      // masm.andl_rr(src.code(), dest.code());
-      // ok by weizhenwei, 2013.10.20
+      // by weizhenwei, 2013.10.20
         mcss.and32(src.code(), dest.code());
     }
+
     void andl(Imm32 imm, const Register &dest) {
-//ok        masm.andl_ir(imm.value, dest.code());
         mcss.and32(mTrustedImm32(imm.value), dest.code());
     }
     
  void andl(Imm32 imm, const Operand &op) {
         switch (op.kind()) {
           case Operand::REG:
-//ok            masm.andl_ir(imm.value, op.reg());
             mcss.and32(mTrustedImm32(imm.value), op.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.andl_im(imm.value, op.disp(), op.base());
             mcss.and32(mTrustedImm32(imm.value), mAddress(op.base(), op.disp()));
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void addl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.addl_rr(src.reg(), dest.code());
             mcss.add32(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.addl_mr(src.disp(), src.base(), dest.code());
             mcss.add32(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void orl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.orl_rr(src.reg(), dest.code());
             mcss.or32(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.orl_mr(src.disp(), src.base(), dest.code());
             mcss.or32(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void xorl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.xorl_rr(src.reg(), dest.code());
             mcss.xor32(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.xorl_mr(src.disp(), src.base(), dest.code());
             mcss.xor32(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void andl(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.andl_rr(src.reg(), dest.code());
             mcss.and32(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.andl_mr(src.disp(), src.base(), dest.code());
             mcss.and32(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
- void imull(Imm32 imm, const Register &dest) {
-//ok        masm.imull_i32r(dest.code(), imm.value, dest.code());
+
+    void imull(Imm32 imm, const Register &dest) {
         mcss.mul32(mTrustedImm32(imm.value), dest.code());
     }
+
     void imull(const Register &src, const Register &dest) {
-//ok        masm.imull_rr(src.code(), dest.code());
         mcss.mul32(src.code(), dest.code());
     }
+
     void imull(const Operand &src, const Register &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.imull_rr(src.reg(), dest.code());
             mcss.mul32(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.imull_mr(src.disp(), src.base(), dest.code());
             mcss.mul32(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
+    // by wangqing, 2013-11-29
+    void imull_opt(const Operand &src, const Register &dest) {
+        switch (src.kind()) {
+          case Operand::REG:
+	    masm.mul_opt(dest.code(), dest.code(), src.reg());
+            break;
+          case Operand::REG_DISP:
+	    mcss.load32(mAddress(src.base(), src.disp()), dataTempRegister.code());
+            masm.mul_opt(dest.code(), dest.code(), dataTempRegister.code());
+            break;
+          default:
+            JS_NOT_REACHED("unexpected operand kind");
+        }
+    }
+
     void negl(const Operand &src) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.negl_r(src.reg());
             mcss.neg32(src.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.negl_m(src.disp(), src.base());
             mcss.neg32(mAddress(src.base(), src.disp()));
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void negl(const Register &reg) {
-//ok        masm.negl_r(reg.code());
         mcss.neg32(reg.code());
     }
     
     void notl(const Operand &src) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.notl_r(src.reg());
             mcss.not32(src.reg());
             break;
           case Operand::REG_DISP:
-//ok            masm.notl_m(src.disp(), src.base());
             mcss.not32(mAddress(src.base(), src.disp()));
             break;
           default:
@@ -2414,60 +2130,61 @@ class Assembler
         }
     }
 
-    //NOTE* :this is new in ff24;
     //rewrite by weizhenwei, 2013.11.06
     void notl(const Register &reg) {
-//      mcss.not32(reg.code());
         masm.nor(reg.code(), reg.code(), zero.code());
     }
 
     //rewrite by weizhenwei, 2013.11.06
     void shrl(const Imm32 imm, const Register &dest) {
-//ok        masm.shrl_i8r(imm.value, dest.code());
-//        mcss.urshift32(mTrustedImm32(imm.value).m_value, dest.code());
         masm.srl(dest.code(), dest.code(), imm.value);
     }
 
     //rewrite by weizhenwei, 2013.11.06
     void shll(const Imm32 imm, const Register &dest) {
-//ok        masm.shll_i8r(imm.value, dest.code());
-//        mcss.lshift32(mTrustedImm32(imm.value), dest.code());
         masm.sll(dest.code(), dest.code(), imm.value);
     }
 
     //rewrite by weizhenwei, 2013.11.06
     void sarl(const Imm32 imm, const Register &dest) {
-//ok        masm.sarl_i8r(imm.value, dest.code());
-//        mcss.rshift32(mTrustedImm32(imm.value), dest.code());
         masm.sra(dest.code(), dest.code(), imm.value);
     }
 
-
     void shrl_cl(const Register &dest) {
-     //  masm.shrl_CLr(dest.code());
-     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+     //  by weizhenwei, 2013.10.21, change shift variable v0 to t8.
          mcss.urshift32(mRegisterID(t8.code()), dest.code());
     }
+    //  by weizhenwei, 2013.11.28
+    void shrl_cl(const Register &dest, const Register &cl) {
+         mcss.urshift32(cl.code(), dest.code());
+    }
+
     void shll_cl(const Register &dest) {
-     //  masm.shll_CLr(dest.code());
-     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+     //  by weizhenwei, 2013.10.21, change shift variable v0 to t8.
         mcss.lshift32(mRegisterID(t8.code()), dest.code());
     }
-    void sarl_cl(const Register &dest) {
-     // masm.sarl_CLr(dest.code());
-     //  ok, by weizhenwei, 2013.10.21, change shift variable v0 to t8.
-      mcss.rshift32(mRegisterID(t8.code()), dest.code());
+     //  by weizhenwei, 2013.11.28
+    void shll_cl(const Register &dest, const Register &cl) {
+        mcss.lshift32(cl.code(), dest.code());
     }
+
+    void sarl_cl(const Register &dest) {
+     //  by weizhenwei, 2013.10.21, change shift variable v0 to t8.
+      	mcss.rshift32(mRegisterID(t8.code()), dest.code());
+    }
+     //  by weizhenwei, 2013.11.28
+    void sarl_cl(const Register &dest, const Register &cl) {
+      	mcss.rshift32(cl.code(), dest.code());
+    }
+
     void push(const Imm32 imm) {
-//ok??        masm.push_i32(imm.value);
-//ok by weizhenwei, 2013.10.20, according MacroAssemblerMIPS.h:1515,void push(TrustImm32)
+	//  by weizhenwei, 2013.10.20, according MacroAssemblerMIPS.h:1515,void push(TrustImm32)
         mcss.push(mTrustedImm32(imm.value));
     }
 
     void push(const Operand &src) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.push_r(src.reg());
             if (src.reg() == sp.code()){
                 mcss.store32(mRegisterID(src.reg()), mAddress(src.base(), -4));
                 mcss.sub32(mTrustedImm32(4), mRegisterID(src.reg()));
@@ -2475,7 +2192,6 @@ class Assembler
                 mcss.push(mRegisterID(src.reg()));
             break;
           case Operand::REG_DISP:
-//ok            masm.push_m(src.disp(), src.base());
             mcss.sub32(mTrustedImm32(4), mRegisterID(sp.code()));
             mcss.load32(mAddress(src.base(), src.disp()), dataTempRegister.code());
             mcss.store32(dataTempRegister.code(), mAddress(sp.code(), 0));
@@ -2485,7 +2201,6 @@ class Assembler
         }
     }
     void push(const Register &src) {
-//ok        masm.push_r(src.code());
         if (src.code() == sp.code()){
             mcss.store32(mRegisterID(src.code()), mAddress(src.code(), -4));
             mcss.sub32(mTrustedImm32(4), mRegisterID(src.code()));
@@ -2495,14 +2210,12 @@ class Assembler
     void pop(const Operand &src) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.pop_r(src.reg());
             if (src.reg() == sp.code()){
                 mcss.load32(mAddress(src.base(), 0), mRegisterID(src.reg()));
             }else 
                 mcss.pop(mRegisterID(src.reg()));
             break;
           case Operand::REG_DISP:
-//ok            masm.pop_m(src.disp(), src.base());
             mcss.load32(mAddress(sp.code(), 0), dataTempRegister.code());
             mcss.store32(dataTempRegister.code(), mAddress(src.base(), src.disp()));
             mcss.add32(mTrustedImm32(4), mRegisterID(sp.code()));
@@ -2512,296 +2225,194 @@ class Assembler
         }
     }
     void pop(const Register &src) {
-//ok        masm.pop_r(src.code());
         if (src.code() == sp.code()){
             mcss.load32(mAddress(src.code(), 0), mRegisterID(src.code()));
         }else 
             mcss.pop(mRegisterID(src.code()));
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void pushFlags() {
         push(cmpTempRegister);
         push(cmpTemp2Register);
     }
-     //edit by QuQiuwen,OK
+     //edit by QuQiuwen
     void popFlags() {
         pop(cmpTemp2Register);
         pop(cmpTempRegister);
     }
-
-/*#ifdef JS_CPU_X86
-    void pushAllRegs() {
-        masm.pusha();
-    }
-    void popAllRegs() {
-        masm.popa();
-    }
-#endif
-*/
-    // Zero-extend byte to 32-bit integer.
 //wangce
 //just a "move"in "zeroExtend32ToPtr",may cause some trouble
     void movzxbl(const Register &src, const Register &dest)
     { 
-    	//masm.movzbl_rr(src.code(), dest.code());
     	mcss.zeroExtend32ToPtr(src.code(),dest.code());
     }
-    //Converts signed DWORD in EAX to a signed quad word in EDX:EAX by
-  //      extending the high order bit of EAX throughout EDX
-    void cdq() {
-      //  masm.cdq();
-      //  ASSERT(0);
-      //  ok, by weizhenwei, 2013.10.21
-      //  according jit/mips/CodeGenerator-mips.cpp:visitDivI(),
-      //  eax = t6, edx = t7
-      //  so mov(t6, t7), sar(32, 0x1F); signal extend.
-//        Imm32 imm = Imm32(0x1F);
-//        //mcss.mov(mRegisterID(t6.code()), mRegisterID(t7.code()));
-//        movl(t6, t7);
-//        mcss.rshift32(mTrustedImm32(imm.value), mRegisterID(t7.code()));
-    }
+
     void idiv(Register divisor) {
-      //  masm.idivl_r(divisor.code());//in x86:idivl  signed
-      //   mcss.div(t6.code(), divisor.code());
-      //  mcss.mflo(divisor.code());
-      //  ok, by weizhenwei, 2013.10.21
+      //  by weizhenwei, 2013.10.21
       div(t6, divisor);
       mfhi(t7);
       mflo(t6);
     }
-    //NOTE*:this is new in ff24; Need to update!
+    void idiv(const Register &lhs, const Register &rhs) {
+      //  by weizhenwei, 2013.11.28
+      div(lhs, rhs);
+      mflo(lhs);
+    }
+    void idivmod(const Register &lhs, const Register &rhs) {
+      //  by weizhenwei, 2013.11.28
+      div(lhs, rhs);
+      mfhi(lhs);
+    }
+
     void udiv(Register divisor) {
-      // ASSERT(0);
-      // masm.divl_r(divisor.code());// in x86:div unsigned
-      //  ok, by weizhenwei, 2013.10.21
+      //  by weizhenwei, 2013.10.21
       //  according jit/mips/CodeGenerator-mips.cpp:visitAsmJSDivOrMod(),
       //  it's the only invoking point of udiv, and already do the 
-      //  masm.xorl(t7/*edx*/,t7/* edx*/);
       //  so we directly invoke div here.
       divu(t6, divisor);
       mfhi(t7);
       mflo(t6);
     }
 
-    void unpcklps(const FloatRegister &src, const FloatRegister &dest) {
-    	ASSERT(0);
-   //     JS_ASSERT(HasSSE2());
-    //    masm.unpcklps_rr(src.code(), dest.code());
+    //  by weizhenwei, 2013.11.28
+    void udiv(const Register &lhs, const Register &rhs) {
+      divu(lhs, rhs);
+      mflo(lhs);
     }
-    void pinsrd(const Register &src, const FloatRegister &dest) {
-    	ASSERT(0);
-  //      JS_ASSERT(HasSSE2());
-   //     masm.pinsrd_rr(src.code(), dest.code());
+    //  by weizhenwei, 2013.11.28
+    void udivmod(const Register &lhs, const Register &rhs) {
+      divu(lhs, rhs);
+      mfhi(lhs);
     }
-    void pinsrd(const Operand &src, const FloatRegister &dest) {
-    	ASSERT(0);
-  /*      JS_ASSERT(HasSSE2());
-        switch (src.kind()) {
-          case Operand::REG:
-            masm.pinsrd_rr(src.reg(), dest.code());
-            break;
-          case Operand::REG_DISP:
-            masm.pinsrd_mr(src.disp(), src.base(), dest.code());
-            break;
-          default:
-            JS_NOT_REACHED("unexpected operand kind");
-        }*/
-    }
-    void psrldq(Imm32 shift, const FloatRegister &dest) {
-      ASSERT(0);
-      /*  JS_ASSERT(HasSSE2());
-        masm.psrldq_ir(shift.value, dest.code());*/
-    }
-    void psllq(Imm32 shift, const FloatRegister &dest) {
-    ASSERT(0);
-    /*    JS_ASSERT(HasSSE2());
-        masm.psllq_ir(shift.value, dest.code());*/
-    }
-    void psrlq(Imm32 shift, const FloatRegister &dest) {
-    ASSERT(0);
-   /*     JS_ASSERT(HasSSE2());
-        masm.psrlq_ir(shift.value, dest.code());*/
-    }
-
-   void ptest(const FloatRegister &lhs, const FloatRegister &rhs) {
-  ASSERT(0);
-   /*     JS_ASSERT(HasSSE41());
-        masm.ptest_rr(rhs.code(), lhs.code());*/
-    }
-    void pcmpeqw(const FloatRegister &lhs, const FloatRegister &rhs) {
-   ASSERT(0);
-    /*  JS_ASSERT(HasSSE2());
-        masm.pcmpeqw_rr(rhs.code(), lhs.code());*/
-    } 
     
     void cvtsi2sd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::REG:
-//ok            masm.cvtsi2sd_rr(src.reg(), dest.code());
             mcss.convertInt32ToDouble(src.reg(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.cvtsi2sd_mr(src.disp(), src.base(), dest.code());
             mcss.convertInt32ToDouble(mAddress(src.base(), src.disp()), dest.code());
             break;
           case Operand::SCALE:
-//ok            masm.cvtsi2sd_mr(src.disp(), src.base(), src.index(), src.scale(), dest.code());
             mcss.convertInt32ToDouble(mBaseIndex(src.base(), src.index(), mScale(src.scale()), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void cvttsd2si(const FloatRegister &src, const Register &dest) {
-//ok        masm.cvttsd2si_rr(src.code(), dest.code());
         mcss.truncateDoubleToInt32(src.code(), dest.code());
-//		cvtld(fpTempRegister, src);
-//		mfc1(dest, fpTempRegister);
     }
+
     void cvtsi2sd(const Register &src, const FloatRegister &dest) {
-//ok        masm.cvtsi2sd_rr(src.code(), dest.code());
         mcss.convertInt32ToDouble(src.code(), dest.code());
     }
-    void movmskpd(const FloatRegister &src, const Register &dest) {
-     //   JS_ASSERT(HasSSE2());
-    //    masm.movmskpd_rr(src.code(), dest.code());
-        // by wangqing. fix me
-        //JS_ASSERT(0);
-//        dmfc1(dest, src);
-//        dsrl32(dest, dest, ImmWord(0x1f));
-    }
-// NOT OK! This is about double compare. --QuQiuwen 
-    void ucomisd(const FloatRegister &lhs, const FloatRegister &rhs) {
-     //   JS_ASSERT(HasSSE2());
-   //     masm.ucomisd_rr(rhs.code(), lhs.code());
-   	 ASSERT(0);
-     //mcss.moveDouble(lhs.code(), fpTempRegister.code());
-     //mcss.moveDouble(rhs.code(), fpTemp2Register.code());
-    }
-//wangce
-   
+
     void movd(const Register &src, const FloatRegister &dest) {
-//ok        masm.movd_rr(src.code(), dest.code());
         mcss.convertInt32ToDouble(src.code(),dest.code());
     }
 //wangce
     void movd(const FloatRegister &src, const Register &dest) {
-//ok        masm.movd_rr(src.code(), dest.code());
         mcss.truncateDoubleToInt32(src.code(), dest.code());
     }
+
     void addsd(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.addsd_rr(src.code(), dest.code());
         mcss.addDouble(src.code(), dest.code());
     }
+
     void addsd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::FPREG:
-//ok            masm.addsd_rr(src.fpu(), dest.code());
             mcss.addDouble(src.fpu(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.addsd_mr(src.disp(), src.base(), dest.code());
             mcss.addDouble(mAddress(src.base(), src.disp()), dest.code());
             break;
-//#ifdef JS_CPU_X86
           case Operand::ADDRESS:
-//ok            masm.addsd_mr(src.address(), dest.code());
             mcss.addDouble(src.address(), dest.code());
             break;
-//#endif
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void subsd(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.subsd_rr(src.code(), dest.code());
         mcss.subDouble(src.code(), dest.code());
     }
+
     void subsd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::FPREG:
-//ok            masm.subsd_rr(src.fpu(), dest.code());
             mcss.subDouble(src.fpu(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.subsd_mr(src.disp(), src.base(), dest.code());
             mcss.subDouble(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void mulsd(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.mulsd_rr(src.code(), dest.code());
         mcss.mulDouble(src.code(), dest.code());
     }
+
     void mulsd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::FPREG:
-//ok            masm.mulsd_rr(src.fpu(), dest.code());
             mcss.mulDouble(src.fpu(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.mulsd_mr(src.disp(), src.base(), dest.code());
             mcss.mulDouble(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void divsd(const FloatRegister &src, const FloatRegister &dest) {
-//ok        masm.divsd_rr(src.code(), dest.code());
         mcss.divDouble(src.code(), dest.code());
     }
+
     void divsd(const Operand &src, const FloatRegister &dest) {
         switch (src.kind()) {
           case Operand::FPREG:
-//ok            masm.divsd_rr(src.fpu(), dest.code());
             mcss.divDouble(src.fpu(), dest.code());
             break;
           case Operand::REG_DISP:
-//ok            masm.divsd_mr(src.disp(), src.base(), dest.code());
             mcss.divDouble(mAddress(src.base(), src.disp()), dest.code());
             break;
           default:
             JS_NOT_REACHED("unexpected operand kind");
         }
     }
+
     void zerod(const FloatRegister &src);
     void absd(const FloatRegister &src);
     void xorpd(const FloatRegister &src, const FloatRegister &dest) {
-//          ASSERT(0);
-   //     JS_ASSERT(HasSSE2());
-  //      masm.xorpd_rr(src.code(), dest.code());
-     ASSERT(src.code() == dest.code());
-    zerod(src);
-    }
-    void orpd(const FloatRegister &src, const FloatRegister &dest) {
-        ASSERT(0);
-    /*    JS_ASSERT(HasSSE2());
-        masm.orpd_rr(src.code(), dest.code());*/
-         
-    }
-    void andpd(const FloatRegister &src, const FloatRegister &dest) {
-         ASSERT(0);
-  /*      JS_ASSERT(HasSSE2());
-        masm.andpd_rr(src.code(), dest.code());*/
-    
-    }
-    void sqrtsd(const FloatRegister &src, const FloatRegister &dest) {
-       // JS_ASSERT(HasSSE2());
-      //  masm.sqrtsd_rr(src.code(), dest.code());
-        mcss.sqrtDouble(src.code(), dest.code());
-    }
-    void roundsd(const FloatRegister &src, const FloatRegister &dest)
-        //         JSC::X86Assembler::RoundingMode mode)
-    {
-    //    JS_ASSERT(HasSSE41());
-    //    masm.roundsd_rr(src.code(), dest.code(), mode);
-     mcss.floorDouble(src.code(), dest.code());
+     	ASSERT(src.code() == dest.code());
+    	zerod(src);
     }
 
-    // Defined for compatibility with ARM's assembler
+    void orpd(const FloatRegister &src, const FloatRegister &dest) {
+        //only used at on place, CodeGenerator-mips.cpp:visitMinMaxD()
+        //by weizhenwei, 2013.11.19
+        mfc1(cmpTempRegister, js::jit::FloatRegister::FromCode(src.code() + 1));
+        mfc1(cmpTemp2Register, js::jit::FloatRegister::FromCode(dest.code() + 1));
+        orl(cmpTempRegister, cmpTemp2Register);
+        mtc1(cmpTemp2Register, js::jit::FloatRegister::FromCode(dest.code() + 1));
+    }
+
+    void sqrtsd(const FloatRegister &src, const FloatRegister &dest) {
+        mcss.sqrtDouble(src.code(), dest.code());
+    }
+
+    void roundsd(const FloatRegister &src, const FloatRegister &dest)
+    {
+     	mcss.floorDouble(src.code(), dest.code());
+    }
+
     uint32_t actualOffset(uint32_t x) {
         return x;
     }
@@ -2820,33 +2431,21 @@ class Assembler
     }
     //NOTE*: the type of return is changed;
     static uintptr_t getPointer(uint8_t *instPtr) {
-  //      uintptr_t *ptr = ((uintptr_t *) instPtr) - 1;
-  //      return *ptr;
-     uintptr_t ptr = reinterpret_cast<uintptr_t>(JSC::MIPSAssembler::getPointer(instPtr));
-    return ptr;
+    	uintptr_t ptr = reinterpret_cast<uintptr_t>(JSC::MIPSAssembler::getPointer(instPtr));
+    	return ptr;
     }
+
     // Write a relative call at the start location |dataLabel|.
     // Note that this DOES NOT patch data that comes before |label|.
     static void patchWrite_NearCall(CodeLocationLabel startLabel, CodeLocationLabel target);
 
     static void patchWrite_Imm32(CodeLocationLabel dataLabel, Imm32 toWrite) {
-     //   *((int32_t *) dataLabel.raw() - 1) = toWrite.value;
          JSC::MIPSAssembler::setInt32((int32 *) dataLabel.raw() -1, toWrite.value);
     }
 
     static void patchDataWithValueCheck(CodeLocationLabel data, ImmWord newData,
                                         ImmWord expectedData)  {
-//TBDok
-        // The pointer given is a pointer to *after* the data.
-//        uintptr_t *ptr = ((uintptr_t *) data.raw()) - 1;
-//        JS_ASSERT(*ptr == expectedData.value);
-//        *ptr = newData.value;
-
-//        uint32_t old = JSC::MIPSAssembler::getInt32(data.raw());
-//        JS_ASSERT(old == expectedData.value);
-//        JSC::MIPSAssembler::setInt32(((uint8_t *)data.raw()), (newData.value));
-
-        /* OK
+        /* 
          * author: wangqing
          * date: 2010-10-18
          *
@@ -2871,7 +2470,6 @@ class Assembler
     }
                                         
     static uint32_t nopSize() {
-    //    return 1;
        return 4;
     }
     static uint8_t *nextInstruction(uint8_t *cur, uint32_t *count) {
@@ -2893,17 +2491,12 @@ class Assembler
     //JMP->CMP
     static void ToggleToCmp(CodeLocationLabel inst) {//cmp eax (nop)
         int *ptr = (int *)inst.raw();
-                
-        //ASSERT((*(ptr+2)) == 0x10000004); //jmp
         ASSERT(*(ptr+5) == 0x00000000);
         *(ptr+5) = *ptr;    //backup fisrt instruction to nop
         *(ptr)=0x10000005;    //cmp eax
-        
-        //cache problem
     }
 
     //set CMP|CALL     
-    //NOTE* :this is new in ff24;
     static void ToggleCall(CodeLocationLabel inst, bool enabled) {
         int *ptr = (int *)inst.raw();
                 
@@ -2919,12 +2512,6 @@ class Assembler
         }        
     }
 
-/*
-    void nop()
-    {
-        masm.nop();
-    }
-*/
     void movz(const Register &rd, const Register &rs, const Register &rt)
     {
         masm.movz(rd.code(), rs.code(), rt.code());
@@ -3009,6 +2596,12 @@ class Assembler
     void mflo(const Register &rd)
     {
         masm.mflo(rd.code());
+    }
+
+    // by wangqing, 2013-11-29
+    void mul_opt(const Register &rd, const Register &rs, const Register &rt)
+    {
+        masm.mul_opt(rd.code(), rs.code(), rt.code());
     }
 
     void mul(const Register &rd, const Register &rs, const Register &rt)
@@ -3253,6 +2846,36 @@ class Assembler
         masm.bgez(rs.code(), imm);
     }
 
+	// by wangqing, 2013-11-21
+	void bgtz(const Register &rs, ImmWord imm)
+    {
+		masm.bgtz(rs.code(), imm.value);
+    }
+
+	// by wangqing, 2013-11-21
+	void bgtz(const Register &rs, int32_t imm)
+    {
+		masm.bgtz(rs.code(), imm);
+    }
+
+	// by wangqing, 2013-11-21
+	void blez(const Register &rs, ImmWord imm)
+    {
+		masm.blez(rs.code(), imm.value);
+    }
+
+	// by wangqing, 2013-11-21
+	void blez(const Register &rs, int32_t imm)
+    {
+		masm.blez(rs.code(), imm);
+    }
+
+	// by wangqing, overload bltz, 2013-11-21
+    void bltz(const Register &rs, int32_t imm)
+    {
+        masm.bltz(rs.code(), imm);
+    }
+
     void bltz(const Register &rs, ImmWord imm)
     {
         masm.bltz(rs.code(), imm.value);
@@ -3282,12 +2905,32 @@ class Assembler
 
     void bc1t()
     {
-        masm.bc1t();
+	masm.bc1t();
+    }
+    // by wangqing, 2013-11-27
+    void bc1t(int32_t imm)
+    {
+	masm.bc1t(imm);
+    }
+    // by weizhenwei, 2013-11-27
+    void bc1t(int32_t cc, int32_t imm)
+    {
+	masm.bc1t(mFPCCID(cc), imm);
     }
 
     void bc1f()
     {
-        masm.bc1f();
+	masm.bc1f();
+    }
+    // by wangqing, 2013-11-27
+    void bc1f(int32_t imm)
+    {
+	masm.bc1f(imm);
+    }
+    // by weizhenwei, 2013-11-27
+    void bc1f(int32_t cc, int32_t imm)
+    {
+	masm.bc1f(mFPCCID(cc), imm);
     }
 
     // by wangqing 2010-10-30
@@ -3530,7 +3173,197 @@ class Assembler
     {
         masm.cultd(fs.code(), ft.code());
     }
+	
+	// by wangqing, 2013-11-21
+	void b(Label *label) {
+		beq(zero, zero, label);
+    }
 
+	// by wangqing, 2013-11-20
+	void beq(const Register &left, const Register &right, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			beq(left, right, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				beq(left, right, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				beq(left, right, offset);
+			}
+        }
+    }
+	
+	// by wangqing, 2013-11-20
+	void bne(const Register &left, const Register &right, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bne(left, right, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bne(left, right, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bne(left, right, offset);
+			}
+        }
+    }
+	
+	// by wangqing, 2013-11-20
+	void bgtz(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bgtz(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bgtz(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bgtz(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-20
+	void bgez(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bgez(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bgez(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bgez(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-20
+	void bltz(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bltz(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bltz(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bltz(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-20
+	void blez(const Register &left, Label *label) {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2; 
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			blez(left, offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+            JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				blez(left, -1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				blez(left, offset);
+			}
+        }
+    }
+
+	// by wangqing, 2013-11-27
+	void bc1t(Label *label)
+    {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2;	
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bc1t(offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+			JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bc1t(-1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bc1t(offset);
+			}
+        }
+    }
+	
+	// by wangqing, 2013-11-27
+	void bc1f(Label *label)
+    {
+		JmpSrc j = masm.newJmpSrc();
+
+		int32_t pcOfBranch = masm.size();
+		int32_t offset;
+        if (label->bound()) {
+            // The jump can be immediately patched to the correct destination.
+			offset = (label->offset() - (pcOfBranch + 4)) >> 2;	
+			JS_ASSERT(offset >= -32768 && offset <= 32767);
+			bc1f(offset);
+        } else {
+            // Thread the jump list through the unpatched jump targets.
+			JmpSrc prev = JmpSrc(label->use(j.offset()));
+			if(prev.offset() == -1) // first JumpSource to the label.
+				bc1f(-1);	
+			else{
+				offset = (prev.offset() - (pcOfBranch + 4)) >> 2;
+				bc1f(offset);
+			}
+        }
+    }
 };
 
 // Get a register in which we plan to put a quantity that will be used as an

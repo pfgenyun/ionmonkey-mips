@@ -40,8 +40,6 @@ MacroAssemblerMIPS::loadConstantDouble(double d, const FloatRegister &dest)
             return;
     }
     Double &dbl = doubles_[doubleIndex];
-    //This is different with x86! 
-    //mcss.loadDouble(reinterpret_cast<void *>(dbl.uses.prev()), dest.code());
     //dbl.uses.setPrev(masm.size());
 	//hwj date:1106
 	mov(&(dbl.uses), addrTempRegister);
@@ -80,9 +78,7 @@ MacroAssemblerMIPS::setupABICall(uint32_t args)
         passedArgsBits_[i] = 0;
     }
 
-    //This is different with x86! 
     stackForCall_ = 16;
-//    subl(Imm32(16), sp);
 }
 
 void
@@ -103,7 +99,6 @@ MacroAssemblerMIPS::setupUnalignedABICall(uint32_t args, const Register &scratch
     push(scratch);
 }
 
-//This is different with x86! 
 //by weizhenwei, 2013.11.08
 void MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
 {
@@ -184,9 +179,6 @@ void MacroAssemblerMIPS::passABIArg(const MoveOperand &from)
                             enoughMemory_ &= moveResolver_.addMove(from, to, Move::DOUBLE);
                         } else if ( passedArgsBits_[1] == 2) { //second is int, 
                             //third is on ($6, $7)
-                            //TODO
-                            //passedArgsfake_++; //for align reason
-                            //JS_ASSERT(0);
                             JS_ASSERT(from.isFloatReg());
                             FloatRegister temp1 = from.floatReg();
                             FloatRegister temp2 = js::jit::FloatRegister::FromCode(temp1.code() + 1);
@@ -307,10 +299,8 @@ MacroAssemblerMIPS::callWithABIPre(uint32_t *stackAdjust)
 
 #ifdef DEBUG
     {
-       // breakpoint();//hwj
         // Check call alignment.
         Label good;
-        /* by wangqing esp-->sp */
         testl(sp, Imm32(StackAlignment - 1));
         j(Equal, &good);
         breakpoint();
@@ -334,14 +324,12 @@ MacroAssemblerMIPS::callWithABIPost(uint32_t stackAdjust, Result result)
     inCall_ = false;
 }
 
-//This is different with x86! 
 void
 MacroAssemblerMIPS::callWithABI(void *fun, Result result)
 {
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     ma_call(ImmWord(fun));//1031
-    //pop(ra);
 	callWithABIPost(stackAdjust, result);
 }
 void
@@ -350,7 +338,6 @@ MacroAssemblerMIPS::callWithABI(const Address &fun, Result result)
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     ma_call(Operand(fun));//1031
-	//pop(ra);
     callWithABIPost(stackAdjust, result);
 }
 
@@ -370,26 +357,39 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     Label catch_;
     Label finally;
     Label return_;
-	//breakpoint();//hwj
     loadPtr(Address(sp, offsetof(ResumeFromException, kind)), t6);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_FINALLY), &finally);
-    branch32(Assembler::Equal, t6, Imm32(ResumeFromException::RESUME_FORCED_RETURN), &return_);
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_ENTRY_FRAME), cmpTempRegister);
+	beq(t6, cmpTempRegister, &entryFrame);
+	nop();
+
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_CATCH), cmpTempRegister);
+	beq(t6, cmpTempRegister, &catch_);
+	nop();
+
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_FINALLY), cmpTempRegister);
+	beq(t6, cmpTempRegister, &finally);
+	nop();
+
+	// Modify branch32, by wangqing, 2013-11-29
+	movl(Imm32(ResumeFromException::RESUME_FORCED_RETURN), cmpTempRegister);
+	beq(t6, cmpTempRegister, &return_);
+	nop();
 
     breakpoint(); // Invalid kind.
 
     // No exception handler. Load the error value, load the new stack pointer
     // and return from the entry frame.
-    bind(&entryFrame);
+    bindBranch(&entryFrame);
     moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
     ret();
 
     // If we found a catch handler, this must be a baseline frame. Restore state
     // and jump to the catch block.
-	//breakpoint();//hwj
-	bind(&catch_);
+	bindBranch(&catch_);
     movl(Operand(sp, offsetof(ResumeFromException, target)), t6);
     movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
@@ -398,7 +398,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     // If we found a finally block, this must be a baseline frame. Push
     // two values expected by JSOP_RETSUB: BooleanValue(true) and the
     // exception.
-    bind(&finally);
+    bindBranch(&finally);
     ValueOperand exception = ValueOperand(t7, t8);
     loadValue(Operand(sp, offsetof(ResumeFromException, exception)), exception);
 
@@ -411,7 +411,7 @@ MacroAssemblerMIPS::handleFailureWithHandler(void *handler)
     jmp(Operand(t6));
 
     // Only used in debug mode. Return BaselineFrame->returnValue() to the caller.
-    bind(&return_);
+    bindBranch(&return_);
     movl(Operand(sp, offsetof(ResumeFromException, framePointer)), fp);
     movl(Operand(sp, offsetof(ResumeFromException, stackPointer)), sp);
     loadValue(Address(fp, BaselineFrame::reverseOffsetOfReturnValue()), JSReturnOperand);
@@ -424,21 +424,25 @@ void
 MacroAssemblerMIPS::branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label)
 {
     jsval_layout jv = JSVAL_TO_IMPL(v);
+	// by wangqing, 2013-11-29
     if (v.isMarkable())
-        cmpl(value.payloadReg(), ImmGCPtr(reinterpret_cast<gc::Cell *>(v.toGCThing())));
+		movl(ImmGCPtr(reinterpret_cast<gc::Cell *>(v.toGCThing())), cmpTempRegister);
     else
-        cmpl(value.payloadReg(), Imm32(jv.s.payload.i32));
+		movl(Imm32(jv.s.payload.i32), cmpTempRegister);
 
     if (cond == Equal) {
         Label done;
-        j(NotEqual, &done);
+		bne(value.payloadReg(), cmpTempRegister, &done);
+		nop();
         {
             cmpl(value.typeReg(), Imm32(jv.s.tag));
             j(Equal, label);
         }
-        bind(&done);
+        bindBranch(&done);
     } else {
         JS_ASSERT(cond == NotEqual);
+	    movl(value.payloadReg(), cmpTemp2Register);	
+
         j(NotEqual, label);
 
         cmpl(value.typeReg(), Imm32(jv.s.tag));
@@ -457,13 +461,19 @@ MacroAssemblerMIPS::testNegativeZero(const FloatRegister &reg, const Register &s
     // Compare to zero. Lets through {0, -0}.
     xorpd(ScratchFloatReg, ScratchFloatReg);
     // If reg is non-zero, then a test of Zero is false.
-    branchDouble(DoubleNotEqual, reg, ScratchFloatReg, &nonZero);
+    // check DoubleNotEqual, by wangqing, 2013-11-29
+    ceqd(reg, ScratchFloatReg);
+    bc1f(&nonZero);
+    nop();
 
     // Input register is either zero or negative zero. Test sign bit.
-    movmskpd(reg, scratch);
+    // by wangqing, 2013-11-19 
+    // get sign bit of Double
+    mfc1(scratch, js::jit::FloatRegister::FromCode(reg.code() + 1));
+    shrl(Imm32(31), scratch);
     // If reg is -0, then a test of Zero is true.
     cmpl(scratch, Imm32(1));
 
-    bind(&nonZero);
+    bindBranch(&nonZero);
     return Zero;
 }

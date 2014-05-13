@@ -38,9 +38,6 @@ enum EnterJitEbpArgumentOffset {
  * Generates a trampoline for a C++ function with the EnterIonCode signature,
  * using the standard cdecl calling convention.
  */
-//NOTE:This funtion is update in ff24; MUST BE UPDATE!
-//IonCode *
-//IonRuntime::generateEnterJIT(JSContext *cx)
 IonCode *
 IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
@@ -84,7 +81,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     masm.movl(sp, s0);
 
-    // eax <- 8*argc, eax is now the offset betwen argv and the last
     masm.movl(Operand(fp, ARG_ARGC), t6);
     masm.shll(Imm32(3), t6);
 
@@ -98,7 +94,6 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.subl(t6, t8);
     masm.subl(Imm32(12), t8);
 
-    // ecx = ecx & 15, holds alignment.
     masm.andl(Imm32(15), t8);
     masm.subl(t8, sp);
 
@@ -106,29 +101,26 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     Loop over argv vector, push arguments onto stack in reverse order
     ***************************************************************/
 
-    // ebx = argv   --argv pointer is in ebp + 16
     masm.movl(Operand(fp, ARG_ARGV), s1);
-
-    // eax = argv[8(argc)]  --eax now points one value past the last argument
     masm.addl(s1, t6);
-
-    // while (eax > ebx)  --while still looping through arguments
     {
+	// by wangqing, 2013-11-21
         Label header, footer;
-        masm.bind(&header);
+        masm.bindBranch(&header);
 
-        masm.cmpl(t6, s1);
-        masm.j(Assembler::BelowOrEqual, &footer);
+		masm.sltu(cmpTempRegister, s1, t6);
+		masm.blez(cmpTempRegister, &footer);
+		masm.nop();
 
-        // eax -= 8  --move to previous argument
         masm.subl(Imm32(8), t6);
 
         // Push what eax points to on stack, a Value is 2 words
         masm.push(Operand(t6, 4));
         masm.push(Operand(t6, 0));
 
-        masm.jmp(&header);
-        masm.bind(&footer);
+        masm.b(&header);
+		masm.nop();
+        masm.bindBranch(&footer);
     }
 
 
@@ -161,13 +153,12 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         GeneralRegisterSet regs(GeneralRegisterSet::All());
         regs.take(JSReturnOperand);
         regs.takeUnchecked(OsrFrameReg);
-        //regs.take(fp);        //hwj date:1030
-        //regs.take(ReturnReg); //hwj date:1030
 
         Register scratch = regs.takeAny();
 
         Label notOsr;
-        masm.branchTestPtr(Assembler::Zero, OsrFrameReg, OsrFrameReg, &notOsr);
+		masm.beq(OsrFrameReg, zero, &notOsr);
+		masm.nop();
 
         Register numStackValues = regs.takeAny();
         masm.movl(Operand(fp, ARG_STACKVALUES), numStackValues);
@@ -214,20 +205,21 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         Label error;
         masm.addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), sp);
         masm.addPtr(Imm32(BaselineFrame::Size()), framePtr);
-        masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, &error);
+		masm.beq(ReturnReg, zero, &error);
+		masm.nop();
 
         masm.jump(jitcode);
 
         // OOM: load error value, discard return address and previous frame
         // pointer and return.
-        masm.bind(&error);
+        masm.bindBranch(&error);
         masm.mov(framePtr, sp);
         masm.addPtr(Imm32(2 * sizeof(uintptr_t)), sp);
         masm.moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
         masm.mov(returnLabel.dest(), scratch);
         masm.jump(scratch);
 
-        masm.bind(&notOsr);
+        masm.bindBranch(&notOsr);
         masm.movl(Operand(fp, ARG_SCOPECHAIN), R1.scratchReg());
     }
     /***************************************************************
@@ -236,7 +228,7 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         fill in the passed in return value pointer
     ***************************************************************/
     //hwj
-    masm.call(Operand(fp, ARG_JITCODE));//ok
+    masm.call(Operand(fp, ARG_JITCODE));
     //hwj
     if (type == EnterJitBaseline) {
         // Baseline OSR will return here.
@@ -246,19 +238,10 @@ IonRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     }
     
     // Pop arguments off the stack.
-    // eax <- 8*argc (size of all arguments we pushed on the stack)
     masm.pop(t6);
     masm.shrl(Imm32(FRAMESIZE_SHIFT), t6); // Unmark EntryFrame.
     masm.addl(t6, sp);
 
-    // |ebp| could have been clobbered by the inner function.
-    // Grab the address for the Value result from the argument stack.
-    //  +18 ... arguments ...
-    //  +14 <return>
-    //  +10 ebp <- original %ebp pointing here.
-    //  +8  ebx
-    //  +4  esi
-    //  +0  edi
     // 19 regs saved on mips
     masm.movl(Operand(sp, ARG_RESULT + 17 * sizeof(void *)), t6);
     masm.storeValue(JSReturnOperand, Operand(t6, 0));
@@ -307,7 +290,6 @@ IonRuntime::generateInvalidator(JSContext *cx)
     // - Now that the frame has been bailed out, convert the invalidated frame into an exit frame.
     // - Do the normal check-return-code-and-thunk-to-the-interpreter dance.
 
-//	masm.breakpoint();
     masm.addl(Imm32(sizeof(uintptr_t)), sp);
 
     masm.reserveStack(Registers::Total * sizeof(void *));
@@ -329,7 +311,6 @@ IonRuntime::generateInvalidator(JSContext *cx)
     masm.reserveStack(sizeof(void *));
     masm.movl(sp, t8);
     
-    //hwj difference x86
     masm.setupUnalignedABICall(3, t7);
     masm.passABIArg(t6);
     masm.passABIArg(s1);
@@ -343,19 +324,15 @@ IonRuntime::generateInvalidator(JSContext *cx)
     // Pop the machine state and the dead frame.
     masm.lea(Operand(sp, s1, TimesOne, sizeof(InvalidationBailoutStack)), sp);//caution FloatRegisters::Total
 
-    //NOTE: This is different in ff24
     //hwj: position difference
-    //masm.generateBailoutTail(edx, ecx); //x86
     masm.generateBailoutTail(t7,t8);
 
     Linker linker(masm);
     IonCode *code = linker.newCode(cx, JSC::OTHER_CODE);
-    //IonCode *code = linker.newCode(cx);
     IonSpew(IonSpew_Invalidate, "   invalidation thunk created at %p", (void *) code->raw());
     return code;
 }
 
-//NOTE:This funtion is update in ff24; MUST BE UPDATE!
 //IonCode *
 //IonRuntime::generateArgumentsRectifier(JSContext *cx)
 IonCode *
@@ -381,21 +358,22 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     // NOTE: The fact that x86 ArgumentsRectifier saves the FramePointer is relied upon
     // by the baseline bailout code.  If this changes, fix that code!  See
     // BaselineJIT.cpp/BaselineStackBuilder::calculatePrevFramePtr, and
-    // BaselineJIT.cpp/InitFromBailout.  Check for the |#if defined(JS_CPU_X86)| portions.
+    // BaselineJIT.cpp/InitFromBailout. 
     masm.push(FramePointer);
-    masm.movl(sp, FramePointer); // Save %esp.
+    masm.movl(sp, FramePointer); 
 
     // Push undefined.
     {
+	// by wangqing, 2013-11-21
         Label undefLoopTop;
-        masm.bind(&undefLoopTop);
+        masm.bindBranch(&undefLoopTop);
 
         masm.push(s1); // type(undefined);
         masm.push(s2); // payload(undefined);
         masm.subl(Imm32(1), t8);
 
-        masm.testl(t8, t8);
-        masm.j(Assembler::NonZero, &undefLoopTop);
+		masm.bne(t8, zero, &undefLoopTop);
+		masm.nop();
     }
 
     // Get the topmost argument. We did a push of %ebp earlier, so be sure to
@@ -406,20 +384,22 @@ IonRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
     // Push arguments, |nargs| + 1 times (to include |this|).
     {
+	// by wangqing, 2013-11-21
         Label copyLoopTop, initialSkip;
 
-        masm.jump(&initialSkip);
+        masm.b(&initialSkip);
+		masm.nop();
 
-        masm.bind(&copyLoopTop);
+        masm.bindBranch(&copyLoopTop);
         masm.subl(Imm32(sizeof(Value)), t8);
         masm.subl(Imm32(1), s5);
-        masm.bind(&initialSkip);
+        masm.bindBranch(&initialSkip);
 
         masm.push(Operand(t8, sizeof(Value)/2));
         masm.push(Operand(t8, 0x0));
 
-        masm.testl(s5, s5);
-        masm.j(Assembler::NonZero, &copyLoopTop);
+		masm.bne(s5, zero, &copyLoopTop);
+		masm.nop();
     }
 
     // Construct descriptor, accounting for pushed frame pointer above
@@ -526,7 +506,8 @@ IonCode *
 IonRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
 {
     MacroAssembler masm;
-
+	
+    // by wangqing, 2013-11-21
     Label bailout;
     for (size_t i = 0; i < BAILOUT_TABLE_SIZE; i++)
         masm.call(&bailout);
@@ -658,17 +639,22 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     masm.callWithABI(f.wrapped);
 
     // Test for failure.
+	// by wangqing, 2013-11-21
     Label failure;
     switch (f.failType()) {
       case Type_Object:
-        masm.branchTestPtr(Assembler::Zero, v0, v0, &failure);
+		masm.beq(v0, zero, &failure);
+		masm.nop();
         break;
       case Type_Bool:
-        masm.testb(v0, v0);
-        masm.j(Assembler::Zero, &failure);
+		masm.beq(v0, zero, &failure);
+		masm.nop();
         break;
       case Type_ParallelResult:
-        masm.branchPtr(Assembler::NotEqual, v0, Imm32(TP_SUCCESS), &failure);
+		masm.movl(v0, cmpTempRegister);
+		masm.andl(Imm32(TP_SUCCESS), cmpTempRegister);
+		masm.bne(cmpTempRegister, zero, &failure);
+		masm.nop();
         break;
       default:
         JS_NOT_REACHED("unknown failure kind");
@@ -701,7 +687,7 @@ IonRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
                     f.explicitStackSlots() * sizeof(void *) +
                     f.extraValuesToPop * sizeof(Value)));
 
-    masm.bind(&failure);
+    masm.bindBranch(&failure);
     masm.handleFailure(f.executionMode);
 
     Linker linker(masm);
@@ -761,9 +747,9 @@ IonRuntime::generateDebugTrapHandler(JSContext *cx)
 {
     MacroAssembler masm;
 
-    Register scratch1 = t6/*eax*/;
-    Register scratch2 = t8/*ecx*/;
-    Register scratch3 = t7/*edx*/;
+    Register scratch1 = t6;
+    Register scratch2 = t8;
+    Register scratch3 = t7;
 
     // Load the return address in scratch1.
     masm.loadPtr(Address(sp, 0), scratch1);
@@ -793,10 +779,11 @@ IonRuntime::generateDebugTrapHandler(JSContext *cx)
     // (return from the JS frame). If the stub returns |false|, just return
     // from the trap stub so that execution continues at the current pc.
     Label forcedReturn;
-    masm.branchTest32(Assembler::NonZero, ReturnReg, ReturnReg, &forcedReturn);
+	masm.bne(ReturnReg, zero, &forcedReturn);
+	masm.nop();
     masm.ret();
 
-    masm.bind(&forcedReturn);
+    masm.bindBranch(&forcedReturn);
     masm.loadValue(Address(fp, BaselineFrame::reverseOffsetOfReturnValue()),
                    JSReturnOperand);
     masm.mov(fp, sp);
